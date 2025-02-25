@@ -11,7 +11,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'User App',
+      debugShowCheckedModeBanner: false, // Removes debug banner
+      title: 'Siddha Connect',
       theme: ThemeData(primarySwatch: Colors.blue),
       home: LoginScreen(),
     );
