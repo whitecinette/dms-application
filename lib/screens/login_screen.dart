@@ -1,3 +1,5 @@
+import 'package:dms_app/screens/humanResource/hr_dashboard.dart';
+import 'package:dms_app/screens/humanResource/hr_sidebar.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'employee/employee_dashboard.dart';
@@ -60,7 +62,13 @@ class _LoginScreenState extends State<LoginScreen> {
           context,
           MaterialPageRoute(builder: (context) => AdminDashboard(user: responseData['user'])),
         );
-      } else {
+      } else if(role == "hr") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HrDashboard(user: responseData['user'])),
+        );
+      }
+      else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Unknown role: $role. Contact support.")),
         );
