@@ -18,7 +18,7 @@ class LocationService {
 
       // Update Riverpod state
       ref.read(coordinatesProvider.notifier).state =
-      "Lat: ${position.latitude}, Long: ${position.longitude}";
+      "${position.latitude}, ${position.longitude}";
     } catch (e) {
       ref.read(coordinatesProvider.notifier).state = "Error: $e";
       log("Location error: $e");
