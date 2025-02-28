@@ -50,13 +50,13 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
     });
 
     try {
-      // Call API to punch in or punch out
-      final response = await ApiService.punchIn(latitude, longitude);
+      // ✅ Pass Image to API Call
+      final response = await ApiService.punchIn(latitude, longitude, _image!);
       print("Punch Response: $response");
 
       if (response.containsKey('status') && response['status'] == 'success') {
         setState(() {
-          _hasPunchedIn = !_hasPunchedIn; // Toggle state
+          _hasPunchedIn = !_hasPunchedIn; // Toggle Punch In/Out State
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -78,6 +78,7 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
       });
     }
   }
+
 
 
   @override

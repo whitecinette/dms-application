@@ -4,6 +4,11 @@ import 'dart:convert';
 import 'package:dms_app/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import '../config.dart';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart';
+import 'package:mime/mime.dart';
+import 'package:http_parser/http_parser.dart'; // ✅ Import this for MediaType
 
 class ApiService {
   static Future<Map<String, dynamic>> login(String code, String password) async {
@@ -32,7 +37,7 @@ class ApiService {
   }
 
   // punch in api
-  static Future<Map<String, dynamic>> punchIn(String latitude, String longitude) async {
+  static Future<Map<String, dynamic>> punchIn(String latitude, String longitude, File image) async {
     final url = Uri.parse("${Config.backendUrl}/punch-in");
     String? token = await AuthService.getToken();
 
@@ -40,31 +45,33 @@ class ApiService {
       throw Exception("User is not authenticated");
     }
 
-    print("Punch In API URL: $url");
-    print("Sending Latitude: $latitude, Longitude: $longitude");
-    print("Authorization Token: Bearer $token");
+    var request = http.MultipartRequest("POST", url);
+    request.headers["Authorization"] = "Bearer $token";
 
-    final response = await http.post(
-      url,
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $token",
-      },
-      body: json.encode({
-        "latitude": latitude,
-        "longitude": longitude,
-      }),
+    // ✅ Correct field names (Must match backend)
+    request.fields['latitude'] = latitude;
+    request.fields['longitude'] = longitude;
+
+    // ✅ Ensure correct field name: "punchInImage" (Same as in Multer)
+    final mimeType = lookupMimeType(image.path) ?? "image/jpeg";
+    final fileStream = await http.MultipartFile.fromPath(
+      'punchInImage', // ✅ Must match "punchInImage" in upload.single("punchInImage")
+      image.path,
+      contentType: MediaType.parse(mimeType),
     );
 
-    print("Response Status Code: ${response.statusCode}");
-    print("Response Body: ${response.body}");
+    request.files.add(fileStream);
 
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
+    final response = await request.send();
+    final responseBody = await response.stream.bytesToString();
+
+    if (response.statusCode == 201) {
+      return json.decode(responseBody);
     } else {
-      throw Exception(json.decode(response.body)['message'] ?? "Punch-in failed");
+      throw Exception(json.decode(responseBody)['message'] ?? "Punch-in failed");
     }
   }
+
 
 //punch out
   static Future<Map<String, dynamic>> punchOut(String latitude, String longitude) async {
