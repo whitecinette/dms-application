@@ -1,10 +1,13 @@
-// lib/main.dart
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // Import Riverpod
 import 'screens/login_screen.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(
+    ProviderScope( // Wrap your app with ProviderScope
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

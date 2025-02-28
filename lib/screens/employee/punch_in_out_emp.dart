@@ -4,12 +4,12 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:dms_app/services/location_service.dart';
 
-class PunchInOut extends ConsumerStatefulWidget {
+class PunchInOutEmp extends ConsumerStatefulWidget {
   @override
   _PunchInOutState createState() => _PunchInOutState();
 }
 
-class _PunchInOutState extends ConsumerState<PunchInOut> {
+class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
   File? _image;
   final ImagePicker _picker = ImagePicker();
 

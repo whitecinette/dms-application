@@ -5,6 +5,7 @@ import 'package:dms_app/screens/humanResource/attendance.dart';
 import 'package:dms_app/screens/humanResource/Hr_beat_mapping.dart';
 import 'package:dms_app/screens/humanResource/announcement.dart';
 import 'package:dms_app/screens/humanResource/dashboard.dart';
+import 'package:dms_app/screens/humanResource/hr_dashboard.dart';
 import 'package:dms_app/screens/humanResource/leave_request.dart';
 import 'package:dms_app/screens/humanResource/obm.dart';
 import 'package:dms_app/screens/humanResource/payroll.dart';
@@ -46,7 +47,7 @@ class HumanResourceSidebar extends StatelessWidget {
               ],
             ),
           ),
-          _buildDrawerItem(Icons.dashboard, "Dashboard", context, Dashboard()),
+          _buildDrawerItem(Icons.dashboard, "Dashboard", context, HrDashboard(user: user)),
           _buildDrawerItem(Icons.receipt_long, "Vouchers", context, VoucherScreen()),
           _buildDrawerItem(Icons.map, "Beat Mapping", context, BeatMappingScreen()),
           _buildDrawerItem(Icons.timeline, "Timeline", context, TimelineScreen()),
@@ -58,7 +59,7 @@ class HumanResourceSidebar extends StatelessWidget {
             title: Text("Attendance & Leaves"),
             children: [
               _buildDrawerItem(Icons.location_on, "Tracking", context, TrackingScreen()),
-              _buildDrawerItem(Icons.event_available, "Leave Request", context, LeaverequestScreen()),
+              _buildDrawerItem(Icons.event_available, "Attendance", context, AttendanceScreen()),
             ],
           ),
           ExpansionTile(
