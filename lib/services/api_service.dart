@@ -74,35 +74,42 @@ class ApiService {
 
 
 //punch out
-  static Future<Map<String, dynamic>> punchOut(String latitude, String longitude) async {
+  static Future<Map<String, dynamic>> punchOut(String latitude, String longitude, File image) async {
     final url = Uri.parse("${Config.backendUrl}/punch-out");
 
-    // Fetch the JWT token from your authentication service
+    // Fetch JWT token
     String? token = await AuthService.getToken();
-    print("Stored Token: $token");
-
     if (token == null) {
       throw Exception("User is not authenticated");
     }
 
-    final response = await http.post(
-      url,
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $token", // Pass JWT token in the header
-      },
-      body: json.encode({
-        "latitude": latitude,
-        "longitude": longitude,
-      }),
+    var request = http.MultipartRequest("POST", url);
+    request.headers["Authorization"] = "Bearer $token";
+
+    // ✅ Sending location data
+    request.fields['latitude'] = latitude;
+    request.fields['longitude'] = longitude;
+
+    // ✅ Ensuring correct field name for backend (Must match multer field)
+    final mimeType = lookupMimeType(image.path) ?? "image/jpeg";
+    final fileStream = await http.MultipartFile.fromPath(
+      'punchOutImage', // ✅ Field name should be "punchOutImage"
+      image.path,
+      contentType: MediaType.parse(mimeType),
     );
 
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
+    request.files.add(fileStream);
+
+    final response = await request.send();
+    final responseBody = await response.stream.bytesToString();
+
+    if (response.statusCode == 201) {
+      return json.decode(responseBody);
     } else {
-      throw Exception(json.decode(response.body)['message'] ?? "Punch-out failed");
+      throw Exception(json.decode(responseBody)['message'] ?? "Punch-out failed");
     }
   }
+
 }
 
 
