@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:dms_app/services/location_service.dart';
+import 'package:dms_app/utils/responsive.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PunchInOutEmp extends ConsumerStatefulWidget {
   @override
@@ -17,13 +19,32 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
   bool _isSubmitting = false;
   bool _hasPunchedIn = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadPunchStatus();
+  }
+
+  /// Load the punch-in status from local storage
+  Future<void> _loadPunchStatus() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _hasPunchedIn = prefs.getBool('hasPunchedIn') ?? false;
+    });
+  }
+
+  /// Save the punch-in status to local storage
+  Future<void> _savePunchStatus(bool status) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('hasPunchedIn', status);
+  }
+
   Future<void> _captureImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.camera);
     if (pickedFile != null) {
       setState(() {
         _image = File(pickedFile.path);
       });
-
       await LocationService(ref).getLocation();
     }
   }
@@ -51,19 +72,13 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
           _image = null;
         });
 
+        await _savePunchStatus(true);
         ref.read(coordinatesProvider.notifier).state = "";
 
         _showPopup("Success", "You have successfully punched in.", true);
-
-        // Navigate to SalesDashboard after success
-        Future.delayed(Duration(seconds: 1), () {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => SalesDashboard()),
-          );
-        });
       } else {
-        _showPopup("Error", response['message'] ?? "Unexpected response", false);
+        _showPopup(
+            "Error", response['message'] ?? "Unexpected response", false);
       }
     } catch (error) {
       _showPopup("Error", "Something went wrong: ${error.toString()}", false);
@@ -91,26 +106,19 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
 
     try {
       final response = await ApiService.punchOut(latitude, longitude, _image!);
-      if (response.containsKey('message') &&
-          response['message'] == "Punch-out recorded successfully") {
+      if (response.containsKey('message')) {
         setState(() {
           _hasPunchedIn = false;
           _image = null;
         });
 
+        await _savePunchStatus(false);
         ref.read(coordinatesProvider.notifier).state = "";
 
         _showPopup("Success", "You have successfully punched out.", true);
-
-        // Navigate to SalesDashboard after success
-        Future.delayed(Duration(seconds: 1), () {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => SalesDashboard()),
-          );
-        });
       } else {
-        _showPopup("Error", response['message'] ?? "Unexpected response", false);
+        _showPopup(
+            "Error", response['message'] ?? "Unexpected response", false);
       }
     } catch (error) {
       _showPopup("Error", "Something went wrong: ${error.toString()}", false);
@@ -131,14 +139,16 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
               Icon(isSuccess ? Icons.check_circle : Icons.error,
                   color: isSuccess ? Colors.green : Colors.red),
               SizedBox(width: 10),
-              Text(title, style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(title,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ],
           ),
-          content: Text(message),
+          content: Text(message, style: TextStyle(fontSize: 14)),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text("OK", style: TextStyle(color: Colors.blueAccent)),
+              child: Text("OK",
+                  style: TextStyle(color: Colors.blueAccent, fontSize: 14)),
             ),
           ],
         );
@@ -153,7 +163,7 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Punch In/Out"),
+        title: Text("Punch In/Out"),
         backgroundColor: Colors.blueAccent,
         elevation: 5,
       ),
@@ -161,53 +171,62 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _image != null
-                ? CircleAvatar(radius: 90, backgroundImage: FileImage(_image!))
-                : CircleAvatar(
-              radius: 90,
-              backgroundColor: Colors.grey[300],
-              child: Text("No Image"),
-            ),
-            SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: _captureImage,
-              child: Text(_image == null ? "Capture" : "Re-Capture"),
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 90,
+                  backgroundImage: _image != null ? FileImage(_image!) : null,
+                  backgroundColor: Colors.grey[300],
+                  child: _image == null
+                      ? Icon(Icons.camera_alt,
+                          size: 50, color: Colors.grey[700])
+                      : null,
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: IconButton(
+                    icon:
+                        Icon(Icons.camera, size: 30, color: Colors.blueAccent),
+                    onPressed: _captureImage,
+                  ),
+                ),
+              ],
             ),
             SizedBox(height: 30),
             isLoading
                 ? CircularProgressIndicator()
-                : Container(
-              padding: EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                  border: Border.all(color: Colors.blueAccent)),
-              child: Text(location.isNotEmpty
-                  ? location
-                  : "Location not available"),
-            ),
+                : Text(
+                    location.isNotEmpty ? location : "Location not available"),
             SizedBox(height: 20),
-
-            // Punch In Button (Enabled initially, disabled after punch in)
-            ElevatedButton(
-              onPressed: (!_hasPunchedIn && !_isSubmitting) ? _submitPunchIn : null,
-              child: _isSubmitting && !_hasPunchedIn
-                  ? CircularProgressIndicator(color: Colors.white)
-                  : Text("Punch In"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _hasPunchedIn ? Colors.grey : Colors.green,
-              ),
-            ),
-
-            SizedBox(height: 10),
-
-            // Punch Out Button (Disabled initially, enabled after punch in)
-            ElevatedButton(
-              onPressed: (_hasPunchedIn && !_isSubmitting) ? _submitPunchOut : null,
-              child: _isSubmitting && _hasPunchedIn
-                  ? CircularProgressIndicator(color: Colors.white)
-                  : Text("Punch Out"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _hasPunchedIn ? Colors.red : Colors.grey,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: (!_hasPunchedIn && !_isSubmitting)
+                      ? _submitPunchIn
+                      : null,
+                  child: _isSubmitting && !_hasPunchedIn
+                      ? CircularProgressIndicator(color: Colors.white)
+                      : Text("Punch In"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _hasPunchedIn ? Colors.grey : Colors.green,
+                  ),
+                ),
+                SizedBox(width: 10),
+                ElevatedButton(
+                  onPressed: (_hasPunchedIn && !_isSubmitting)
+                      ? _submitPunchOut
+                      : null,
+                  child: _isSubmitting && _hasPunchedIn
+                      ? CircularProgressIndicator(color: Colors.white)
+                      : Text("Punch Out"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _hasPunchedIn ? Colors.red : Colors.grey,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
