@@ -18,6 +18,9 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
   final ImagePicker _picker = ImagePicker();
   bool _isSubmitting = false;
   bool _hasPunchedIn = false;
+  bool _isPunchingIn = false;
+  bool _isPunchingOut = false;
+
 
   @override
   void initState() {
@@ -61,7 +64,7 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
     String longitude = coordinates[1].trim();
 
     setState(() {
-      _isSubmitting = true;
+      _isPunchingIn = true; // Only update this
     });
 
     try {
@@ -74,17 +77,15 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
 
         await _savePunchStatus(true);
         ref.read(coordinatesProvider.notifier).state = "";
-
         _showPopup("Success", "You have successfully punched in.", true);
       } else {
-        _showPopup(
-            "Error", response['message'] ?? "Unexpected response", false);
+        _showPopup("Error", response['message'] ?? "Unexpected response", false);
       }
     } catch (error) {
       _showPopup("Error", "Something went wrong: ${error.toString()}", false);
     } finally {
       setState(() {
-        _isSubmitting = false;
+        _isPunchingIn = false; // Reset only this
       });
     }
   }
@@ -101,7 +102,7 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
     String longitude = coordinates[1].trim();
 
     setState(() {
-      _isSubmitting = true;
+      _isPunchingOut = true; // Only update this
     });
 
     try {
@@ -114,20 +115,19 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
 
         await _savePunchStatus(false);
         ref.read(coordinatesProvider.notifier).state = "";
-
         _showPopup("Success", "You have successfully punched out.", true);
       } else {
-        _showPopup(
-            "Error", response['message'] ?? "Unexpected response", false);
+        _showPopup("Error", response['message'] ?? "Unexpected response", false);
       }
     } catch (error) {
       _showPopup("Error", "Something went wrong: ${error.toString()}", false);
     } finally {
       setState(() {
-        _isSubmitting = false;
+        _isPunchingOut = false; // Reset only this
       });
     }
   }
+
 
   void _showPopup(String title, String message, bool isSuccess) {
     showDialog(
@@ -203,29 +203,40 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // ElevatedButton(
+                //   onPressed: (!_hasPunchedIn && !_isSubmitting)
+                //       ? _submitPunchIn
+                //       : null,
+                //   child: _isSubmitting && !_hasPunchedIn
+                //       ? CircularProgressIndicator(color: Colors.white)
+                //       : Text("Punch In"),
+                //   style: ElevatedButton.styleFrom(
+                //     backgroundColor: _hasPunchedIn ? Colors.grey : Colors.green,
+                //   ),
+                // ),
                 ElevatedButton(
-                  onPressed: (!_hasPunchedIn && !_isSubmitting)
-                      ? _submitPunchIn
-                      : null,
-                  child: _isSubmitting && !_hasPunchedIn
+                  onPressed: _isPunchingIn ? null : _submitPunchIn, // Disable when loading
+                  child: _isPunchingIn
                       ? CircularProgressIndicator(color: Colors.white)
                       : Text("Punch In"),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _hasPunchedIn ? Colors.grey : Colors.green,
+                    backgroundColor: Colors.green,
                   ),
                 ),
+
                 SizedBox(width: 10),
+
                 ElevatedButton(
-                  onPressed: (_hasPunchedIn && !_isSubmitting)
-                      ? _submitPunchOut
-                      : null,
-                  child: _isSubmitting && _hasPunchedIn
+                  onPressed: _isPunchingOut ? null : _submitPunchOut, // Disable when loading
+                  child: _isPunchingOut
                       ? CircularProgressIndicator(color: Colors.white)
                       : Text("Punch Out"),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _hasPunchedIn ? Colors.red : Colors.grey,
+                    backgroundColor: Colors.red,
                   ),
                 ),
+
+
               ],
             ),
           ],
