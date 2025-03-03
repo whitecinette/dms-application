@@ -110,6 +110,121 @@ class ApiService {
     }
   }
 
+
+// Get Weekly Beat Mapping Schedule
+  static Future<Map<String, dynamic>> getWeeklyBeatMappingSchedule(String? startDate, String? endDate) async {
+    final url = Uri.parse("${Config.backendUrl}/get-weekly-beat-mapping-schedule" +
+        (startDate != null && endDate != null ? "?startDate=$startDate&endDate=$endDate" : ""));
+
+    print("Request URL: $url");
+
+    String? token = await AuthService.getToken();
+    if (token == null) {
+      print("Token is null, user is not authenticated");
+      throw Exception("User is not authenticated");
+    }
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      // print("Response Status: ${response.statusCode}");
+      // print("Response Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseBody = json.decode(response.body);
+
+        // Check if "data" exists and is a list
+        if (responseBody.containsKey("data") && responseBody["data"] is List) {
+          return responseBody;
+        } else {
+          throw Exception("Unexpected response format: Missing 'data' key");
+        }
+      } else {
+        throw Exception(json.decode(response.body)['error'] ?? "Failed to fetch weekly beat mapping schedule");
+      }
+    } catch (e) {
+      print("Error occurred: $e");
+      throw Exception("Network error or invalid response: $e");
+    }
+  }
+
+// // update weekly beat mapping schedule
+//   static Future<Map<String, dynamic>> updateWeeklyBeatMappingStatus(String scheduleId, String dealerCode, String day, String status) async {
+//     final url = Uri.parse("${Config.backendUrl}/update-weekly-beat-mapping-status/$scheduleId/$dealerCode");
+//
+//     String? token = await AuthService.getToken();
+//     if (token == null) {
+//       print("Token is null, user is not authenticated");
+//       throw Exception("User is not authenticated");
+//     }
+//
+//     try {
+//       final response = await http.put(
+//         url,
+//         headers: {
+//           "Authorization": "Bearer $token",
+//           "Content-Type": "application/json"
+//         },
+//         body: jsonEncode({
+//           "day": day,
+//           "status": status
+//         }),
+//       );
+//
+//       if (response.statusCode == 200) {
+//         return json.decode(response.body);
+//       } else {
+//         throw Exception(json.decode(response.body)['error'] ?? "Failed to update status");
+//       }
+//     } catch (e) {
+//       print("Error occurred: $e");
+//       throw Exception("Network error or invalid response: $e");
+//     }
+//   }
+
+
+
+//   update weekly beat mapping shedule with proximity
+  static Future<Map<String, dynamic>> updateWeeklyBeatMappingStatusWithProximity(String scheduleId, String dealerCode, String status, double employeeLat, double employeeLong) async {
+
+    final url = Uri.parse("${Config.backendUrl}/update-beat-mapping-status-proximity/$scheduleId/$dealerCode");
+
+    String? token = await AuthService.getToken();
+    if (token == null) {
+      print("Token is null, user is not authenticated");
+      throw Exception("User is not authenticated");
+    }
+
+    try {
+      final response = await http.put(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json"
+        },
+        body: jsonEncode({
+          "status": status,
+          "employeeLat": employeeLat,
+          "employeeLong": employeeLong
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception(json.decode(response.body)['error'] ?? "Failed to update status");
+      }
+    } catch (e) {
+      print("Error occurred: $e");
+      throw Exception("Network error or invalid response: $e");
+    }
+  }
+
+
 }
+
 
 
