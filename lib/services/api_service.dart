@@ -151,6 +151,48 @@ class ApiService {
     }
   }
 
+
+  static Future<Map<String, dynamic>> updateWeeklyBeatMappingStatusWithProximity(String scheduleId, String code, String status, double employeeLat, double employeeLong) async {
+
+    print("API call initiated...");
+    final url = Uri.parse("${Config.backendUrl}/update-beat-mapping-status-proximity/$scheduleId/$code");
+
+    print("API URL: $url");
+
+    String? token = await AuthService.getToken();
+    if (token == null) {
+      print("Token is null, user is not authenticated");
+      throw Exception("User is not authenticated");
+    }
+
+    try {
+      final response = await http.put(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json"
+        },
+        body: jsonEncode({
+          "status": status,
+          "employeeLat": employeeLat,
+          "employeeLong": employeeLong
+        }),
+      );
+
+      print("Response Status Code: ${response.statusCode}");
+      print("Response Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception(json.decode(response.body)['error'] ?? "Failed to update status");
+      }
+    } catch (e) {
+      print("Error occurred: $e");
+      throw Exception("Network error or invalid response: $e");
+    }
+  }
+
 // // update weekly beat mapping schedule
 //   static Future<Map<String, dynamic>> updateWeeklyBeatMappingStatus(String scheduleId, String dealerCode, String day, String status) async {
 //     final url = Uri.parse("${Config.backendUrl}/update-weekly-beat-mapping-status/$scheduleId/$dealerCode");
@@ -188,42 +230,6 @@ class ApiService {
 
 
 //   update weekly beat mapping shedule with proximity
-  static Future<Map<String, dynamic>> updateWeeklyBeatMappingStatusWithProximity(String scheduleId, String dealerCode, String status, double employeeLat, double employeeLong) async {
-
-    final url = Uri.parse("${Config.backendUrl}/update-beat-mapping-status-proximity/$scheduleId/$dealerCode");
-
-    String? token = await AuthService.getToken();
-    if (token == null) {
-      print("Token is null, user is not authenticated");
-      throw Exception("User is not authenticated");
-    }
-
-    try {
-      final response = await http.put(
-        url,
-        headers: {
-          "Authorization": "Bearer $token",
-          "Content-Type": "application/json"
-        },
-        body: jsonEncode({
-          "status": status,
-          "employeeLat": employeeLat,
-          "employeeLong": employeeLong
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception(json.decode(response.body)['error'] ?? "Failed to update status");
-      }
-    } catch (e) {
-      print("Error occurred: $e");
-      throw Exception("Network error or invalid response: $e");
-    }
-  }
-
-
 }
 
 
