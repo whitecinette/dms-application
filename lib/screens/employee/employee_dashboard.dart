@@ -13,6 +13,7 @@ class EmployeeDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
+      appBar: Header(scaffoldKey: _scaffoldKey, user: user),
       drawer: EmployeeSidebar(user: user),
       body: SalesDashboard(), // Call SalesDashboard directly
     );

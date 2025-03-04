@@ -32,7 +32,7 @@ class _SalesDashboardState extends State<SalesDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: GlobalKey<ScaffoldState>(),
-      appBar: Header(scaffoldKey: GlobalKey<ScaffoldState>(), user: {'name': 'User', 'role': 'Sales'}),
+      // appBar: Header(scaffoldKey: GlobalKey<ScaffoldState>(), user: {'name': 'User', 'role': 'Sales'}),
       drawer: EmployeeSidebar(user: {'name': 'User', 'role': 'Sales'}),
       body: SingleChildScrollView(
         child: Padding(
