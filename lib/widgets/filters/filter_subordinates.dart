@@ -36,11 +36,11 @@ class _FilterSubordinatesState extends State<FilterSubordinates> {
     double fontSize = MediaQuery.of(context).size.width * 0.035;
 
     return GestureDetector(
-      behavior: HitTestBehavior.translucent, // Detect taps outside
+      behavior: HitTestBehavior.translucent, // Ensure it detects taps outside
       onTap: () {
         setState(() {
           dropdownState.forEach((key, value) {
-            dropdownState[key] = false; // Close all dropdowns on outside tap
+            dropdownState[key] = false; // Close all dropdowns
           });
         });
       },
@@ -61,14 +61,20 @@ class _FilterSubordinatesState extends State<FilterSubordinates> {
               children: positions.map((position) {
                 return GestureDetector(
                   onTap: () {
-                    if (position != "ALL") toggleDropdown(position);
+                    setState(() {
+                      // Toggle dropdown only for the clicked position
+                      dropdownState.forEach((key, value) {
+                        if (key != position) dropdownState[key] = false;
+                      });
+                      dropdownState[position] = !(dropdownState[position] ?? false);
+                    });
                   },
                   child: Text(
                     position,
                     style: TextStyle(
                       fontSize: fontSize,
                       fontWeight: position == "ALL" ? FontWeight.bold : FontWeight.w500,
-                      color: position == "ALL" ? Colors.orange : Colors.black,
+                      color: dropdownState[position] == true ? Colors.orange : Colors.black,
                     ),
                   ),
                 );
@@ -82,7 +88,11 @@ class _FilterSubordinatesState extends State<FilterSubordinates> {
           Column(
             children: positions.where((pos) => pos != "ALL").map((position) {
               if (dropdownState[position] ?? false) {
-                return _buildDropdown(position, fontSize);
+                return GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: () {}, // Prevents closing when clicking inside dropdown
+                  child: _buildDropdown(position, fontSize),
+                );
               }
               return SizedBox.shrink();
             }).toList(),
@@ -90,6 +100,7 @@ class _FilterSubordinatesState extends State<FilterSubordinates> {
         ],
       ),
     );
+
 
 
   }
