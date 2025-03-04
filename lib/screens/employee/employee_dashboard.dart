@@ -1,19 +1,20 @@
-// lib/screens/employee/employee_dashboard.dart
-
 import 'package:flutter/material.dart';
+import '../../widgets/header.dart';
 import 'employee_sidebar.dart';
+import 'sales_dashboard.dart'; // Import SalesDashboard
 
 class EmployeeDashboard extends StatelessWidget {
   final dynamic user;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   EmployeeDashboard({required this.user});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Employee Dashboard (${user['role']})")),
+      key: _scaffoldKey,
       drawer: EmployeeSidebar(user: user),
-      body: Center(child: Text("Welcome, ${user['name']}!")),
+      body: SalesDashboard(), // Call SalesDashboard directly
     );
   }
 }
