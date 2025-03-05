@@ -132,7 +132,14 @@ class _SalesDashboardState extends State<SalesDashboard> {
                 SizedBox(height: 10),
 
                 // Tabbed Tables (Segment, Channel, Model)
-                TabbedTables(),
+                // Inside SalesDashboard
+                TabbedTables(
+                  selectedType: selectedType,
+                  startDate: selectedStartDate,
+                  endDate: selectedEndDate,
+                  token: userToken,
+                ),
+
 
                 SizedBox(height: 20),
 

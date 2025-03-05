@@ -1,143 +1,83 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import '../config.dart';
 
 class TabbedTables extends StatefulWidget {
+  final String selectedType; // Volume or Value
+  final String startDate;
+  final String endDate;
+  final String token; // User Auth Token
+
+  TabbedTables({
+    required this.selectedType,
+    required this.startDate,
+    required this.endDate,
+    required this.token,
+  });
+
   @override
   _TabbedTablesState createState() => _TabbedTablesState();
 }
 
 class _TabbedTablesState extends State<TabbedTables> {
   String activeTab = "Segment"; // Default active tab
-
   final List<String> tabs = ["Segment", "Channel", "Model"];
+  List<String> headers = [];
+  List<Map<String, dynamic>> tableData = [];
+  bool isLoading = false;
 
-  final Map<String, dynamic> tableData = {
-    "headers": [
-      "Segment/Channel",
-      "Target",
-      "MTD",
-      "LMTD",
-      "Pending",
-      "ADS",
-      "Req. ADS",
-      "% Growth",
-      "FTD",
-      "% Contribution"
-    ],
-    "Segment": [
-      {
-        "Segment/Channel": "SIS PLUS",
-        "Target": 0,
-        "MTD": 25,
-        "LMTD": 53,
-        "Pending": -25,
-        "ADS": "6.25",
-        "Req. ADS": "0.00",
-        "% Growth": "-52.83",
-        "FTD": 2,
-        "% Contribution": "14.53"
-      },
-      {
-        "Segment/Channel": "STAR DCM",
-        "Target": 0,
-        "MTD": 0,
-        "LMTD": -1,
-        "Pending": 0,
-        "ADS": "0.00",
-        "Req. ADS": "0.00",
-        "% Growth": "-100.00",
-        "FTD": 0,
-        "% Contribution": "0.00"
-      },
-      {
-        "Segment/Channel": "STAR DCM",
-        "Target": 0,
-        "MTD": 0,
-        "LMTD": -1,
-        "Pending": 0,
-        "ADS": "0.00",
-        "Req. ADS": "0.00",
-        "% Growth": "-100.00",
-        "FTD": 0,
-        "% Contribution": "0.00"
-      },
-      {
-        "Segment/Channel": "STAR DCM",
-        "Target": 0,
-        "MTD": 0,
-        "LMTD": -1,
-        "Pending": 0,
-        "ADS": "0.00",
-        "Req. ADS": "0.00",
-        "% Growth": "-100.00",
-        "FTD": 0,
-        "% Contribution": "0.00"
-      },
-      {
-        "Segment/Channel": "STAR DCM",
-        "Target": 0,
-        "MTD": 0,
-        "LMTD": -1,
-        "Pending": 0,
-        "ADS": "0.00",
-        "Req. ADS": "0.00",
-        "% Growth": "-100.00",
-        "FTD": 0,
-        "% Contribution": "0.00"
-      },
-      {
-        "Segment/Channel": "STAR DCM",
-        "Target": 0,
-        "MTD": 0,
-        "LMTD": -1,
-        "Pending": 0,
-        "ADS": "0.00",
-        "Req. ADS": "0.00",
-        "% Growth": "-100.00",
-        "FTD": 0,
-        "% Contribution": "0.00"
-      },
-      {
-        "Segment/Channel": "STAR DCM",
-        "Target": 0,
-        "MTD": 0,
-        "LMTD": -1,
-        "Pending": 0,
-        "ADS": "0.00",
-        "Req. ADS": "0.00",
-        "% Growth": "-100.00",
-        "FTD": 0,
-        "% Contribution": "0.00"
-      },
-    ],
-    "Channel": [
-      {
-        "Segment/Channel": "Online",
-        "Target": 10,
-        "MTD": 5,
-        "LMTD": 8,
-        "Pending": 5,
-        "ADS": "3.00",
-        "Req. ADS": "2.00",
-        "% Growth": "-37.50",
-        "FTD": 1,
-        "% Contribution": "25.00"
-      },
-    ],
-    "Model": [
-      {
-        "Segment/Channel": "Galaxy S22",
-        "Target": 50,
-        "MTD": 30,
-        "LMTD": 20,
-        "Pending": 20,
-        "ADS": "7.50",
-        "Req. ADS": "5.00",
-        "% Growth": "50.00",
-        "FTD": 3,
-        "% Contribution": "60.00"
-      },
-    ]
-  };
+  @override
+  void initState() {
+    super.initState();
+    fetchTableData(); // Initial API call
+  }
+
+  Future<void> fetchTableData() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    String reportType = activeTab.toLowerCase(); // segment, channel, model
+
+    String apiUrl = '${Config.backendUrl}/user/sales-data/report/self';
+
+    Map<String, String> headersRequest = {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer ${widget.token}"
+    };
+
+    Map<String, dynamic> body = {
+      "start_date": widget.startDate,
+      "end_date": widget.endDate,
+      "filter_type": widget.selectedType,
+      "report_type": reportType
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: headersRequest,
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        var jsonResponse = jsonDecode(response.body);
+        setState(() {
+          headers = List<String>.from(jsonResponse["headers"]);
+          tableData = List<Map<String, dynamic>>.from(jsonResponse["data"]);
+        });
+      } else {
+        print("Error: ${response.body}");
+      }
+    } catch (e) {
+      print("API Fetch Error: $e");
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -163,6 +103,7 @@ class _TabbedTablesState extends State<TabbedTables> {
                   setState(() {
                     activeTab = tab;
                   });
+                  fetchTableData(); // Fetch data when tab changes
                 },
                 child: Container(
                   padding: EdgeInsets.symmetric(vertical: 10, horizontal: 16),
@@ -186,8 +127,9 @@ class _TabbedTablesState extends State<TabbedTables> {
 
         SizedBox(height: 10),
 
-        // Table
-        _buildTable(tableData["headers"], tableData[activeTab], fontSize),
+        isLoading
+            ? Center(child: CircularProgressIndicator())
+            : _buildTable(headers, tableData, fontSize),
       ],
     );
   }
@@ -204,13 +146,12 @@ class _TabbedTablesState extends State<TabbedTables> {
       ),
       child: Column(
         children: [
-          // Scrollable Table
           SizedBox(
-            height: 300, // Fixed height for vertical scroll
+            height: 300,
             child: SingleChildScrollView(
-              scrollDirection: Axis.vertical, // Enable vertical scroll
+              scrollDirection: Axis.vertical,
               child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal, // Enable horizontal scroll
+                scrollDirection: Axis.horizontal,
                 child: DataTable(
                   columnSpacing: 20,
                   headingRowHeight: 50,
@@ -218,16 +159,13 @@ class _TabbedTablesState extends State<TabbedTables> {
                   border: TableBorder.all(color: Colors.grey.shade300),
                   columns: headers.map((header) {
                     return DataColumn(
-                      label: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8),
-                        child: Text(
-                          header,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: fontSize * 0.9,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
+                      label: Text(
+                        header,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: fontSize * 0.9,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
                         ),
                       ),
                     );
@@ -236,22 +174,17 @@ class _TabbedTablesState extends State<TabbedTables> {
                     return DataRow(
                       cells: headers.map((header) {
                         return DataCell(
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 8),
-                            child: Text(
-                              row[header].toString(),
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: fontSize * 0.85,
-                                fontWeight: header == headers.first
-                                    ? FontWeight.bold // First column bold
-                                    : FontWeight.normal,
-                                color: header == "% Growth"
-                                    ? (double.parse(row[header].toString()) > 0
-                                    ? Colors.green
-                                    : Colors.red) // Color growth percentage
-                                    : Colors.black,
-                              ),
+                          Text(
+                            row[header].toString(),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: fontSize * 0.85,
+                              fontWeight: header == headers.first ? FontWeight.bold : FontWeight.normal,
+                              color: header == "% Growth"
+                                  ? (double.tryParse(row[header].toString()) ?? 0) > 0
+                                  ? Colors.green
+                                  : Colors.red
+                                  : Colors.black,
                             ),
                           ),
                         );
@@ -266,7 +199,4 @@ class _TabbedTablesState extends State<TabbedTables> {
       ),
     );
   }
-
-
-
 }
