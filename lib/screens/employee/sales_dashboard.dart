@@ -143,13 +143,6 @@ class _SalesDashboardState extends State<SalesDashboard> {
 
                 SizedBox(height: 20),
 
-                // Placeholder for future API results
-                Center(
-                  child: Text(
-                    "Selected: $selectedFilter - $selectedType",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                  ),
-                ),
               ],
             ),
           ),
