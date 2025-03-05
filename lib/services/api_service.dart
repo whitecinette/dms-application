@@ -230,6 +230,69 @@ class ApiService {
 
 
 //   update weekly beat mapping shedule with proximity
+
+
+// get users information using their code
+
+  static Future<Map<String, dynamic>> getUserDetails() async {
+    final url = Uri.parse("${Config.backendUrl}/get-users-by-code");
+
+    String? token = await AuthService.getToken();
+    if (token == null) {
+      throw Exception("User is not authenticated");
+    }
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json"
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception(json.decode(response.body)['message'] ?? "Failed to fetch user details");
+      }
+    } catch (e) {
+      print("Error occurred: $e");
+      throw Exception("Network error or invalid response: $e");
+    }
+  }
+
+
+// update user etails by thier code
+  static Future<Map<String, dynamic>> editUser(Map<String, dynamic> updateData) async {
+    final url = Uri.parse("${Config.backendUrl}edit-users-by-code");
+
+    String? token = await AuthService.getToken();
+    if (token == null) {
+      throw Exception("User is not authenticated");
+    }
+
+    try {
+      final response = await http.put(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json"
+        },
+        body: jsonEncode({"updateData": updateData}),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception(json.decode(response.body)['message'] ?? "Failed to update user");
+      }
+    } catch (e) {
+      print("Error occurred: $e");
+      throw Exception("Network error or invalid response: $e");
+    }
+  }
+
 }
 
 
