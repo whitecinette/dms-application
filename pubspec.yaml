@@ -47,6 +47,7 @@ dependencies:
   http_parser: ^4.1.2
   fluttertoast: ^8.2.12
   lucide_icons: ^0.257.0
+  shimmer: ^3.0.0
 
 dev_dependencies:
   flutter_test:

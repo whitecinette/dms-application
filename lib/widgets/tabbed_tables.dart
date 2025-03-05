@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../config.dart';
+import '../widgets/shimmer_loader.dart';
 
 class TabbedTables extends StatefulWidget {
   final String selectedType; // Volume or Value
@@ -128,7 +129,7 @@ class _TabbedTablesState extends State<TabbedTables> {
         SizedBox(height: 10),
 
         isLoading
-            ? Center(child: CircularProgressIndicator())
+            ? Center(child: ShimmerLoader())
             : _buildTable(headers, tableData, fontSize),
       ],
     );

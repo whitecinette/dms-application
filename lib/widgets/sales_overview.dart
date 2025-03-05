@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config.dart'; // Import config file for backend URL
+import '../widgets/shimmer_loader.dart';
 
 class SalesOverview extends StatefulWidget {
   final String filterType; // Accepts 'value' or 'volume'
@@ -94,7 +95,7 @@ class _SalesOverviewState extends State<SalesOverview> {
     double boxHeight = 70;
 
     if (isLoading) {
-      return Center(child: CircularProgressIndicator());
+      return Center(child: ShimmerLoader());
     }
 
     if (hasError || salesData == null) {
