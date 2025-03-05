@@ -6,6 +6,8 @@ import '../../widgets/filters/filter_date_range.dart';
 import '../../widgets/sales_overview.dart';
 import '../../widgets/filters/filter_subordinates.dart';
 import '../../widgets/tabbed_tables.dart';
+import '../../services/auth_service.dart';
+import '../../providers/sales_filter_provider.dart';
 
 class SalesDashboard extends StatefulWidget {
   @override
@@ -13,8 +15,30 @@ class SalesDashboard extends StatefulWidget {
 }
 
 class _SalesDashboardState extends State<SalesDashboard> {
+  String selectedType = 'volume'; // Default filter
+  String selectedStartDate = "2025-02-01"; // Default start date
+  String selectedEndDate = "2025-02-28"; // Default end date
+
+  String userToken = ""; // Get token from authentication
+
+  @override
+  void initState() {
+    super.initState();
+    loadUserToken();
+  }
+
+  void loadUserToken() async {
+    String? token = await AuthService.getToken(); // Retrieve token
+    if (token != null) {
+      setState(() {
+        userToken = token;
+      });
+    }
+  }
+
+
+
   String selectedFilter = 'MTD';
-  String selectedType = 'Value';
   bool isDropdownOpen = false; // Track if dropdown is open
 
   void updateFilter(String filter) {
@@ -25,9 +49,13 @@ class _SalesDashboardState extends State<SalesDashboard> {
 
   void updateType(String type) {
     setState(() {
-      selectedType = type;
+      selectedType = type.toLowerCase(); // Convert to lowercase
     });
   }
+
+
+
+
 
   void closeDropdowns() {
     setState(() {
@@ -55,21 +83,38 @@ class _SalesDashboardState extends State<SalesDashboard> {
                 SalesFilters(
                   onFilterChange: updateFilter,
                   onTypeChange: updateType,
+                  selectedFilter: selectedFilter, // Pass selected filter
+                  selectedType: selectedType, // Pass selected type
                 ),
+
+
 
                 SizedBox(height: 10),
 
                 // Date Range Selector
                 FilterDateRange(
                   onDateChange: (DateTime start, DateTime end) {
-                    print("Selected Date Range: $start - $end"); // Placeholder for API integration
+                    setState(() {
+                      selectedStartDate = start.toIso8601String().split("T")[0];
+                      selectedEndDate = end.toIso8601String().split("T")[0];
+                    });
                   },
                 ),
+
+
 
                 SizedBox(height: 10),
 
                 // Sales Overview Boxes
-                SalesOverview(),
+                SalesOverview(
+                  filterType: selectedType,
+                  startDate: selectedStartDate,
+                  endDate: selectedEndDate,
+                  token: userToken,
+                ),
+
+
+
 
                 SizedBox(height: 10),
 

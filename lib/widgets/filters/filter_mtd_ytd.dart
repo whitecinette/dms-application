@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
 class FilterMTDYTD extends StatefulWidget {
+  final String selectedFilter;
   final Function(String) onFilterChange;
   final double fontSize; // Responsive font size
 
-  FilterMTDYTD({required this.onFilterChange, required this.fontSize});
+  FilterMTDYTD({required this.onFilterChange, required this.fontSize, required this.selectedFilter});
+
+
 
   @override
   _FilterMTDYTDState createState() => _FilterMTDYTDState();
@@ -24,7 +27,8 @@ class _FilterMTDYTDState extends State<FilterMTDYTD> {
           children: [
             Radio(
               value: 'MTD',
-              groupValue: selectedFilter,
+              groupValue: widget.selectedFilter,
+
               activeColor: Color(0xFF005bfe),
               onChanged: (value) {
                 setState(() {
