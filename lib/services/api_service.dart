@@ -265,7 +265,7 @@ class ApiService {
 
 // update user etails by thier code
   static Future<Map<String, dynamic>> editUser(Map<String, dynamic> updateData) async {
-    final url = Uri.parse("${Config.backendUrl}edit-users-by-code");
+    final url = Uri.parse("${Config.backendUrl}/edit-users-by-code");
 
     String? token = await AuthService.getToken();
     if (token == null) {
