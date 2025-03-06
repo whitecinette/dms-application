@@ -1,7 +1,6 @@
 import 'package:dms_app/services/api_service.dart';
+import 'package:dms_app/utils/custom_pop_up.dart';
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 class ProfileDealerScreen extends StatefulWidget {
   @override
@@ -24,35 +23,76 @@ class _ProfileDealerScreenState extends State<ProfileDealerScreen> {
   Future<void> _fetchUserDetails() async {
     try {
       final response = await ApiService.getUserDetails();
+      print("API Response: $response");  // Debugging line
       setState(() {
         userDetails = response['user'];
+        print("User Details After Parsing: $userDetails"); // Debugging line
+
+        if (userDetails == null) {
+          errorMessage = "User data is empty!";
+        } else {
+          // Ensure family_info and children exist
+          userDetails!['owner_details'] ??= {};
+          userDetails!['owner_details']['family_info'] ??= {};
+          userDetails!['owner_details']['family_info']['children'] ??= [];
+        }
+
         isLoading = false;
       });
     } catch (e) {
       setState(() {
-        errorMessage = e.toString();
+        errorMessage = "Error fetching user details: $e";
         isLoading = false;
       });
     }
   }
 
+
+
   Future<void> _saveUserDetails() async {
     if (_formKey.currentState!.validate()) {
       try {
-        final response = await ApiService.editUser(userDetails!);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Profile updated successfully!"), backgroundColor: Colors.green),
-        );
+        await ApiService.editUser(userDetails!);
+        CustomPopup.showPopup(context, "Success", "Profile updated successfully!");
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to update profile: $e"), backgroundColor: Colors.red),
-        );
+        CustomPopup.showPopup(context, "Error", "Failed to update profile: $e");
       } finally {
         setState(() {
           isEditing = false;
         });
       }
     }
+  }
+
+
+  Widget _buildFamilyDetails() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildEditableField("Spouse Name", 'owner_details.family_info.spouse_name'),
+        _buildEditableField("Spouse Birth Date", 'owner_details.family_info.spouse_bday'),
+        _buildEditableField("Wedding Anniversary", 'owner_details.family_info.wedding_anniversary'),
+        _buildEditableField("Shop Anniversary", 'shop_anniversary'),
+        _buildEditableField("Credit Limit", 'credit_limit'),
+      ],
+    );
+  }
+
+
+  void _addChild() {
+    setState(() {
+      userDetails!['owner_details'] ??= {};
+      userDetails!['owner_details']['family_info'] ??= {};
+      userDetails!['owner_details']['family_info']['children'] ??= [];
+      userDetails!['owner_details']['family_info']['children'].add({"name": "", "birth_date": ""});
+    });
+  }
+
+
+  void _removeChild(int index) {
+    setState(() {
+      userDetails!['owner_details']?['family_info']['children'].removeAt(index);
+    });
   }
 
   @override
@@ -84,6 +124,10 @@ class _ProfileDealerScreenState extends State<ProfileDealerScreen> {
   }
 
   Widget _buildProfileDetails() {
+    if (userDetails == null || userDetails!.isEmpty) {
+      return Center(child: Text("No data available"));
+    }
+
     return SingleChildScrollView(
       padding: EdgeInsets.all(16.0),
       child: Form(
@@ -98,18 +142,15 @@ class _ProfileDealerScreenState extends State<ProfileDealerScreen> {
             _buildEditableField("City", 'city'),
             _buildEditableField("Cluster", 'cluster'),
             _buildEditableField("Address", 'address'),
-            _buildEditableField("Category", 'category'),
-            _buildEditableField("Shop Anniversary", 'shop_anniversary'),
-            _buildEditableField("Credit Limit", 'credit_limit'),
-            SizedBox(height: 20),
             _buildOwnerDetails(),
-            SizedBox(height: 20),
             _buildExpandableSection("Family Information", _buildFamilyDetails()),
+            _buildExpandableSection("Children", _buildChildrenDetails()),
           ],
         ),
       ),
     );
   }
+
 
   Widget _buildHeader() {
     return Column(
@@ -122,34 +163,49 @@ class _ProfileDealerScreenState extends State<ProfileDealerScreen> {
   }
 
   Widget _buildEditableField(String label, String key) {
+    dynamic value = _getNestedFieldValue(userDetails, key) ?? "Not Available";
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextFormField(
-              initialValue: userDetails?[key]?.toString() ?? "Not Available",
-              decoration: InputDecoration(
-                labelText: label,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-              readOnly: !isEditing,
-              onChanged: (value) => userDetails?[key] = value,
-            ),
-          ),
-          if (isEditing)
-            IconButton(
-              icon: Icon(Icons.edit),
-              onPressed: () {
-                setState(() {
-                  isEditing = true;
-                });
-              },
-            ),
-        ],
+      child: TextFormField(
+        initialValue: value.toString(),
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+        ),
+        readOnly: !isEditing,
+        onChanged: (newValue) {
+          setState(() {
+            _updateNestedField(userDetails!, key, newValue);
+          });
+        },
       ),
     );
+  }
+
+  dynamic _getNestedFieldValue(Map<String, dynamic>? data, String key) {
+    List<String> keys = key.split('.');
+    dynamic value = data;
+    for (String k in keys) {
+      if (value is Map<String, dynamic> && value.containsKey(k)) {
+        value = value[k];
+      } else {
+        return null;
+      }
+    }
+    return value;
+  }
+
+  void _updateNestedField(Map<String, dynamic> data, String key, dynamic value) {
+    List<String> keys = key.split('.');
+    Map<String, dynamic> current = data;
+    for (int i = 0; i < keys.length - 1; i++) {
+      if (current[keys[i]] == null || !(current[keys[i]] is Map<String, dynamic>)) {
+        current[keys[i]] = {};
+      }
+      current = current[keys[i]];
+    }
+    current[keys.last] = value;
   }
 
   Widget _buildOwnerDetails() {
@@ -166,25 +222,84 @@ class _ProfileDealerScreenState extends State<ProfileDealerScreen> {
     );
   }
 
-  Widget _buildFamilyDetails() {
+  Widget _buildChildrenDetails() {
+    List<dynamic>? children = userDetails?['owner_details']?['family_info']?['children'];
+
+    if (children == null || children.isEmpty) {
+      return isEditing
+          ? Column(
+        children: [
+          Text("No children data available."),
+          ElevatedButton(onPressed: _addChild, child: Text("Add Child")),
+        ],
+      )
+          : Text("No children data available.");
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildEditableField("Father's Name", 'owner_details.family_info.father_name'),
-        _buildEditableField("Father's Birthday", 'owner_details.family_info.father_bday'),
-        _buildEditableField("Mother's Name", 'owner_details.family_info.mother_name'),
-        _buildEditableField("Mother's Birthday", 'owner_details.family_info.mother_bday'),
-        _buildEditableField("Spouse Name", 'owner_details.family_info.spouse_name'),
-        _buildEditableField("Spouse Birthday", 'owner_details.family_info.spouse_bday'),
-        _buildEditableField("Wedding Anniversary", 'owner_details.family_info.wedding_anniversary'),
+        ...List.generate(children.length, (index) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    initialValue: children[index]['name'] ?? "",
+                    decoration: InputDecoration(labelText: "Child Name"),
+                    readOnly: !isEditing,
+                    onChanged: (value) {
+                      if (isEditing) {
+                        setState(() {
+                          userDetails!['owner_details']['family_info']['children'][index]['name'] = value;
+                        });
+                      }
+                    },
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: children[index]['birth_date'] ?? "",
+                    decoration: InputDecoration(labelText: "Birth Date"),
+                    readOnly: !isEditing,
+                    onChanged: (value) {
+                      if (isEditing) {
+                        setState(() {
+                          userDetails!['owner_details']['family_info']['children'][index]['birth_date'] = value;
+                        });
+                      }
+                    },
+                  ),
+                ),
+                if (isEditing)
+                  IconButton(
+                    icon: Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _removeChild(index),
+                  ),
+              ],
+            ),
+          );
+        }),
+        if (isEditing)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ElevatedButton(
+              onPressed: _addChild,
+              child: Text("Add Child"),
+            ),
+          ),
       ],
     );
   }
 
+
+
+
   Widget _buildExpandableSection(String title, Widget content) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: ExpansionTile(
         title: Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         children: [Padding(padding: EdgeInsets.all(16.0), child: content)],
