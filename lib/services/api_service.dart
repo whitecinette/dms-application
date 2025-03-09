@@ -5,8 +5,6 @@ import 'package:dms_app/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import '../config.dart';
 import 'dart:io';
-import 'package:http/http.dart' as http;
-import 'package:path/path.dart';
 import 'package:mime/mime.dart';
 import 'package:http_parser/http_parser.dart'; // ✅ Import this for MediaType
 
@@ -193,46 +191,6 @@ class ApiService {
     }
   }
 
-// // update weekly beat mapping schedule
-//   static Future<Map<String, dynamic>> updateWeeklyBeatMappingStatus(String scheduleId, String dealerCode, String day, String status) async {
-//     final url = Uri.parse("${Config.backendUrl}/update-weekly-beat-mapping-status/$scheduleId/$dealerCode");
-//
-//     String? token = await AuthService.getToken();
-//     if (token == null) {
-//       print("Token is null, user is not authenticated");
-//       throw Exception("User is not authenticated");
-//     }
-//
-//     try {
-//       final response = await http.put(
-//         url,
-//         headers: {
-//           "Authorization": "Bearer $token",
-//           "Content-Type": "application/json"
-//         },
-//         body: jsonEncode({
-//           "day": day,
-//           "status": status
-//         }),
-//       );
-//
-//       if (response.statusCode == 200) {
-//         return json.decode(response.body);
-//       } else {
-//         throw Exception(json.decode(response.body)['error'] ?? "Failed to update status");
-//       }
-//     } catch (e) {
-//       print("Error occurred: $e");
-//       throw Exception("Network error or invalid response: $e");
-//     }
-//   }
-
-
-
-//   update weekly beat mapping shedule with proximity
-
-
-// get users information using their code
 
   static Future<Map<String, dynamic>> getUserDetails() async {
     final url = Uri.parse("${Config.backendUrl}/get-users-by-code");
@@ -286,6 +244,70 @@ class ApiService {
         return json.decode(response.body);
       } else {
         throw Exception(json.decode(response.body)['message'] ?? "Failed to update user");
+      }
+    } catch (e) {
+      print("Error occurred: $e");
+      throw Exception("Network error or invalid response: $e");
+    }
+  }
+
+  // Get all attendance records
+  static Future<Map<String, dynamic>> getAllAttendance({String? startDate, String? endDate, int page = 1, int limit = 10}) async {
+    final queryParams = {
+      if (startDate != null) 'startDate': startDate,
+      if (endDate != null) 'endDate': endDate,
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+
+    final url = Uri.parse("${Config.backendUrl}/get-all-attendance")
+        .replace(queryParameters: queryParams);
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+      );
+
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception(json.decode(response.body)['message'] ?? "Failed to fetch attendance records");
+      }
+    } catch (e) {
+      print("Error occurred: $e");
+      throw Exception("Network error or invalid response: $e");
+    }
+  }
+
+// get all employees
+// Get all employees with role 'employee'
+  static Future<Map<String, dynamic>> getAllEmployees({int page = 1, int limit = 10}) async {
+    final queryParams = {
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+
+    final url = Uri.parse("${Config.backendUrl}/get-emp-for-hr")
+        .replace(queryParameters: queryParams);
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception(json.decode(response.body)['message'] ?? "Failed to fetch employee records");
       }
     } catch (e) {
       print("Error occurred: $e");
