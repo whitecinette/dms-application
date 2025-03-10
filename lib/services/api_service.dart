@@ -285,7 +285,6 @@ class ApiService {
   }
 
 // get all employees
-// Get all employees with role 'employee'
   static Future<Map<String, dynamic>> getAllEmployees({int page = 1, int limit = 10}) async {
     final queryParams = {
       'page': page.toString(),
@@ -315,6 +314,31 @@ class ApiService {
     }
   }
 
+  // get salary for all employee
+  static Future<Map<String, dynamic>> getAllSalaries() async {
+    final url = Uri.parse("${Config.backendUrl}/salary-details");
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception(json.decode(response.body)['message'] ?? "Failed to fetch salary details");
+      }
+    } catch (e) {
+      print("Error occurred: $e");
+      throw Exception("Network error or invalid response: $e");
+    }
+  }
+
+// add Payroll
 }
 
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dms_app/screens/employee/sales_dashboard.dart';
 import 'package:dms_app/services/api_service.dart';
 import 'package:flutter/material.dart';
@@ -20,14 +22,24 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
   bool _hasPunchedIn = false;
   bool _isPunchingIn = false;
   bool _isPunchingOut = false;
+  String _currentTime = "";
+  String _currentDate = "";
 
 
   @override
   void initState() {
     super.initState();
     _loadPunchStatus();
+    _updateTime();
+    Timer.periodic(Duration(seconds: 1), (timer) => _updateTime());
   }
-
+  void _updateTime() {
+    final now = DateTime.now();
+    setState(() {
+      _currentTime = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
+      _currentDate = "${now.day}-${now.month}-${now.year}";
+    });
+  }
   /// Load the punch-in status from local storage
   Future<void> _loadPunchStatus() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -109,16 +121,17 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
       final response = await ApiService.punchOut(latitude, longitude, _image!);
       if (response.containsKey('message')) {
         setState(() {
-          _hasPunchedIn = false;
+          _hasPunchedIn = true;
           _image = null;
         });
 
-        await _savePunchStatus(false);
+        await _savePunchStatus(true);
         ref.read(coordinatesProvider.notifier).state = "";
         _showPopup("Success", "You have successfully punched out.", true);
       } else {
         _showPopup("Error", response['message'] ?? "Unexpected response", false);
       }
+
     } catch (error) {
       _showPopup("Error", "Something went wrong: ${error.toString()}", false);
     } finally {
@@ -171,6 +184,9 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Text(_currentDate, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(_currentTime, style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.blue)),
+            SizedBox(height: 20),
             Stack(
               alignment: Alignment.center,
               children: [

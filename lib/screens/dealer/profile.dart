@@ -23,10 +23,10 @@ class _ProfileDealerScreenState extends State<ProfileDealerScreen> {
   Future<void> _fetchUserDetails() async {
     try {
       final response = await ApiService.getUserDetails();
-      print("API Response: $response");  // Debugging line
+      // print("API Response: $response");  // Debugging line
       setState(() {
         userDetails = response['user'];
-        print("User Details After Parsing: $userDetails"); // Debugging line
+        // print("User Details After Parsing: $userDetails"); // Debugging line
 
         if (userDetails == null) {
           errorMessage = "User data is empty!";
@@ -71,9 +71,12 @@ class _ProfileDealerScreenState extends State<ProfileDealerScreen> {
       children: [
         _buildEditableField("Spouse Name", 'owner_details.family_info.spouse_name'),
         _buildEditableField("Spouse Birth Date", 'owner_details.family_info.spouse_bday'),
+        _buildEditableField("Father Name", 'owner_details.family_info.father_name'),
+        _buildEditableField("Father Birth Date", 'owner_details.family_info.father_bday'),
+        _buildEditableField("Mother Name", 'owner_details.family_info.mother_name'),
+        _buildEditableField("Mother Birth Date", 'owner_details.family_info.mother_bday'),
         _buildEditableField("Wedding Anniversary", 'owner_details.family_info.wedding_anniversary'),
-        _buildEditableField("Shop Anniversary", 'shop_anniversary'),
-        _buildEditableField("Credit Limit", 'credit_limit'),
+
       ],
     );
   }
@@ -137,11 +140,13 @@ class _ProfileDealerScreenState extends State<ProfileDealerScreen> {
           children: [
             _buildHeader(),
             SizedBox(height: 20),
-            _buildEditableField("Status", 'status'),
+            // _buildEditableField("Status", 'status'),
             _buildEditableField("Role", 'role'),
             _buildEditableField("City", 'city'),
             _buildEditableField("Cluster", 'cluster'),
             _buildEditableField("Address", 'address'),
+            _buildEditableField("Shop Anniversary", 'shop_anniversary'),
+            _buildEditableField("Credit Limit", 'credit_limit'),
             _buildOwnerDetails(),
             _buildExpandableSection("Family Information", _buildFamilyDetails()),
             _buildExpandableSection("Children", _buildChildrenDetails()),
