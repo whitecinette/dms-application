@@ -9,3 +9,15 @@ String formatIndianNumber(num number) {
     return number.toString(); // Keep it as is if less than 1000
   }
 }
+
+int roundGrowth(dynamic growth) {
+  if (growth is num) {
+    return growth.round(); // Ensures an integer output
+  } else if (growth is String) {
+    double? parsed = double.tryParse(growth);
+    return parsed?.round() ?? 0; // Parses, rounds, and ensures an integer
+  }
+  return 0; // Fallback in case of invalid data
+}
+
+

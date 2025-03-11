@@ -137,10 +137,10 @@ class _SalesOverviewState extends State<SalesOverview> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _buildBox(fontSize, height, title1, value1, Color(0xFF005bfe)), // MTD (Blue)
-        SizedBox(width: 10),
+        SizedBox(width: 3),
         _buildBox(fontSize, height, title2, value2, Colors.orange), // LMTD (Orange)
-        SizedBox(width: 10),
-        _buildBox(fontSize, height, title3, "${growth.toStringAsFixed(2)}%",
+        SizedBox(width: 3),
+        _buildBox(fontSize, height, title3, "${growth.toStringAsFixed(1)}%",
             growth > 0 ? Colors.green : Colors.red), // Growth %
       ],
     );
