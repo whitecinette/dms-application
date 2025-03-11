@@ -37,6 +37,7 @@ class ApiService {
   // punch in api
   static Future<Map<String, dynamic>> punchIn(String latitude, String longitude, File image) async {
     final url = Uri.parse("${Config.backendUrl}/punch-in");
+    print("URLLLL: ${Config.backendUrl}/punch-in");
     String? token = await AuthService.getToken();
 
     if (token == null) {
@@ -45,6 +46,9 @@ class ApiService {
 
     var request = http.MultipartRequest("POST", url);
     request.headers["Authorization"] = "Bearer $token";
+    // request.headers["Content-Type"] = "multipart/form-data";
+    // request.headers["Accept"] = "application/json";
+
 
     // ✅ Correct field names (Must match backend)
     request.fields['latitude'] = latitude;
