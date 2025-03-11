@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
 // Providers
-final coordinatesProvider = StateProvider<String>((ref) => "Fetching location...");
+final coordinatesProvider = StateProvider<String>((ref) => "location");
 final isLoadingProvider = StateProvider<bool>((ref) => false);
 
 class LocationService {

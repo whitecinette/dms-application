@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dms_app/screens/employee/sales_dashboard.dart';
 import 'package:dms_app/services/api_service.dart';
+import 'package:dms_app/utils/custom_pop_up.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -25,7 +26,6 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
   String _currentTime = "";
   String _currentDate = "";
 
-
   @override
   void initState() {
     super.initState();
@@ -33,13 +33,16 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
     _updateTime();
     Timer.periodic(Duration(seconds: 1), (timer) => _updateTime());
   }
+
   void _updateTime() {
     final now = DateTime.now();
     setState(() {
-      _currentTime = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
-      _currentDate = "${now.day}-${now.month}-${now.year}";
+      _currentTime =
+          "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+      _currentDate = "${now.day}/${now.month}/${now.year}";
     });
   }
+
   /// Load the punch-in status from local storage
   Future<void> _loadPunchStatus() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -67,7 +70,9 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
   Future<void> _submitPunchIn() async {
     final location = ref.watch(coordinatesProvider);
     if (_image == null || location.isEmpty) {
-      _showPopup("Error", "Please capture an image and fetch location.", false);
+      CustomPopup.showPopup(
+          context, "Error", "Please capture an image and fetch location.",
+          isSuccess: false);
       return;
     }
 
@@ -89,12 +94,18 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
 
         await _savePunchStatus(true);
         ref.read(coordinatesProvider.notifier).state = "";
-        _showPopup("Success", "You have successfully punched in.", true);
+        CustomPopup.showPopup(
+            context, "Success", "You have successfully punched in.",
+            isSuccess: true);
       } else {
-        _showPopup("Error", response['message'] ?? "Unexpected response", false);
+        CustomPopup.showPopup(
+            context, "Error", response['message'] ?? "Unexpected response",
+            isSuccess: false);
       }
     } catch (error) {
-      _showPopup("Error", "Something went wrong: ${error.toString()}", false);
+      CustomPopup.showPopup(
+          context, "Error", "Something went wrong: ${error.toString()}",
+          isSuccess: false);
     } finally {
       setState(() {
         _isPunchingIn = false; // Reset only this
@@ -105,7 +116,9 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
   Future<void> _submitPunchOut() async {
     final location = ref.watch(coordinatesProvider);
     if (_image == null || location.isEmpty) {
-      _showPopup("Error", "Please capture an image and fetch location.", false);
+      CustomPopup.showPopup(
+          context, "Error", "Please capture an image and fetch location.",
+          isSuccess: false);
       return;
     }
 
@@ -127,46 +140,23 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
 
         await _savePunchStatus(true);
         ref.read(coordinatesProvider.notifier).state = "";
-        _showPopup("Success", "You have successfully punched out.", true);
+        CustomPopup.showPopup(
+            context, "Success", "You have successfully punched in.",
+            isSuccess: true);
       } else {
-        _showPopup("Error", response['message'] ?? "Unexpected response", false);
+        CustomPopup.showPopup(
+            context, "Error", response['message'] ?? "Unexpected response",
+            isSuccess: false);
       }
-
     } catch (error) {
-      _showPopup("Error", "Something went wrong: ${error.toString()}", false);
+      CustomPopup.showPopup(
+          context, "Error", "Something went wrong: ${error.toString()}",
+          isSuccess: false);
     } finally {
       setState(() {
         _isPunchingOut = false; // Reset only this
       });
     }
-  }
-
-
-  void _showPopup(String title, String message, bool isSuccess) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              Icon(isSuccess ? Icons.check_circle : Icons.error,
-                  color: isSuccess ? Colors.green : Colors.red),
-              SizedBox(width: 10),
-              Text(title,
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            ],
-          ),
-          content: Text(message, style: TextStyle(fontSize: 14)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text("OK",
-                  style: TextStyle(color: Colors.blueAccent, fontSize: 14)),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -180,79 +170,119 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
         backgroundColor: Colors.blueAccent,
         elevation: 5,
       ),
-      body: Center(
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(_currentDate, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            Text(_currentTime, style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.blue)),
-            SizedBox(height: 20),
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                CircleAvatar(
+            // Date & Time Row
+            Container(
+              padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blueAccent, width: 1),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _currentDate,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  Text(
+                    _currentTime,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            Spacer(), // Pushes the circle avatar to the center
+
+            // Image Capture Section
+            GestureDetector(
+              onTap: _captureImage,
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [Colors.blueAccent, Colors.lightBlue.shade200],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.4),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: CircleAvatar(
                   radius: 90,
                   backgroundImage: _image != null ? FileImage(_image!) : null,
-                  backgroundColor: Colors.grey[300],
+                  backgroundColor: Colors.white,
                   child: _image == null
-                      ? Icon(Icons.camera_alt,
-                          size: 50, color: Colors.grey[700])
+                      ? Icon(Icons.person, size: 80, color: Colors.grey[700])
                       : null,
                 ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: IconButton(
-                    icon:
-                        Icon(Icons.camera, size: 30, color: Colors.blueAccent),
-                    onPressed: _captureImage,
-                  ),
-                ),
-              ],
+              ),
             ),
-            SizedBox(height: 30),
+            SizedBox(height: 10),
+            Text(
+              'Tap to Capture Image',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+
+            Spacer(), // Pushes content below the circle down
+
+            // Location or Loading
             isLoading
                 ? CircularProgressIndicator()
                 : Text(
-                    location.isNotEmpty ? location : "Location not available"),
+                    location.isNotEmpty ? location : "Location not available",
+                  ),
+
             SizedBox(height: 20),
+
+            // Punch In/Out Buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // ElevatedButton(
-                //   onPressed: (!_hasPunchedIn && !_isSubmitting)
-                //       ? _submitPunchIn
-                //       : null,
-                //   child: _isSubmitting && !_hasPunchedIn
-                //       ? CircularProgressIndicator(color: Colors.white)
-                //       : Text("Punch In"),
-                //   style: ElevatedButton.styleFrom(
-                //     backgroundColor: _hasPunchedIn ? Colors.grey : Colors.green,
-                //   ),
-                // ),
-                ElevatedButton(
-                  onPressed: _isPunchingIn ? null : _submitPunchIn, // Disable when loading
-                  child: _isPunchingIn
+                ElevatedButton.icon(
+                  onPressed: _isPunchingIn ? null : _submitPunchIn,
+                  icon: Icon(Icons.login),
+                  label: _isPunchingIn
                       ? CircularProgressIndicator(color: Colors.white)
                       : Text("Punch In"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
+                    minimumSize: Size(120, 50),
                   ),
                 ),
-
                 SizedBox(width: 10),
-
-                ElevatedButton(
-                  onPressed: _isPunchingOut ? null : _submitPunchOut, // Disable when loading
-                  child: _isPunchingOut
+                ElevatedButton.icon(
+                  onPressed: _isPunchingOut ? null : _submitPunchOut,
+                  icon: Icon(Icons.logout),
+                  label: _isPunchingOut
                       ? CircularProgressIndicator(color: Colors.white)
                       : Text("Punch Out"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
+                    minimumSize: Size(120, 50),
                   ),
                 ),
-
-
               ],
             ),
           ],
