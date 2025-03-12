@@ -11,6 +11,7 @@ class Subordinate {
   final int mtdSellOut;
   final int lmtdSellOut;
   final String sellOutGrowth;
+  final String position;
 
   Subordinate({
     required this.code,
@@ -18,15 +19,17 @@ class Subordinate {
     required this.mtdSellOut,
     required this.lmtdSellOut,
     required this.sellOutGrowth,
+    required this.position,
   });
 
   factory Subordinate.fromJson(Map<String, dynamic> json) {
     return Subordinate(
       code: json["code"],
       name: json["name"],
-      mtdSellOut: json["mtd_sell_out"],
-      lmtdSellOut: json["lmtd_sell_out"],
-      sellOutGrowth: json["sell_out_growth"],
+      mtdSellOut: json["mtd_sell_out"] ?? 0,
+      lmtdSellOut: json["lmtd_sell_out"] ?? 0,
+      sellOutGrowth: json["sell_out_growth"] ?? "0.00",
+      position: json["position"] ?? "",
     );
   }
 }
@@ -37,11 +40,10 @@ class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Sub
     fetchSubordinates();
   }
 
-  String? currentPosition; // Track current position level
-
   // Fetch subordinates (self)
   Future<void> fetchSubordinates() async {
     try {
+      print("Cp 11111");
       String? token = await AuthService.getToken();
 
       final response = await http.post(
@@ -56,74 +58,38 @@ class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Sub
           "end_date": "2025-02-28",
         }),
       );
+      print("URLLLL2: ${Config.backendUrl}/user/get-subordinates");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        print("Cp 2 $data['success']");
 
         if (data["success"]) {
-          currentPosition = data["position"];
-          List<Subordinate> firstLevelSubordinates = (data["subordinates"][currentPosition] as List)
-              .map((sub) => Subordinate.fromJson(sub))
-              .toList();
+          List<String> positions = (data["positions"] as List).cast<String>();
 
-          if (firstLevelSubordinates.isEmpty) {
-            // Automatically fetch the next level
-            fetchSubordinatesByCode(currentPosition!, firstLevelSubordinates.first.code);
+          // ✅ Store all subordinates grouped by position
+          Map<String, List<Subordinate>> subordinatesMap = {};
+
+          for (String position in positions) {
+            subordinatesMap[position] = (data["subordinates"] as List)
+                .where((sub) => sub["position"] == position)
+                .map((sub) => Subordinate.fromJson(sub))
+                .toList();
           }
 
-          state = AsyncValue.data({currentPosition!: firstLevelSubordinates});
+          state = AsyncValue.data(subordinatesMap);
         } else {
           state = AsyncValue.error("Failed to fetch subordinates", StackTrace.current);
         }
       } else {
-        state = AsyncValue.error("Error: ${response.statusCode}", StackTrace.current);
+        state = AsyncValue.error("Erroor: ${response.statusCode}", StackTrace.current);
+        print("Error cp 3: ");
       }
     } catch (e, stackTrace) {
       state = AsyncValue.error("Failed to connect to server", stackTrace);
+      print("Errorrrr: $e");
     }
   }
-
-  // Fetch next-level subordinates when a subordinate is selected
-  Future<void> fetchSubordinatesByCode(String position, String code) async {
-    try {
-      String? token = await AuthService.getToken();
-
-      final response = await http.post(
-        Uri.parse("${Config.backendUrl}/user/get-subordinates-by-code"),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-        body: jsonEncode({
-          "code": code,
-          "filter_type": "volume",
-          "start_date": "2025-02-01",
-          "end_date": "2025-02-28",
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        if (data["success"]) {
-          String nextPosition = data["position"];
-          List<Subordinate> nextSubordinates = (data["subordinates"][nextPosition] as List)
-              .map((sub) => Subordinate.fromJson(sub))
-              .toList();
-
-          if (nextSubordinates.isNotEmpty) {
-            state = AsyncValue.data({ // ✅ Update UI with new subordinates
-              ...state.value ?? {},  // Keep existing subordinates
-              nextPosition: nextSubordinates, // Add new subordinates
-            });
-          }
-        }
-      }
-    } catch (e, stackTrace) {
-      state = AsyncValue.error("Failed to load subordinates", stackTrace);
-    }
-  }
-
 }
 
 // ✅ Register the provider
