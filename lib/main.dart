@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // Import Riverpod
-import 'screens/login_screen.dart';
-import 'providers/position_provider.dart'; // Import the provider
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'services/auth_gate.dart'; // ← Use this instead
 void main() {
   runApp(
-    ProviderScope( // Wrap the app with Riverpod's ProviderScope
+    ProviderScope(
       child: MyApp(),
     ),
   );
@@ -18,7 +16,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Siddha Connect',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: LoginScreen(),
+      home: AuthGate(), // ← Here!
     );
   }
 }

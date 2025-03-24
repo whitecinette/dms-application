@@ -1,4 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+
 
 class AuthService {
   static Future<String?> getToken() async {
@@ -15,4 +17,22 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove("token");
   }
+
+  static Future<void> saveUser(Map<String, dynamic> user) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString("user", jsonEncode(user));
+  }
+
+  static Future<Map<String, dynamic>?> getUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userString = prefs.getString("user");
+    if (userString == null) return null;
+    return jsonDecode(userString);
+  }
+
+  static Future<void> clearUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove("user");
+  }
+
 }

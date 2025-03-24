@@ -21,14 +21,18 @@ class ApiService {
     if (response.statusCode == 200) {
       final responseData = json.decode(response.body);
 
-      // Ensure token exists in the response
+      // Save token
       if (responseData.containsKey("token")) {
-        await AuthService.saveToken(responseData["token"]);  // Save token
-      } else {
-        throw Exception("Token not found in response");
+        await AuthService.saveToken(responseData["token"]);
+      }
+
+      // ✅ Save user
+      if (responseData.containsKey("user")) {
+        await AuthService.saveUser(responseData["user"]);
       }
 
       return responseData;
+
     } else {
       throw Exception(json.decode(response.body)['message'] ?? "Login failed");
     }
@@ -341,6 +345,36 @@ class ApiService {
       throw Exception("Network error or invalid response: $e");
     }
   }
+
+  static Future<Map<String, dynamic>> getUserProfile() async {
+    final url = Uri.parse("${Config.backendUrl}/app/user/profile"); // or your actual profile endpoint
+    String? token = await AuthService.getToken();
+
+    if (token == null) {
+      throw Exception("User is not authenticated");
+    }
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json"
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        return responseData["user"]; // assuming your API returns { success: true, user: {...} }
+      } else {
+        throw Exception("Failed to fetch user profile");
+      }
+    } catch (e) {
+      print("Profile fetch error: $e");
+      throw Exception("Something went wrong while fetching user info");
+    }
+  }
+
 
 // add Payroll
 }
