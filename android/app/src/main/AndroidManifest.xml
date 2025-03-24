@@ -7,7 +7,7 @@
 
 
     <application
-        android:label="dms_app"
+        android:label="Siddha Connect"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
