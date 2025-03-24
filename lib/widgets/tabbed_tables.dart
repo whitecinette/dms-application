@@ -23,7 +23,7 @@ class TabbedTables extends StatefulWidget {
 
 class _TabbedTablesState extends State<TabbedTables> {
   String activeTab = "Segment"; // Default active tab
-  final List<String> tabs = ["Segment", "Channel", "Model"];
+  final List<String> tabs = ["Segment", "Channel"];
   List<String> headers = [];
   List<Map<String, dynamic>> tableData = [];
   bool isLoading = false;
@@ -39,7 +39,7 @@ class _TabbedTablesState extends State<TabbedTables> {
       isLoading = true;
     });
 
-    String reportType = activeTab.toLowerCase(); // segment, channel, model
+    String reportType = activeTab.toLowerCase(); // segment, channel
 
     String apiUrl = '${Config.backendUrl}/user/sales-data/report/self';
 
@@ -88,43 +88,47 @@ class _TabbedTablesState extends State<TabbedTables> {
       children: [
         // Tabs
         Container(
-          padding: EdgeInsets.symmetric(vertical: 6),
+          width: double.infinity, // 🔥 Full width of the parent
+          padding: EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(color: Colors.grey.withOpacity(0.2), blurRadius: 6, spreadRadius: 2),
-            ],
+            color: Color(0xFFF5F0FC),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween, // ⬅️ Distribute tabs evenly
             children: tabs.map((tab) {
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    activeTab = tab;
-                  });
-                  fetchTableData(); // Fetch data when tab changes
-                },
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(6),
-                    color: activeTab == tab ? Colors.blue : Colors.transparent,
-                  ),
-                  child: Text(
-                    tab,
-                    style: TextStyle(
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.bold,
-                      color: activeTab == tab ? Colors.white : Colors.black,
+              final bool isActive = activeTab == tab;
+
+              return Expanded( // 🧠 Makes each tab take equal width
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      activeTab = tab;
+                    });
+                    fetchTableData();
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isActive ? Colors.white : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      tab,
+                      style: TextStyle(
+                        fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                        color: Colors.black,
+                      ),
                     ),
                   ),
                 ),
               );
             }).toList(),
           ),
-        ),
+        )
+        ,
+
 
         SizedBox(height: 10),
 
