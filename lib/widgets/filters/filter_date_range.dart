@@ -3,14 +3,28 @@ import 'package:intl/intl.dart'; // For formatting dates
 
 class FilterDateRange extends StatefulWidget {
   final Function(DateTime, DateTime) onDateChange;
+  final DateTime? initialStartDate;
+  final DateTime? initialEndDate;
 
-  FilterDateRange({required this.onDateChange});
+  FilterDateRange({
+    required this.onDateChange,
+    this.initialStartDate,
+    this.initialEndDate,
+  });
 
   @override
   _FilterDateRangeState createState() => _FilterDateRangeState();
 }
 
 class _FilterDateRangeState extends State<FilterDateRange> {
+
+  @override
+  void initState() {
+    super.initState();
+    startDate = widget.initialStartDate;
+    endDate = widget.initialEndDate;
+  }
+
   DateTime? startDate;
   DateTime? endDate;
 

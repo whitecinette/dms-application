@@ -93,6 +93,8 @@ class _SalesDashboardState extends State<SalesDashboard> {
 
                 // Date Range Selector
                 FilterDateRange(
+                  initialStartDate: DateTime.parse(selectedStartDate),
+                  initialEndDate: DateTime.parse(selectedEndDate),
                   onDateChange: (DateTime start, DateTime end) {
                     setState(() {
                       selectedStartDate = start.toIso8601String().split("T")[0];
