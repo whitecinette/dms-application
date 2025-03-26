@@ -26,6 +26,9 @@ class _FilterDateRangeState extends State<FilterDateRange> {
       setState(() {
         if (isStart) {
           startDate = picked;
+          if (endDate != null && picked.isAfter(endDate!)) {
+            endDate = null; // Optional: reset endDate if start is after end
+          }
         } else {
           endDate = picked;
         }
@@ -35,6 +38,7 @@ class _FilterDateRangeState extends State<FilterDateRange> {
         widget.onDateChange(startDate!, endDate!);
       }
     }
+
   }
 
   @override

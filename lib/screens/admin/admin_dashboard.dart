@@ -1,23 +1,22 @@
-// lib/screens/admin/admin_dashboard.dart
-
 import 'package:flutter/material.dart';
+import '../../widgets/header.dart';
+import 'admin_sidebar.dart';
+import '../employee/sales_dashboard.dart'; // Import SalesDashboard
 
 class AdminDashboard extends StatelessWidget {
   final dynamic user;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   AdminDashboard({required this.user});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Admin Dashboard")),
-      body: Center(
-        child: Text(
-          "Welcome, ${user['name']}! This is the Admin Dashboard.",
-          style: TextStyle(fontSize: 18),
-          textAlign: TextAlign.center,
-        ),
-      ),
+      key: _scaffoldKey,
+      appBar: Header(scaffoldKey: _scaffoldKey, user: user),
+      drawer: AdminSidebar(user: user),
+      body: SalesDashboard(), // Call SalesDashboard directly
     );
   }
 }
+
