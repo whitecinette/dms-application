@@ -6,12 +6,14 @@ class SalesFilterState {
   final DateTime startDate;
   final DateTime endDate;
   final String selectedSubordinate;
+  final List<String> selectedSubordinateCodes;
 
   SalesFilterState({
     required this.selectedType,
     required this.startDate,
     required this.endDate,
     required this.selectedSubordinate,
+    required this.selectedSubordinateCodes,
   });
 
   SalesFilterState copyWith({
@@ -19,12 +21,15 @@ class SalesFilterState {
     DateTime? startDate,
     DateTime? endDate,
     String? selectedSubordinate,
+    List<String>? selectedSubordinateCodes,
   }) {
     return SalesFilterState(
       selectedType: selectedType ?? this.selectedType,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       selectedSubordinate: selectedSubordinate ?? this.selectedSubordinate,
+      selectedSubordinateCodes:
+      selectedSubordinateCodes ?? this.selectedSubordinateCodes,
     );
   }
 
@@ -34,9 +39,11 @@ class SalesFilterState {
       "start_date": startDate.toIso8601String().split("T")[0],
       "end_date": endDate.toIso8601String().split("T")[0],
       "subordinate": selectedSubordinate,
+      "subordinate_codes": selectedSubordinateCodes,
     };
   }
 }
+
 
 class SalesFilterNotifier extends StateNotifier<SalesFilterState> {
   SalesFilterNotifier()
@@ -45,6 +52,7 @@ class SalesFilterNotifier extends StateNotifier<SalesFilterState> {
     startDate: DateTime(2025, 2, 1),
     endDate: DateTime(2025, 2, 28),
     selectedSubordinate: 'self',
+    selectedSubordinateCodes: [],
   ));
 
   void updateType(String type) {
@@ -58,7 +66,12 @@ class SalesFilterNotifier extends StateNotifier<SalesFilterState> {
   void updateSubordinate(String subordinateId) {
     state = state.copyWith(selectedSubordinate: subordinateId);
   }
+
+  void updateSubordinates(List<String> codes) {
+    state = state.copyWith(selectedSubordinateCodes: codes);
+  }
 }
+
 
 // 📦 Riverpod Provider
 final salesFilterProvider =
