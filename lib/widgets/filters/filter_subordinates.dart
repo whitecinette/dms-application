@@ -64,13 +64,35 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
                         ),
                         child: Row(
                           children: [
-                            Text(
-                              "$position ${selectedCount > 0 ? "($selectedCount)" : ""}",
-                              style: TextStyle(
-                                color: isActive ? Colors.white : Colors.blueGrey, // ✅ White text if active
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Row(
+                              children: [
+                                Text(
+                                  position,
+                                  style: TextStyle(
+                                    color: isActive ? Colors.white : Colors.blueGrey,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                if (selectedCount > 0)
+                                  Container(
+                                    margin: EdgeInsets.only(left: 4),
+                                    padding: EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.redAccent,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Text(
+                                      "$selectedCount",
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
+
                             Icon(
                               isActive ? Icons.arrow_drop_up : Icons.arrow_drop_down, // ✅ Change icon on toggle
                               color: isActive ? Colors.white : Colors.blueGrey,

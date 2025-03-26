@@ -62,10 +62,9 @@ class SalesFilters extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerRight,
               child: FilterValueVolume(
-                onTypeChange: onTypeChange,
                 fontSize: fontSize,
-                selectedType: selectedType, // Pass selected Value/Volume
               ),
+
             ),
           ),
         ],

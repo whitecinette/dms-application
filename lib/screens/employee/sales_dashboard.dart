@@ -1,25 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/sales_filter_provider.dart';
 import '../../widgets/header.dart';
 import '../../widgets/sales_filters.dart';
-import 'employee_sidebar.dart';
 import '../../widgets/filters/filter_date_range.dart';
 import '../../widgets/sales_overview.dart';
 import '../../widgets/filters/filter_subordinates.dart';
 import '../../widgets/tabbed_tables.dart';
 import '../../services/auth_service.dart';
-import '../../providers/sales_filter_provider.dart';
+import 'employee_sidebar.dart';
 
-class SalesDashboard extends StatefulWidget {
+class SalesDashboard extends ConsumerStatefulWidget {
   @override
   _SalesDashboardState createState() => _SalesDashboardState();
 }
 
-class _SalesDashboardState extends State<SalesDashboard> {
-  String selectedType = 'volume'; // Default filter
-  String selectedStartDate = "2025-02-01"; // Default start date
-  String selectedEndDate = "2025-02-28"; // Default end date
-
-  String userToken = ""; // Get token from authentication
+class _SalesDashboardState extends ConsumerState<SalesDashboard> {
+  String userToken = "";
+  String selectedFilter = 'MTD';
+  bool isDropdownOpen = false;
 
   @override
   void initState() {
@@ -28,34 +27,13 @@ class _SalesDashboardState extends State<SalesDashboard> {
   }
 
   void loadUserToken() async {
-    String? token = await AuthService.getToken(); // Retrieve token
+    String? token = await AuthService.getToken();
     if (token != null) {
       setState(() {
         userToken = token;
       });
     }
   }
-
-
-
-  String selectedFilter = 'MTD';
-  bool isDropdownOpen = false; // Track if dropdown is open
-
-  void updateFilter(String filter) {
-    setState(() {
-      selectedFilter = filter;
-    });
-  }
-
-  void updateType(String type) {
-    setState(() {
-      selectedType = type.toLowerCase(); // Convert to lowercase
-    });
-  }
-
-
-
-
 
   void closeDropdowns() {
     setState(() {
@@ -65,11 +43,12 @@ class _SalesDashboardState extends State<SalesDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final filterState = ref.watch(salesFilterProvider);
+    final filterNotifier = ref.read(salesFilterProvider.notifier);
+
     return GestureDetector(
-      behavior: HitTestBehavior.translucent, // Detect taps outside widgets
-      onTap: () {
-        closeDropdowns(); // Close dropdown when clicking outside
-      },
+      behavior: HitTestBehavior.translucent,
+      onTap: closeDropdowns,
       child: Scaffold(
         key: GlobalKey<ScaffoldState>(),
         drawer: EmployeeSidebar(user: {'name': 'User', 'role': 'Sales'}),
@@ -79,72 +58,41 @@ class _SalesDashboardState extends State<SalesDashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Filters Row
                 SalesFilters(
-                  onFilterChange: updateFilter,
-                  onTypeChange: updateType,
-                  selectedFilter: selectedFilter, // Pass selected filter
-                  selectedType: selectedType, // Pass selected type
-                ),
-
-
-
-                SizedBox(height: 10),
-
-                // Date Range Selector
-                FilterDateRange(
-                  initialStartDate: DateTime.parse(selectedStartDate),
-                  initialEndDate: DateTime.parse(selectedEndDate),
-                  onDateChange: (DateTime start, DateTime end) {
-                    setState(() {
-                      selectedStartDate = start.toIso8601String().split("T")[0];
-                      selectedEndDate = end.toIso8601String().split("T")[0];
-                    });
+                  onFilterChange: (filter) {
+                    setState(() => selectedFilter = filter);
                   },
+                  onTypeChange: filterNotifier.updateType,
+                  selectedFilter: selectedFilter,
+                  selectedType: filterState.selectedType,
                 ),
-
-
-
                 SizedBox(height: 10),
-
-                // Sales Overview Boxes
+                FilterDateRange(
+                  initialStartDate: filterState.startDate,
+                  initialEndDate: filterState.endDate,
+                  onDateChange: filterNotifier.updateDateRange,
+                ),
+                SizedBox(height: 10),
                 SalesOverview(
-                  filterType: selectedType,
-                  startDate: selectedStartDate,
-                  endDate: selectedEndDate,
+                  filterType: filterState.selectedType,
+                  startDate: filterState.startDate.toIso8601String().split("T")[0],
+                  endDate: filterState.endDate.toIso8601String().split("T")[0],
                   token: userToken,
                 ),
-
-
-
-
                 SizedBox(height: 10),
-
-                // Subordinate Filter Row (Wrap in GestureDetector)
                 GestureDetector(
-                  behavior: HitTestBehavior.opaque, // Prevents closing when clicked inside
-                  onTap: () {
-                    setState(() {
-                      isDropdownOpen = true; // Keep dropdown open when clicked
-                    });
-                  },
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => setState(() => isDropdownOpen = true),
                   child: FilterSubordinates(),
                 ),
-
                 SizedBox(height: 10),
-
-                // Tabbed Tables (Segment, Channel, Model)
-                // Inside SalesDashboard
                 TabbedTables(
-                  selectedType: selectedType,
-                  startDate: selectedStartDate,
-                  endDate: selectedEndDate,
+                  selectedType: filterState.selectedType,
+                  startDate: filterState.startDate.toIso8601String().split("T")[0],
+                  endDate: filterState.endDate.toIso8601String().split("T")[0],
                   token: userToken,
                 ),
-
-
                 SizedBox(height: 20),
-
               ],
             ),
           ),
