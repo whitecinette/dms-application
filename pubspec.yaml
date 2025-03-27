@@ -50,6 +50,7 @@ dependencies:
   shimmer: ^3.0.0
   flutter_animate: ^4.5.2
   google_maps_flutter: ^2.10.1
+  geocoding: ^2.1.1  # Add this line
 
 dev_dependencies:
   flutter_test:

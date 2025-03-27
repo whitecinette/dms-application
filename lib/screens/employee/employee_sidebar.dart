@@ -1,5 +1,6 @@
 // lib/screens/employee/employee_sidebar.dart
 
+import 'package:dms_app/screens/employee/geo_tag.dart';
 import 'package:dms_app/screens/employee/punch_in_out_emp.dart';
 import 'package:flutter/material.dart';
 import 'sales_dashboard.dart';
@@ -57,8 +58,8 @@ class EmployeeSidebar extends StatelessWidget {
           ),
           _buildDrawerItem(Icons.flag, "Targets", context, TargetsScreen()),
           _buildDrawerItem(Icons.campaign, "Announcements", context, AnnouncementsScreen()),
-          _buildDrawerItem(Icons.campaign, "Punch In/Out", context, PunchInOutEmp()),
-
+          _buildDrawerItem(Icons.location_on, "Geo Tagging", context, GeoTagScreen()),
+          _buildDrawerItem(Icons.access_time, "Punch In/Out", context, PunchInOutEmp()),
           _buildDrawerItem(Icons.person, "Profile", context, ProfileScreen()),
           Divider(),
           _buildDrawerItem(Icons.logout, "Logout", context, LoginScreen(), isLogout: true),

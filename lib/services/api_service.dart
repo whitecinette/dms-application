@@ -376,8 +376,88 @@ class ApiService {
   }
 
 
-// add Payroll
+// get dealer by employee code
+  static Future<List<Map<String, dynamic>>> getDealersByEmployee() async {
+    final url = Uri.parse("${Config.backendUrl}/get-dealer-by-employee");
+
+    String? token = await AuthService.getToken();
+    if (token == null) {
+      throw Exception("User is not authenticated");
+    }
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json"
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        if (responseData.containsKey("dealers") && responseData["dealers"] is List) {
+          final dealersData = List<Map<String, dynamic>>.from(responseData["dealers"]);
+          print("✅ Dealers fetched successfully: $dealersData");
+          return dealersData;
+        } else {
+          throw Exception("No dealers found for this employee.");
+        }
+      } else {
+        final errorData = json.decode(response.body);
+        print("❌ Error fetching dealers: ${errorData['message']}");
+        throw Exception(errorData['message'] ?? "Failed to fetch dealer details.");
+      }
+    } catch (e) {
+      print("❗ Error occurred: $e");
+      throw Exception("Network error or invalid response: $e");
+    }
+  }
+
+  // update geo_tag picture latitude and longitude
+
+// Update geo_tag picture latitude and longitude
+  static Future<void> updateGeotag({
+    required String code,
+    required double latitude,
+    required double longitude,
+    required File imageFile,
+  }) async {
+    final url = Uri.parse("${Config.backendUrl}/update-geo-tag-lat-long");
+    try {
+      var request = http.MultipartRequest('PUT', url)
+        ..headers['Content-Type'] = 'multipart/form-data'  // Add this header
+        ..fields['code'] = code
+        ..fields['latitude'] = latitude.toString()
+        ..fields['longitude'] = longitude.toString()
+        ..files.add(
+          await http.MultipartFile.fromPath(
+            'geotag_picture',
+            imageFile.path,
+            contentType: MediaType('image', 'jpeg'),
+          ),
+        );
+
+      final response = await request.send();
+
+      final responseData = await response.stream.bytesToString();
+      // log("🔎 Response Data: $responseData");
+
+      if (response.statusCode == 200) {
+        final decodedData = json.decode(responseData);
+        print("✅ Geotag updated successfully: ${decodedData['message']}");
+      } else {
+        print("❌ Error updating geotag: ${response.reasonPhrase}");
+        throw Exception("Failed to update geotag: ${response.reasonPhrase}");
+      }
+    } catch (e) {
+      print("❗ Error occurred: $e");
+      throw Exception("Network error or invalid response: $e");
+    }
+  }
+
 }
+
 
 
 
