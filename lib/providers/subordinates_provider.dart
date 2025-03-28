@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../config.dart';
 import '../services/auth_service.dart';
+import 'sales_filter_provider.dart'; // ✅ Needed to read current filters
 
 // Model for Subordinates
 class Subordinate {
@@ -36,15 +37,22 @@ class Subordinate {
 
 // Notifier to Manage State
 class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Subordinate>>>> {
-  SubordinatesNotifier() : super(const AsyncValue.loading()) {
-    fetchSubordinates();
+  final Ref ref;
+
+  SubordinatesNotifier(this.ref) : super(const AsyncValue.loading()) {
+    fetchSubordinates(); // Initial load with default filters
   }
 
-  // Fetch subordinates (self)
-  Future<void> fetchSubordinates() async {
+  Future<void> fetchSubordinates({
+    String? filterType,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
     try {
-      print("Cp 11111");
-      String? token = await AuthService.getToken();
+      final filter = ref.read(salesFilterProvider); // Read current filters if not passed
+
+      final token = await AuthService.getToken();
+      if (token == null) throw Exception("Token not found");
 
       final response = await http.post(
         Uri.parse("${Config.backendUrl}/user/get-subordinates"),
@@ -53,21 +61,17 @@ class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Sub
           "Authorization": "Bearer $token",
         },
         body: jsonEncode({
-          "filter_type": "volume",
-          "start_date": "2025-02-01",
-          "end_date": "2025-02-28",
+          "filter_type": filterType ?? filter.selectedType,
+          "start_date": (startDate ?? filter.startDate).toIso8601String().split("T")[0],
+          "end_date": (endDate ?? filter.endDate).toIso8601String().split("T")[0],
         }),
       );
-      print("URLLLL2: ${Config.backendUrl}/user/get-subordinates");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print("Cp 2 $data['success']");
 
         if (data["success"]) {
           List<String> positions = (data["positions"] as List).cast<String>();
-
-          // ✅ Store all subordinates grouped by position
           Map<String, List<Subordinate>> subordinatesMap = {};
 
           for (String position in positions) {
@@ -82,17 +86,15 @@ class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Sub
           state = AsyncValue.error("Failed to fetch subordinates", StackTrace.current);
         }
       } else {
-        state = AsyncValue.error("Erroor: ${response.statusCode}", StackTrace.current);
-        print("Error cp 3: ");
+        state = AsyncValue.error("Error: ${response.statusCode}", StackTrace.current);
       }
     } catch (e, stackTrace) {
       state = AsyncValue.error("Failed to connect to server", stackTrace);
-      print("Errorrrr: $e");
     }
   }
 }
 
 // ✅ Register the provider
 final subordinatesProvider = StateNotifierProvider<SubordinatesNotifier, AsyncValue<Map<String, List<Subordinate>>>>(
-      (ref) => SubordinatesNotifier(),
+      (ref) => SubordinatesNotifier(ref),
 );

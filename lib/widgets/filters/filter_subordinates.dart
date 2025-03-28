@@ -14,6 +14,21 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
   String? activePosition;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final filter = ref.watch(salesFilterProvider);
+
+    // Refetch subordinates with updated filters
+    ref.read(subordinatesProvider.notifier).fetchSubordinates(
+      filterType: filter.selectedType,
+      startDate: filter.startDate,
+      endDate: filter.endDate,
+    );
+  }
+
+
+  @override
   void initState() {
     super.initState();
     // Load existing selected subordinates from provider
