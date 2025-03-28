@@ -13,6 +13,7 @@ import '../employee/targets.dart';
 import '../employee/announcements.dart';
 import '../employee/profile.dart';
 import '../login_screen.dart'; // For logout
+import '../../services/auth_service.dart';
 
 class AdminSidebar extends StatelessWidget {
   final dynamic user;
@@ -71,7 +72,8 @@ class AdminSidebar extends StatelessWidget {
     return ListTile(
       leading: Icon(icon),
       title: Text(title),
-      onTap: () {
+      onTap: () async {
+        await AuthService.clear();
         if (isLogout) {
           Navigator.pushReplacement(
             context,

@@ -14,6 +14,7 @@ import 'targets.dart';
 import 'announcements.dart';
 import 'profile.dart';
 import '../login_screen.dart'; // For logout
+import '../../services/auth_service.dart';
 
 class EmployeeSidebar extends StatelessWidget {
   final dynamic user;
@@ -72,8 +73,9 @@ class EmployeeSidebar extends StatelessWidget {
     return ListTile(
       leading: Icon(icon),
       title: Text(title),
-      onTap: () {
+      onTap: () async {
         if (isLogout) {
+          await AuthService.clear();
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => LoginScreen()), // Redirect to login

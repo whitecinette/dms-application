@@ -1,7 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
-
 class AuthService {
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -20,7 +19,7 @@ class AuthService {
 
   static Future<void> saveUser(Map<String, dynamic> user) async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.setString("user", jsonEncode(user));
+    await prefs.setString("user", jsonEncode(user));
   }
 
   static Future<Map<String, dynamic>?> getUser() async {
@@ -35,4 +34,10 @@ class AuthService {
     await prefs.remove("user");
   }
 
+  /// ✅ Clear both token and user (for logout)
+  static Future<void> clear() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove("token");
+    await prefs.remove("user");
+  }
 }
