@@ -52,79 +52,84 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
         return Column(
           children: [
             // Top Row of Position Tabs
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: positions.map((position) {
-                  int count = localSelected[position]?.length ?? 0;
-                  bool isActive = activePosition == position;
+            Container(
+              alignment: Alignment.centerLeft,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: positions.map((position) {
+                    int count = localSelected[position]?.length ?? 0;
+                    bool isActive = activePosition == position;
 
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        if (isActive) {
-                          activePosition = null;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          if (isActive) {
+                            activePosition = null;
 
-                          // Flatten all selected subordinate codes
-                          final allSelected = localSelected.values.expand((e) => e).toList();
+                            final allSelected = localSelected.values.expand((e) => e).toList();
+                            final currentSelected = ref.read(salesFilterProvider).selectedSubordinateCodes;
 
-                          // Read current selected codes from provider
-                          final currentSelected = ref.read(salesFilterProvider).selectedSubordinateCodes;
+                            final isDifferent = !_listEquals(allSelected, currentSelected);
 
-                          // Compare sorted lists to avoid unnecessary updates
-                          final isDifferent = !_listEquals(allSelected, currentSelected);
-
-                          if (isDifferent) {
-                            filterNotifier.updateSubordinates(allSelected);
-                            print("📤 Updated subordinates → $allSelected");
+                            if (isDifferent) {
+                              filterNotifier.updateSubordinates(allSelected);
+                            }
+                          } else {
+                            activePosition = position;
                           }
-                        } else {
-                          activePosition = position;
-                        }
-                      });
-                    },
-
-                    child: Container(
-                      margin: EdgeInsets.symmetric(horizontal: 6),
-                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isActive ? Colors.blueGrey : Colors.white,
-                        border: Border.all(color: Colors.blueGrey),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        children: [
-                          Text(
-                            position,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
+                        });
+                      },
+                      child: Container(
+                        margin: EdgeInsets.symmetric(horizontal: 6),
+                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isActive ? Colors.blueGrey : Colors.white,
+                          border: Border.all(color: Colors.blueGrey),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              position,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: isActive ? Colors.white : Colors.blueGrey,
+                              ),
+                            ),
+                            if (count > 0)
+                              Container(
+                                margin: EdgeInsets.only(left: 6),
+                                padding: EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.orange,
+                                ),
+                                child: Text(
+                                  '$count',
+                                  style: TextStyle(color: Colors.white, fontSize: 10),
+                                ),
+                              ),
+                            Icon(
+                              isActive ? Icons.arrow_drop_up : Icons.arrow_drop_down,
                               color: isActive ? Colors.white : Colors.blueGrey,
                             ),
-                          ),
-                          if (count > 0)
-                            Container(
-                              margin: EdgeInsets.only(left: 6),
-                              padding: EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.orange,
-                              ),
-                              child: Text(
-                                '$count',
-                                style: TextStyle(color: Colors.white, fontSize: 10),
-                              ),
-                            ),
-                          Icon(
-                            isActive ? Icons.arrow_drop_up : Icons.arrow_drop_down,
-                            color: isActive ? Colors.white : Colors.blueGrey,
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  }).toList(),
+                ),
               ),
             ),
+
+
+
+
+
 
             if (activePosition != null)
               Column(
@@ -152,7 +157,7 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
                     height: 300,
                     padding: EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.grey[200],
+                      color: Color(0x33b49fde),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: ListView(
@@ -200,24 +205,36 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(sub.code, style: TextStyle(fontSize: 10, color: Colors.grey)),
+              Text(sub.code, style: TextStyle(fontSize: 10, color: Colors.black)),
               Text(sub.name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
               SizedBox(height: 6),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween, // space between
                 children: [
-                  _statBox("MTD", "${sub.mtdSellOut}", Colors.blue),
-                  _statBox("LMTD", "${sub.lmtdSellOut}", Colors.orange),
-                  _statBox(
-                    "%Growth",
-                    "${double.tryParse(sub.sellOutGrowth)?.toStringAsFixed(0) ?? '0'}%",
-                    double.tryParse(sub.sellOutGrowth) != null &&
-                        double.parse(sub.sellOutGrowth) >= 0
-                        ? Colors.green
-                        : Colors.red,
+                  Expanded(
+                    flex: 1,
+                    child: _statBox("MTD", "${sub.mtdSellOut}", Colors.blue),
+                  ),
+                  SizedBox(width: 6), // small gap between items
+                  Expanded(
+                    flex: 1,
+                    child: _statBox("LMTD", "${sub.lmtdSellOut}", Colors.orange),
+                  ),
+                  SizedBox(width: 6),
+                  Expanded(
+                    flex: 1,
+                    child: _statBox(
+                      "%Growth",
+                      "${double.tryParse(sub.sellOutGrowth)?.toStringAsFixed(0) ?? '0'}%",
+                      double.tryParse(sub.sellOutGrowth) != null &&
+                          double.parse(sub.sellOutGrowth) >= 0
+                          ? Colors.green
+                          : Colors.red,
+                    ),
                   ),
                 ],
               )
+
             ],
           ),
         ),
@@ -236,7 +253,7 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-          Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
+          Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
         ],
       ),
     );
