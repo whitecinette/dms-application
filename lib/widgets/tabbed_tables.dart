@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../config.dart';
 import '../widgets/shimmer_loader.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // 👈 Add this
+import '../providers/sales_filter_provider.dart';
 
-class TabbedTables extends StatefulWidget {
-  final String selectedType; // Volume or Value
+class TabbedTables extends ConsumerStatefulWidget {
+  final String selectedType;
   final String startDate;
   final String endDate;
-  final String token; // User Auth Token
+  final String token;
 
   TabbedTables({
     required this.selectedType,
@@ -21,7 +23,8 @@ class TabbedTables extends StatefulWidget {
   _TabbedTablesState createState() => _TabbedTablesState();
 }
 
-class _TabbedTablesState extends State<TabbedTables> {
+class _TabbedTablesState extends ConsumerState<TabbedTables> {
+
   String activeTab = "Segment"; // Default active tab
   final List<String> tabs = ["Segment", "Channel"];
   List<String> headers = [];
@@ -39,8 +42,9 @@ class _TabbedTablesState extends State<TabbedTables> {
       isLoading = true;
     });
 
-    String reportType = activeTab.toLowerCase(); // segment, channel
+    final filterState = ref.read(salesFilterProvider); // 👈 Get selected subordinates
 
+    String reportType = activeTab.toLowerCase();
     String apiUrl = '${Config.backendUrl}/user/sales-data/report/self';
 
     Map<String, String> headersRequest = {
@@ -52,8 +56,11 @@ class _TabbedTablesState extends State<TabbedTables> {
       "start_date": widget.startDate,
       "end_date": widget.endDate,
       "filter_type": widget.selectedType,
-      "report_type": reportType
+      "report_type": reportType,
+      "subordinate_codes": filterState.selectedSubordinateCodes, // 👈 This line adds the list
     };
+
+    print("📊 TabbedTables sending: $body");
 
     try {
       final response = await http.post(
@@ -79,6 +86,7 @@ class _TabbedTablesState extends State<TabbedTables> {
       });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

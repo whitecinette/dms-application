@@ -74,9 +74,6 @@ class _SalesDashboardState extends ConsumerState<SalesDashboard> {
                 ),
                 SizedBox(height: 10),
                 SalesOverview(
-                  filterType: filterState.selectedType,
-                  startDate: filterState.startDate.toIso8601String().split("T")[0],
-                  endDate: filterState.endDate.toIso8601String().split("T")[0],
                   token: userToken,
                 ),
                 SizedBox(height: 10),

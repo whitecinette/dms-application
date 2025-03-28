@@ -1,21 +1,17 @@
 import 'package:dms_app/utils/global_fucntions.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // <-- Added this
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../config.dart'; // Import config file for backend URL
+import '../config.dart';
 import '../widgets/shimmer_loader.dart';
+import '../providers/sales_filter_provider.dart'; // <-- For filters
 
-class SalesOverview extends StatefulWidget {
-  final String filterType; // Accepts 'value' or 'volume'
-  final String startDate;
-  final String endDate;
-  final String token; // Bearer token for API
+class SalesOverview extends ConsumerStatefulWidget {
+  final String token;
 
   const SalesOverview({
     Key? key,
-    required this.filterType,
-    required this.startDate,
-    required this.endDate,
     required this.token,
   }) : super(key: key);
 
@@ -23,10 +19,12 @@ class SalesOverview extends StatefulWidget {
   _SalesOverviewState createState() => _SalesOverviewState();
 }
 
-class _SalesOverviewState extends State<SalesOverview> {
+class _SalesOverviewState extends ConsumerState<SalesOverview> {
   Map<String, dynamic>? salesData;
   bool isLoading = true;
   bool hasError = false;
+
+  SalesFilterState? previousFilters;
 
   @override
   void initState() {
@@ -35,34 +33,52 @@ class _SalesOverviewState extends State<SalesOverview> {
   }
 
   @override
-  void didUpdateWidget(SalesOverview oldWidget) {
-    super.didUpdateWidget(oldWidget);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
 
-    // If filter type or date range changes, re-fetch data
-    if (widget.filterType != oldWidget.filterType ||
-        widget.startDate != oldWidget.startDate ||
-        widget.endDate != oldWidget.endDate) {
+    final currentFilters = ref.watch(salesFilterProvider);
+
+    if (previousFilters == null || !_isSameFilter(currentFilters, previousFilters!)) {
+      previousFilters = currentFilters;
       fetchSalesData();
     }
   }
 
+  bool _isSameFilter(SalesFilterState a, SalesFilterState b) {
+    return a.selectedType == b.selectedType &&
+        a.startDate == b.startDate &&
+        a.endDate == b.endDate &&
+        a.selectedSubordinate == b.selectedSubordinate &&
+        _listEquals(a.selectedSubordinateCodes, b.selectedSubordinateCodes);
+  }
+
+  bool _listEquals(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    final sortedA = [...a]..sort();
+    final sortedB = [...b]..sort();
+    return sortedA.every((element) => sortedB.contains(element));
+  }
 
   Future<void> fetchSalesData() async {
+    final filterState = ref.read(salesFilterProvider); // 🟡 Read filters here
     final url = '${Config.backendUrl}/user/sales-data/dashboard/metrics/self';
 
+    setState(() {
+      isLoading = true;
+      hasError = false;
+    });
+
     try {
+      final body = filterState.getApiFilters();
+      print("🔍 Sending Filters to API: $body");
+
       final response = await http.post(
         Uri.parse(url),
         headers: {
           "Content-Type": "application/json",
           "Authorization": "Bearer ${widget.token}",
         },
-        body: jsonEncode({
-          "filter_type": widget.filterType.toLowerCase(), // Ensure lowercase
-          "start_date": widget.startDate,
-          "end_date": widget.endDate,
-        }),
-
+        body: jsonEncode(body),
       );
 
       if (response.statusCode == 200) {
@@ -83,6 +99,7 @@ class _SalesOverviewState extends State<SalesOverview> {
         });
       }
     } catch (e) {
+      print("❌ API Error: $e");
       setState(() {
         hasError = true;
       });
@@ -112,8 +129,8 @@ class _SalesOverviewState extends State<SalesOverview> {
           "MTD Sell In",
           "LMTD Sell In",
           "Growth%",
-          formatIndianNumber(salesData!["mtd_sell_in"]), // Apply formatting here
-          formatIndianNumber(salesData!["lmtd_sell_in"]), // Apply formatting here
+          formatIndianNumber(salesData!["mtd_sell_in"]),
+          formatIndianNumber(salesData!["lmtd_sell_in"]),
           double.parse(salesData!["sell_in_growth"].toString()),
         ),
         SizedBox(height: 4),
@@ -123,8 +140,8 @@ class _SalesOverviewState extends State<SalesOverview> {
           "MTD Sell Out",
           "LMTD Sell Out",
           "Growth%",
-          formatIndianNumber(salesData!["mtd_sell_out"]), // Apply formatting here
-          formatIndianNumber(salesData!["lmtd_sell_out"]), // Apply formatting here
+          formatIndianNumber(salesData!["mtd_sell_out"]),
+          formatIndianNumber(salesData!["lmtd_sell_out"]),
           double.parse(salesData!["sell_out_growth"].toString()),
         ),
       ],
@@ -136,12 +153,12 @@ class _SalesOverviewState extends State<SalesOverview> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _buildBox(fontSize, height, title1, value1, Color(0xFF005bfe)), // MTD (Blue)
+        _buildBox(fontSize, height, title1, value1, Color(0xFF005bfe)),
         SizedBox(width: 3),
-        _buildBox(fontSize, height, title2, value2, Colors.orange), // LMTD (Orange)
+        _buildBox(fontSize, height, title2, value2, Colors.orange),
         SizedBox(width: 3),
         _buildBox(fontSize, height, title3, "${growth.toStringAsFixed(1)}%",
-            growth > 0 ? Colors.green : Colors.red), // Growth %
+            growth > 0 ? Colors.green : Colors.red),
       ],
     );
   }

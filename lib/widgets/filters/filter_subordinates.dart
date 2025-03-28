@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/subordinates_provider.dart';
 import '../../providers/sales_filter_provider.dart';
+import '../../providers/subordinates_provider.dart';
 
 class FilterSubordinates extends ConsumerStatefulWidget {
   @override
@@ -9,67 +9,82 @@ class FilterSubordinates extends ConsumerStatefulWidget {
 }
 
 class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
-  String? activePosition;
+  Map<String, List<String>> localSelected = {};
   Map<String, String> searchQueries = {};
+  String? activePosition;
+
+  @override
+  void initState() {
+    super.initState();
+    // Load existing selected subordinates from provider
+    final selected = ref.read(salesFilterProvider).selectedSubordinateCodes;
+    localSelected = _groupByPosition(selected);
+  }
 
   @override
   Widget build(BuildContext context) {
     final subordinatesState = ref.watch(subordinatesProvider);
-    final selectedCodes = ref.watch(salesFilterProvider).selectedSubordinateCodes;
+    final filterNotifier = ref.read(salesFilterProvider.notifier);
 
     return subordinatesState.when(
       loading: () => Center(child: CircularProgressIndicator()),
       error: (err, _) => Center(child: Text("Error: $err")),
       data: (data) {
-        if (data == null || data.isEmpty) return Center(child: Text("No data available"));
+        if (data.isEmpty) return Center(child: Text("No data available"));
 
-        final positions = data.keys.toList();
+        List<String> positions = data.keys.toList();
 
         return Column(
           children: [
-            // Position Tabs
+            // Top Row of Position Tabs
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: positions.map((position) {
-                  final subs = (data[position] ?? []).cast<Subordinate>();
-                  final selectedCount = subs.where((s) => selectedCodes.contains(s.code)).length;
-                  final isActive = activePosition == position;
+                  int count = localSelected[position]?.length ?? 0;
+                  bool isActive = activePosition == position;
 
                   return GestureDetector(
                     onTap: () {
                       setState(() {
-                        activePosition = isActive ? null : position;
+                        // Close if already open
+                        if (isActive) {
+                          activePosition = null;
+                          final allSelected = localSelected.values.expand((e) => e).toList();
+                          filterNotifier.updateSubordinates(allSelected);
+                        } else {
+                          activePosition = position;
+                        }
                       });
                     },
                     child: Container(
-                      margin: EdgeInsets.only(right: 8, bottom: 6),
+                      margin: EdgeInsets.symmetric(horizontal: 6),
                       padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
                         color: isActive ? Colors.blueGrey : Colors.white,
                         border: Border.all(color: Colors.blueGrey),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
                         children: [
                           Text(
                             position,
                             style: TextStyle(
-                              color: isActive ? Colors.white : Colors.blueGrey,
                               fontWeight: FontWeight.bold,
+                              color: isActive ? Colors.white : Colors.blueGrey,
                             ),
                           ),
-                          if (selectedCount > 0)
+                          if (count > 0)
                             Container(
                               margin: EdgeInsets.only(left: 6),
                               padding: EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: Colors.orangeAccent,
                                 shape: BoxShape.circle,
+                                color: Colors.orange,
                               ),
                               child: Text(
-                                "$selectedCount",
-                                style: TextStyle(fontSize: 10, color: Colors.white),
+                                '$count',
+                                style: TextStyle(color: Colors.white, fontSize: 10),
                               ),
                             ),
                           Icon(
@@ -84,13 +99,43 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
               ),
             ),
 
-            // Dropdown content
             if (activePosition != null)
-              _buildDropdown(
-                context,
-                activePosition!,
-                data.map((k, v) => MapEntry(k, (v as List).cast<Subordinate>())),
-                selectedCodes,
+              Column(
+                children: [
+                  // Search Bar
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                    child: TextField(
+                      onChanged: (val) {
+                        setState(() {
+                          searchQueries[activePosition!] = val;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: "Search...",
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                    ),
+                  ),
+
+                  // Dropdown List
+                  Container(
+                    height: 300,
+                    padding: EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: ListView(
+                      children: _buildDropdownItems(
+                        data[activePosition!] ?? [],
+                        activePosition!,
+                      ),
+                    ),
+                  )
+                ],
               ),
           ],
         );
@@ -98,127 +143,89 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
     );
   }
 
-  Widget _buildDropdown(BuildContext context, String position, Map<String, List<Subordinate>> subordinatesMap, List<String> selectedCodes) {
-    final query = searchQueries[position] ?? '';
-    final List<Subordinate> allSubs = subordinatesMap[position] ?? [];
-    final List<Subordinate> filtered = allSubs.where((sub) =>
-    sub.name.toLowerCase().contains(query.toLowerCase()) || sub.code.toLowerCase().contains(query.toLowerCase())
-    ).toList();
+  List<Widget> _buildDropdownItems(List<Subordinate> subs, String position) {
+    String query = searchQueries[position] ?? "";
+    final filtered = subs.where((s) =>
+    s.name.toLowerCase().contains(query.toLowerCase()) ||
+        s.code.toLowerCase().contains(query.toLowerCase())).toList();
 
-    return Container(
-      height: 280,
-      padding: EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Color(0xFFF3F3F6),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        children: [
-          // Search Bar
-          Container(
-            height: 32,
-            margin: EdgeInsets.only(bottom: 10),
-            padding: EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.search, size: 18, color: Colors.grey[600]),
-                SizedBox(width: 6),
-                Expanded(
-                  child: TextField(
-                    onChanged: (val) => setState(() => searchQueries[position] = val),
-                    decoration: InputDecoration.collapsed(hintText: "Search..."),
-                    style: TextStyle(fontSize: 13),
-                  ),
-                )
-              ],
-            ),
+    return filtered.map((sub) {
+      bool isSelected = localSelected[position]?.contains(sub.code) ?? false;
+      return GestureDetector(
+        onTap: () {
+          setState(() {
+            localSelected[position] ??= [];
+            if (isSelected) {
+              localSelected[position]!.remove(sub.code);
+            } else {
+              localSelected[position]!.add(sub.code);
+            }
+          });
+        },
+        child: Container(
+          margin: EdgeInsets.symmetric(vertical: 6),
+          padding: EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.lightBlueAccent.withOpacity(0.3) : Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
           ),
-
-          // Subordinate list
-          Expanded(
-            child: ListView.builder(
-              itemCount: filtered.length,
-              itemBuilder: (context, index) {
-                final sub = filtered[index];
-                final isSelected = selectedCodes.contains(sub.code);
-
-                return GestureDetector(
-                  onTap: () {
-                    final provider = ref.read(salesFilterProvider.notifier);
-                    final updated = List<String>.from(selectedCodes);
-
-                    if (isSelected) {
-                      updated.remove(sub.code);
-                    } else {
-                      updated.add(sub.code);
-                    }
-
-                    provider.updateSubordinates(updated);
-                  },
-                  child: Container(
-                    padding: EdgeInsets.all(12),
-                    margin: EdgeInsets.symmetric(vertical: 5),
-                    decoration: BoxDecoration(
-                      color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isSelected ? Colors.blue : Colors.grey[300]!,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(sub.code, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-                        Text(sub.name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                        SizedBox(height: 6),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _statBox("MTD", "${sub.mtdSellOut}", Colors.blue),
-                            _statBox("LMTD", "${sub.lmtdSellOut}", Colors.orange),
-                            Builder(
-                              builder: (context) {
-                                double growthValue = double.tryParse(sub.sellOutGrowth.toString()) ?? 0;
-                                return _statBox(
-                                  "%Growth",
-                                  "${growthValue.toStringAsFixed(0)}%",
-                                  growthValue >= 0 ? Colors.green : Colors.red,
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(sub.code, style: TextStyle(fontSize: 10, color: Colors.grey)),
+              Text(sub.name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _statBox("MTD", "${sub.mtdSellOut}", Colors.blue),
+                  _statBox("LMTD", "${sub.lmtdSellOut}", Colors.orange),
+                  _statBox(
+                    "%Growth",
+                    "${double.tryParse(sub.sellOutGrowth)?.toStringAsFixed(0) ?? '0'}%",
+                    double.tryParse(sub.sellOutGrowth) != null &&
+                        double.parse(sub.sellOutGrowth) >= 0
+                        ? Colors.green
+                        : Colors.red,
                   ),
-                );
-              },
-            ),
-          )
-        ],
-      ),
-    );
+                ],
+              )
+            ],
+          ),
+        ),
+      );
+    }).toList();
   }
 
-  Widget _statBox(String title, String value, Color color) {
+  Widget _statBox(String label, String value, Color color) {
     return Container(
-      padding: EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey[200],
+        color: Colors.grey[100],
         borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-          Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+          Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+          Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
         ],
       ),
     );
+  }
+
+  Map<String, List<String>> _groupByPosition(List<String> codes) {
+    final Map<String, List<String>> grouped = {};
+    final data = ref.read(subordinatesProvider).value ?? {};
+
+    for (var entry in data.entries) {
+      grouped[entry.key] = entry.value
+          .where((sub) => codes.contains(sub.code))
+          .map((sub) => sub.code)
+          .toList();
+    }
+
+    return grouped;
   }
 }
