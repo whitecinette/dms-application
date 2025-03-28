@@ -18,7 +18,7 @@ class SalesDashboard extends ConsumerStatefulWidget {
 class _SalesDashboardState extends ConsumerState<SalesDashboard> {
   String userToken = "";
   String selectedFilter = 'MTD';
-  bool isDropdownOpen = false;
+
 
   @override
   void initState() {
@@ -35,66 +35,55 @@ class _SalesDashboardState extends ConsumerState<SalesDashboard> {
     }
   }
 
-  void closeDropdowns() {
-    setState(() {
-      isDropdownOpen = false;
-    });
-  }
+
 
   @override
   Widget build(BuildContext context) {
     final filterState = ref.watch(salesFilterProvider);
     final filterNotifier = ref.read(salesFilterProvider.notifier);
 
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onTap: closeDropdowns,
-      child: Scaffold(
-        key: GlobalKey<ScaffoldState>(),
-        drawer: EmployeeSidebar(user: {'name': 'User', 'role': 'Sales'}),
-        body: SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SalesFilters(
-                  onFilterChange: (filter) {
-                    setState(() => selectedFilter = filter);
-                  },
-                  onTypeChange: filterNotifier.updateType,
-                  selectedFilter: selectedFilter,
-                  selectedType: filterState.selectedType,
-                ),
-                SizedBox(height: 10),
-                FilterDateRange(
-                  initialStartDate: filterState.startDate,
-                  initialEndDate: filterState.endDate,
-                  onDateChange: filterNotifier.updateDateRange,
-                ),
-                SizedBox(height: 10),
-                SalesOverview(
-                  token: userToken,
-                ),
-                SizedBox(height: 10),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => setState(() => isDropdownOpen = true),
-                  child: FilterSubordinates(),
-                ),
-                SizedBox(height: 10),
-                TabbedTables(
-                  selectedType: filterState.selectedType,
-                  startDate: filterState.startDate.toIso8601String().split("T")[0],
-                  endDate: filterState.endDate.toIso8601String().split("T")[0],
-                  token: userToken,
-                ),
-                SizedBox(height: 20),
-              ],
-            ),
+    return Scaffold(
+      key: GlobalKey<ScaffoldState>(),
+      drawer: EmployeeSidebar(user: {'name': 'User', 'role': 'Sales'}),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SalesFilters(
+                onFilterChange: (filter) {
+                  setState(() => selectedFilter = filter);
+                },
+                onTypeChange: filterNotifier.updateType,
+                selectedFilter: selectedFilter,
+                selectedType: filterState.selectedType,
+              ),
+              SizedBox(height: 10),
+              FilterDateRange(
+                initialStartDate: filterState.startDate,
+                initialEndDate: filterState.endDate,
+                onDateChange: filterNotifier.updateDateRange,
+              ),
+              SizedBox(height: 10),
+              SalesOverview(
+                token: userToken,
+              ),
+              SizedBox(height: 10),
+              FilterSubordinates(), // 🔥 no need to wrap in GestureDetector anymore
+              SizedBox(height: 10),
+              TabbedTables(
+                selectedType: filterState.selectedType,
+                startDate: filterState.startDate.toIso8601String().split("T")[0],
+                endDate: filterState.endDate.toIso8601String().split("T")[0],
+                token: userToken,
+              ),
+              SizedBox(height: 20),
+            ],
           ),
         ),
       ),
     );
+
   }
 }

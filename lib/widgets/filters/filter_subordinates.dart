@@ -47,16 +47,28 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
                   return GestureDetector(
                     onTap: () {
                       setState(() {
-                        // Close if already open
                         if (isActive) {
                           activePosition = null;
+
+                          // Flatten all selected subordinate codes
                           final allSelected = localSelected.values.expand((e) => e).toList();
-                          filterNotifier.updateSubordinates(allSelected);
+
+                          // Read current selected codes from provider
+                          final currentSelected = ref.read(salesFilterProvider).selectedSubordinateCodes;
+
+                          // Compare sorted lists to avoid unnecessary updates
+                          final isDifferent = !_listEquals(allSelected, currentSelected);
+
+                          if (isDifferent) {
+                            filterNotifier.updateSubordinates(allSelected);
+                            print("📤 Updated subordinates → $allSelected");
+                          }
                         } else {
                           activePosition = position;
                         }
                       });
                     },
+
                     child: Container(
                       margin: EdgeInsets.symmetric(horizontal: 6),
                       padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -228,4 +240,12 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
 
     return grouped;
   }
+
+  bool _listEquals(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    final sortedA = [...a]..sort();
+    final sortedB = [...b]..sort();
+    return sortedA.every((element) => sortedB.contains(element));
+  }
+
 }

@@ -1,11 +1,11 @@
 import 'package:dms_app/utils/global_fucntions.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // <-- Added this
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config.dart';
 import '../widgets/shimmer_loader.dart';
-import '../providers/sales_filter_provider.dart'; // <-- For filters
+import '../providers/sales_filter_provider.dart';
 
 class SalesOverview extends ConsumerStatefulWidget {
   final String token;
@@ -27,12 +27,6 @@ class _SalesOverviewState extends ConsumerState<SalesOverview> {
   SalesFilterState? previousFilters;
 
   @override
-  void initState() {
-    super.initState();
-    fetchSalesData();
-  }
-
-  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
 
@@ -40,7 +34,7 @@ class _SalesOverviewState extends ConsumerState<SalesOverview> {
 
     if (previousFilters == null || !_isSameFilter(currentFilters, previousFilters!)) {
       previousFilters = currentFilters;
-      fetchSalesData();
+      fetchSalesData(currentFilters);
     }
   }
 
@@ -59,8 +53,7 @@ class _SalesOverviewState extends ConsumerState<SalesOverview> {
     return sortedA.every((element) => sortedB.contains(element));
   }
 
-  Future<void> fetchSalesData() async {
-    final filterState = ref.read(salesFilterProvider); // 🟡 Read filters here
+  Future<void> fetchSalesData(SalesFilterState filterState) async {
     final url = '${Config.backendUrl}/user/sales-data/dashboard/metrics/self';
 
     setState(() {
