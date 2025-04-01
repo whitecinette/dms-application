@@ -93,7 +93,16 @@ class _ExtractionScreenState extends State<ExtractionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Extraction")),
+      appBar: AppBar(
+        title: Text("Extraction"),
+        leading: Navigator.of(context).canPop()
+            ? IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        )
+            : null,
+      ),
+
       body: Stack(
         children: [
           Container(
@@ -159,8 +168,8 @@ class _ExtractionScreenState extends State<ExtractionScreen> {
             bottom: 20,
             right: 10,
             child: ElevatedButton.icon(
-              onPressed: () {
-                showModalBottomSheet(
+              onPressed: () async {
+                final result = await showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
                   shape: RoundedRectangleBorder(
@@ -173,7 +182,11 @@ class _ExtractionScreenState extends State<ExtractionScreen> {
                     },
                   ),
                 );
+
+                // ✅ Refresh data after modal closes
+                fetchExtractionData();
               },
+
               icon: Icon(Icons.add, color: Colors.white),
               label: Text("Add New", style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(

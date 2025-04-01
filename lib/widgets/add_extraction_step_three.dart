@@ -222,10 +222,69 @@ class _AddExtractionStep3State extends ConsumerState<AddExtractionStep3> {
             ),
             SizedBox(height: 10),
             ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: Text("Done"),
+                onPressed: () async {
+                  final formState = ref.read(extractionFormProvider);
+                  final notifier = ref.read(extractionFormProvider.notifier);
+
+                  if (formState.dealer == null || formState.selectedProducts.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Please select dealer and at least one product")),
+                    );
+                    return;
+                  }
+
+                  final payload = {
+                    "dealer": formState.dealer!["code"],
+                    "products": formState.selectedProducts.map((p) => {
+                      "brand": p["brand"],
+                      "product_name": p["product_name"],
+                      "model_code": p["model_code"],
+                      "price": p["price"],
+                      "segment": p["segment"],
+                      "product_code": p["product_code"],
+                      "quantity": p["quantity"],
+                      "amount": p["quantity"] * p["price"],
+                      "product_category": p["product_category"]
+                    }).toList()
+                  };
+
+                  try {
+                    final token = await AuthService.getToken();
+                    final res = await http.post(
+                      Uri.parse("${Config.backendUrl}/user/extraction-record/add"),
+                      headers: {
+                        "Authorization": "Bearer $token",
+                        "Content-Type": "application/json",
+                      },
+                      body: jsonEncode(payload),
+                    );
+
+                    final data = jsonDecode(res.body);
+                    if (data["success"]) {
+                      notifier.clearForm();
+
+                      // ✅ Close all modals
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+
+                      // ✅ Navigate to ExtractionScreen
+                      Navigator.pushReplacementNamed(context, '/employee/extraction');
+
+                      // ✅ Show success message
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(data["message"] ?? "Extraction added successfully")),
+                      );
+                    } else {
+                      throw Exception(data["message"] ?? "Failed");
+                    }
+                  } catch (e) {
+                    print("❌ Error submitting extraction: $e");
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Something went wrong. Please try again.")),
+                    );
+                  }
+                },
+
+                child: Text("Submit"),
             ),
           ],
         ),
