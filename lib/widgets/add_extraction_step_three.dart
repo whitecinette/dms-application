@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config.dart';
 import '../../services/auth_service.dart';
 import '../../providers/extraction_form_provider.dart';
+import '../services/auth_gate.dart';
+import '../screens/employee/extraction.dart';
 
 class AddExtractionStep3 extends ConsumerStatefulWidget {
   final ScrollController scrollController;
@@ -266,8 +268,13 @@ class _AddExtractionStep3State extends ConsumerState<AddExtractionStep3> {
                       // ✅ Close all modals
                       Navigator.of(context).popUntil((route) => route.isFirst);
 
-                      // ✅ Navigate to ExtractionScreen
-                      Navigator.pushReplacementNamed(context, '/employee/extraction');
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => ExtractionScreen()),
+                            (route) => false,
+                      );
+
+
 
                       // ✅ Show success message
                       ScaffoldMessenger.of(context).showSnackBar(

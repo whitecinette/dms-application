@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../../services/auth_service.dart';
 import '../../config.dart';
 import '../../widgets/add_extraction_step_one.dart';
+import '../../services/auth_gate.dart';
 
 class ExtractionScreen extends StatefulWidget {
   @override
@@ -95,13 +96,19 @@ class _ExtractionScreenState extends State<ExtractionScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text("Extraction"),
-        leading: Navigator.of(context).canPop()
-            ? IconButton(
+        leading: IconButton(
           icon: Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        )
-            : null,
+          onPressed: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => AuthGate()),
+                  (route) => false,
+            );
+          },
+        ),
       ),
+
+
 
       body: Stack(
         children: [
