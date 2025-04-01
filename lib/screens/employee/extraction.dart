@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/add_extraction_step_one.dart';
 
 class ExtractionScreen extends StatefulWidget {
   @override
@@ -147,8 +148,21 @@ class _ExtractionScreenState extends State<ExtractionScreen> {
             right: 10,
             child: ElevatedButton.icon(
               onPressed: () {
-                // TODO: handle add
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true, // <-- important
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  ),
+                  builder: (context) => DraggableScrollableSheet(
+                    expand: false,
+                    builder: (context, scrollController) {
+                      return AddExtractionStep1(scrollController: scrollController); // 👈 pass scrollController
+                    },
+                  ),
+                );
               },
+
               icon: Icon(Icons.add, color: Colors.white), // make icon white
               label: Text(
                 "Add New",
@@ -169,4 +183,30 @@ class _ExtractionScreenState extends State<ExtractionScreen> {
       ),
     );
   }
+
+  void _openAddExtractionForm(BuildContext context) {
+    showModalBottomSheet(
+      isScrollControlled: true,
+      context: context,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          expand: false, // ⬅️ Don't expand over entire screen unless needed
+          initialChildSize: 0.95, // ⬅️ Starts almost full height
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          builder: (context, scrollController) {
+            return AddExtractionStep1(scrollController: scrollController);
+          },
+        );
+      },
+    );
+  }
+
+
+
+
 }
