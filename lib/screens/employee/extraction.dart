@@ -1,4 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import '../../services/auth_service.dart';
+import '../../config.dart';
 import '../../widgets/add_extraction_step_one.dart';
 
 class ExtractionScreen extends StatefulWidget {
@@ -7,75 +11,69 @@ class ExtractionScreen extends StatefulWidget {
 }
 
 class _ExtractionScreenState extends State<ExtractionScreen> {
-  final List<String> tableHeaders = [
-    "dealer_code",
-    "product_name",
-    "product_code",
-    "product_category",
-    "price",
-    "quantity",
-    "total",
-    "segment",
-  ];
-
-  final List<Map<String, dynamic>> dummyData = [
-    {
-      "dealer_code": "D001",
-      "product_name": "Galaxy A14",
-      "product_code": "SM-A146BZKE",
-      "product_category": "Smartphone",
-      "price": 13999,
-      "quantity": 5,
-      "total": 69995,
-      "segment": "10-15K"
-    },
-    {
-      "dealer_code": "D002",
-      "product_name": "Tab S6 Lite",
-      "product_code": "SM-P613NZAA",
-      "product_category": "Tablet",
-      "price": 26999,
-      "quantity": 2,
-      "total": 53998,
-      "segment": "25-30K"
-    },
-    {
-      "dealer_code": "D003",
-      "product_name": "Galaxy Watch 5",
-      "product_code": "SM-R900NZ",
-      "product_category": "Wearable",
-      "price": 28999,
-      "quantity": 1,
-      "total": 28999,
-      "segment": "20-30K"
-    },
-  ];
-
+  List<String> tableHeaders = [];
+  List<Map<String, dynamic>> tableData = [];
   List<Map<String, dynamic>> filteredData = [];
+  bool isLoading = true;
+  String? errorMessage;
+
   TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    filteredData = dummyData;
+    fetchExtractionData();
     searchController.addListener(_filterData);
+  }
+
+  Future<void> fetchExtractionData() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    try {
+      final token = await AuthService.getToken();
+      final response = await http.get(
+        Uri.parse("${Config.backendUrl}/user/get-extraction-records/month"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (data["success"]) {
+        setState(() {
+          tableHeaders = List<String>.from(data["headers"]);
+          tableData = List<Map<String, dynamic>>.from(data["data"]);
+          filteredData = tableData;
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          errorMessage = "Failed to load extraction records.";
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = "Something went wrong. Please try again.";
+        isLoading = false;
+      });
+    }
   }
 
   void _filterData() {
     final query = searchController.text.toLowerCase();
     setState(() {
-      filteredData = dummyData.where((row) {
+      filteredData = tableData.where((row) {
         return row.values
             .map((value) => value.toString().toLowerCase())
             .any((value) => value.contains(query));
       }).toList();
     });
-  }
-
-  @override
-  void dispose() {
-    searchController.dispose();
-    super.dispose();
   }
 
   String _beautifyHeader(String header) {
@@ -87,6 +85,12 @@ class _ExtractionScreenState extends State<ExtractionScreen> {
   }
 
   @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text("Extraction")),
@@ -95,10 +99,20 @@ class _ExtractionScreenState extends State<ExtractionScreen> {
           Container(
             width: double.infinity,
             height: double.infinity,
-            padding: EdgeInsets.fromLTRB(10, 10, 10, 80), // padding for button
-            child: Column(
+            padding: EdgeInsets.fromLTRB(10, 10, 10, 80),
+            child: isLoading
+                ? Center(child: CircularProgressIndicator())
+                : errorMessage != null
+                ? Center(child: Text(errorMessage!))
+                : tableData.isEmpty
+                ? Center(
+              child: Text(
+                "No extraction records available.",
+                style: TextStyle(fontSize: 16),
+              ),
+            )
+                : Column(
               children: [
-                // 🔍 Search bar
                 TextField(
                   controller: searchController,
                   decoration: InputDecoration(
@@ -109,8 +123,6 @@ class _ExtractionScreenState extends State<ExtractionScreen> {
                   ),
                 ),
                 SizedBox(height: 10),
-
-                // 📊 Table
                 Expanded(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -128,11 +140,13 @@ class _ExtractionScreenState extends State<ExtractionScreen> {
                         ))
                             .toList(),
                         rows: filteredData
-                            .map((row) => DataRow(
-                          cells: tableHeaders
-                              .map((header) => DataCell(Text("${row[header]}")))
-                              .toList(),
-                        ))
+                            .map(
+                              (row) => DataRow(
+                            cells: tableHeaders
+                                .map((header) => DataCell(Text("${row[header] ?? ''}")))
+                                .toList(),
+                          ),
+                        )
                             .toList(),
                       ),
                     ),
@@ -141,8 +155,6 @@ class _ExtractionScreenState extends State<ExtractionScreen> {
               ],
             ),
           ),
-
-          // ➕ Sticky Add Button
           Positioned(
             bottom: 20,
             right: 10,
@@ -150,63 +162,30 @@ class _ExtractionScreenState extends State<ExtractionScreen> {
               onPressed: () {
                 showModalBottomSheet(
                   context: context,
-                  isScrollControlled: true, // <-- important
+                  isScrollControlled: true,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                   ),
                   builder: (context) => DraggableScrollableSheet(
                     expand: false,
                     builder: (context, scrollController) {
-                      return AddExtractionStep1(scrollController: scrollController); // 👈 pass scrollController
+                      return AddExtractionStep1(scrollController: scrollController);
                     },
                   ),
                 );
               },
-
-              icon: Icon(Icons.add, color: Colors.white), // make icon white
-              label: Text(
-                "Add New",
-                style: TextStyle(color: Colors.white), // 👈 white text
-              ),
+              icon: Icon(Icons.add, color: Colors.white),
+              label: Text("Add New", style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.lightBlue,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6), // 👈 reduced radius
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 11),
               ),
             ),
-
           ),
         ],
       ),
     );
   }
-
-  void _openAddExtractionForm(BuildContext context) {
-    showModalBottomSheet(
-      isScrollControlled: true,
-      context: context,
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return DraggableScrollableSheet(
-          expand: false, // ⬅️ Don't expand over entire screen unless needed
-          initialChildSize: 0.95, // ⬅️ Starts almost full height
-          minChildSize: 0.5,
-          maxChildSize: 0.95,
-          builder: (context, scrollController) {
-            return AddExtractionStep1(scrollController: scrollController);
-          },
-        );
-      },
-    );
-  }
-
-
-
-
 }
