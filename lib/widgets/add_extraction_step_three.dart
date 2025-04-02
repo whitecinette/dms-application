@@ -109,6 +109,13 @@ class _AddExtractionStep3State extends ConsumerState<AddExtractionStep3> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedProducts = ref.watch(extractionFormProvider).selectedProducts;
+    final totalUnits = selectedProducts.fold<int>(
+      0,
+          (sum, product) => sum + (product["quantity"] as int? ?? 0),
+    );
+
+
     return SafeArea(
       child: Container(
         height: MediaQuery.of(context).size.height,
@@ -185,35 +192,55 @@ class _AddExtractionStep3State extends ConsumerState<AddExtractionStep3> {
                           right: 0,
                           child: Container(
                             padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(6),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 4,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                GestureDetector(
-                                  onTap: () => _updateQuantity(product, -1),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                    child: Icon(Icons.remove, size: 18),
+                                Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(6),
+                                    onTap: () => _updateQuantity(product, -1),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Icon(Icons.remove, size: 20),
+                                    ),
                                   ),
                                 ),
-                                Text(
-                                  '${productQuantities[product["_id"]] ?? 0}',
-                                  style: TextStyle(fontSize: 14),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  child: Text(
+                                    '${productQuantities[product["_id"]] ?? 0}',
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                  ),
                                 ),
-                                GestureDetector(
-                                  onTap: () => _updateQuantity(product, 1),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                    child: Icon(Icons.add, size: 18),
+                                Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(6),
+                                    onTap: () => _updateQuantity(product, 1),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Icon(Icons.add, size: 20),
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
                         ),
+
                       ],
                     ),
                   );
@@ -223,76 +250,81 @@ class _AddExtractionStep3State extends ConsumerState<AddExtractionStep3> {
               ),
             ),
             SizedBox(height: 10),
-            ElevatedButton(
-                onPressed: () async {
-                  final formState = ref.read(extractionFormProvider);
-                  final notifier = ref.read(extractionFormProvider.notifier);
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Total: $totalUnits units",
+                  style: TextStyle(fontSize: 16),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final formState = ref.read(extractionFormProvider);
+                    final notifier = ref.read(extractionFormProvider.notifier);
 
-                  if (formState.dealer == null || formState.selectedProducts.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Please select dealer and at least one product")),
-                    );
-                    return;
-                  }
-
-                  final payload = {
-                    "dealer": formState.dealer!["code"],
-                    "products": formState.selectedProducts.map((p) => {
-                      "brand": p["brand"],
-                      "product_name": p["product_name"],
-                      "model_code": p["model_code"],
-                      "price": p["price"],
-                      "segment": p["segment"],
-                      "product_code": p["product_code"],
-                      "quantity": p["quantity"],
-                      "amount": p["quantity"] * p["price"],
-                      "product_category": p["product_category"]
-                    }).toList()
-                  };
-
-                  try {
-                    final token = await AuthService.getToken();
-                    final res = await http.post(
-                      Uri.parse("${Config.backendUrl}/user/extraction-record/add"),
-                      headers: {
-                        "Authorization": "Bearer $token",
-                        "Content-Type": "application/json",
-                      },
-                      body: jsonEncode(payload),
-                    );
-
-                    final data = jsonDecode(res.body);
-                    if (data["success"]) {
-                      notifier.clearForm();
-
-                      // ✅ Close all modals
-                      Navigator.of(context).popUntil((route) => route.isFirst);
-
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (context) => ExtractionScreen()),
-                            (route) => false,
-                      );
-
-
-
-                      // ✅ Show success message
+                    if (formState.dealer == null || formState.selectedProducts.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(data["message"] ?? "Extraction added successfully")),
+                        SnackBar(content: Text("Please select dealer and at least one product")),
                       );
-                    } else {
-                      throw Exception(data["message"] ?? "Failed");
+                      return;
                     }
-                  } catch (e) {
-                    print("❌ Error submitting extraction: $e");
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Something went wrong. Please try again.")),
-                    );
-                  }
-                },
 
-                child: Text("Submit"),
+                    final payload = {
+                      "dealer": formState.dealer!["code"],
+                      "products": formState.selectedProducts.map((p) => {
+                        "brand": p["brand"],
+                        "product_name": p["product_name"],
+                        "model_code": p["model_code"],
+                        "price": p["price"],
+                        "segment": p["segment"],
+                        "product_code": p["product_code"],
+                        "quantity": p["quantity"],
+                        "amount": p["quantity"] * p["price"],
+                        "product_category": p["product_category"]
+                      }).toList()
+                    };
+
+                    try {
+                      final token = await AuthService.getToken();
+                      final res = await http.post(
+                        Uri.parse("${Config.backendUrl}/user/extraction-record/add"),
+                        headers: {
+                          "Authorization": "Bearer $token",
+                          "Content-Type": "application/json",
+                        },
+                        body: jsonEncode(payload),
+                      );
+
+                      final data = jsonDecode(res.body);
+                      if (data["success"]) {
+                        notifier.clearForm();
+
+                        Navigator.of(context).popUntil((route) => route.isFirst);
+
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (context) => ExtractionScreen()),
+                              (route) => false,
+                        );
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(data["message"] ?? "Extraction added successfully")),
+                        );
+                      } else {
+                        throw Exception(data["message"] ?? "Failed");
+                      }
+                    } catch (e) {
+                      print("❌ Error submitting extraction: $e");
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Something went wrong. Please try again.")),
+                      );
+                    }
+                  },
+                  child: Text("Submit"),
+                ),
+              ],
             ),
+
           ],
         ),
       ),
