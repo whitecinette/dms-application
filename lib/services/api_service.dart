@@ -10,6 +10,7 @@ import 'package:http_parser/http_parser.dart'; // ✅ Import this for MediaType
 
 class ApiService {
   static Future<Map<String, dynamic>> login(String code, String password) async {
+    print("logginnn");
     final url = Uri.parse("${Config.backendUrl}/app/user/login");
 
     final response = await http.post(
@@ -20,6 +21,7 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final responseData = json.decode(response.body);
+      print("📬 Full login response: $responseData");
 
       // Save token
       if (responseData.containsKey("token")) {
@@ -43,6 +45,7 @@ class ApiService {
     final url = Uri.parse("${Config.backendUrl}/punch-in");
     print("URLLLL: ${Config.backendUrl}/punch-in");
     String? token = await AuthService.getToken();
+    print("Token: $token");
 
     if (token == null) {
       throw Exception("User is not authenticated");
@@ -229,7 +232,7 @@ class ApiService {
   }
 
 
-// update user etails by thier code
+// update user details by  code
   static Future<Map<String, dynamic>> editUser(Map<String, dynamic> updateData) async {
     final url = Uri.parse("${Config.backendUrl}/edit-users-by-code");
 

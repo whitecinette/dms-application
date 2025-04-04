@@ -73,11 +73,11 @@ class AdminSidebar extends StatelessWidget {
       leading: Icon(icon),
       title: Text(title),
       onTap: () async {
-        await AuthService.clear();
         if (isLogout) {
+          await AuthService.clear(); // ✅ Only clear on logout
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => LoginScreen()), // Redirect to login
+            MaterialPageRoute(builder: (context) => LoginScreen()),
           );
         } else {
           _navigateTo(context, screen);
@@ -85,4 +85,5 @@ class AdminSidebar extends StatelessWidget {
       },
     );
   }
+
 }
