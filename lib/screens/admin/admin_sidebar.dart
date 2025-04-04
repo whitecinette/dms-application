@@ -14,6 +14,7 @@ import '../employee/announcements.dart';
 import '../employee/profile.dart';
 import '../login_screen.dart'; // For logout
 import '../../services/auth_service.dart';
+import 'admin_extraction_status_screen.dart';
 
 class AdminSidebar extends StatelessWidget {
   final dynamic user;
@@ -44,7 +45,7 @@ class AdminSidebar extends StatelessWidget {
             ),
           ),
           _buildDrawerItem(Icons.dashboard, "Sales Dashboard", context, SalesDashboard()),
-          _buildDrawerItem(Icons.pie_chart, "Extraction", context, ExtractionScreen()),
+          _buildDrawerItem(Icons.pie_chart, "Extraction", context, ExtractionStatusAdminScreen()),
           _buildDrawerItem(Icons.monitor_heart, "Pulse", context, PulseScreen()),
           _buildDrawerItem(Icons.map, "Beat Mapping", context, BeatMappingScreen()),
           ExpansionTile(
