@@ -90,7 +90,7 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
 
   @override
   Widget build(BuildContext context) {
-    double fontSize = MediaQuery.of(context).size.width * 0.035;
+    double fontSize = MediaQuery.of(context).size.width * 0.025;
 
     return Column(
       children: [
@@ -148,68 +148,150 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
   }
 
   Widget _buildTable(List<String> headers, List<Map<String, dynamic>> data, double fontSize) {
+    double cellWidth = 80;
+    double cellHeight = 40;
+    String firstHeader = headers.first;
+    List<String> restHeaders = headers.sublist(1);
+
+    // 🔍 Flatten all values to find global min and max for heatmap scaling
+    List<double> allValues = data.expand((row) {
+      return restHeaders.map((header) {
+        return double.tryParse(row[header]?.toString() ?? '') ?? 0;
+      });
+    }).toList();
+
+    double maxVal = allValues.where((v) => v > 0).fold<double>(0, (prev, val) => val > prev ? val : prev);
+    double minVal = allValues.where((v) => v < 0).fold<double>(0, (prev, val) => val < prev ? val : prev);
+
+    // 🔥 Color calculator (with exponential heat)
+    Color getCellColor(double value) {
+      if (value == 0) return Colors.red.shade100;
+
+      double ratio = 0;
+      if (value > 0 && maxVal > 0) {
+        ratio = (value / maxVal).clamp(0, 1);
+        ratio = ratio * ratio; // exponential emphasis
+        return Color.lerp(Colors.green.shade100, Colors.green.shade900, ratio)!;
+      } else if (value < 0 && minVal < 0) {
+        ratio = ((value / minVal).clamp(0, 1).toDouble()).abs();
+
+        ratio = ratio * ratio; // exponential emphasis
+        return Color.lerp(Colors.red.shade100, Colors.red.shade900, ratio)!;
+      }
+      return Colors.white;
+    }
+
+    Color getTextColor(Color bg) {
+      return ThemeData.estimateBrightnessForColor(bg) == Brightness.dark ? Colors.white : Colors.black;
+    }
+
     return Container(
-      padding: EdgeInsets.all(12),
+      height: 400,
+      padding: EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(color: Colors.grey.withOpacity(0.2), blurRadius: 6, spreadRadius: 2),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
       ),
-      child: Column(
-        children: [
-          SizedBox(
-            height: 300,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  columnSpacing: 20,
-                  headingRowHeight: 50,
-                  dataRowHeight: 45,
-                  border: TableBorder.all(color: Colors.grey.shade300),
-                  columns: headers.map((header) {
-                    return DataColumn(
-                      label: Text(
-                        header,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: fontSize * 0.9,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                  rows: data.map((row) {
-                    return DataRow(
-                      cells: headers.map((header) {
-                        return DataCell(
-                          Text(
-                            row[header].toString(),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: fontSize * 0.85,
-                              fontWeight: header == headers.first ? FontWeight.bold : FontWeight.normal,
-                              color: header == "% Growth"
-                                  ? (double.tryParse(row[header].toString()) ?? 0) > 0
-                                  ? Colors.green
-                                  : Colors.red
-                                  : Colors.black,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  }).toList(),
-                ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.vertical,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 🔹 Header Row
+              Row(
+                children: [
+                  Container(
+                    width: cellWidth,
+                    height: cellHeight,
+                    alignment: Alignment.center,
+                    margin: EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      firstHeader,
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize),
+                    ),
+                  ),
+                  ...restHeaders.map((header) => Container(
+                    width: cellWidth,
+                    height: cellHeight,
+                    alignment: Alignment.center,
+                    margin: EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      header,
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize),
+                    ),
+                  )),
+                ],
               ),
-            ),
+              SizedBox(height: 8),
+
+              // 🔹 Data Rows
+              ...data.map((row) {
+                return Row(
+                  children: [
+                    // First column (Segment/Channel)
+                    Container(
+                      width: cellWidth,
+                      height: cellHeight,
+                      alignment: Alignment.center,
+                      margin: EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        row[firstHeader]?.toString() ?? "-",
+                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: fontSize),
+                      ),
+                    ),
+                    ...restHeaders.map((header) {
+                      double val = double.tryParse(row[header]?.toString() ?? "0") ?? 0;
+                      Color bg = getCellColor(val);
+                      Color txtColor = getTextColor(bg);
+
+                      return Container(
+                        width: cellWidth,
+                        height: cellHeight,
+                        alignment: Alignment.center,
+                        margin: EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: bg,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          row[header]?.toString() ?? "-",
+                          style: TextStyle(
+                            fontSize: fontSize,
+                            color: txtColor,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                );
+              }).toList(),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
+
+
+
+
+
+
+
+
 }
