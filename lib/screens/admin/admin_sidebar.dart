@@ -58,7 +58,7 @@ class AdminSidebar extends StatelessWidget {
           ),
           _buildDrawerItem(Icons.flag, "Targets", context, TargetsScreen()),
           _buildDrawerItem(Icons.campaign, "Announcements", context, AnnouncementsScreen()),
-          _buildDrawerItem(Icons.campaign, "Punch In/Out", context, PunchInOutEmp()),
+          _buildDrawerItem(Icons.fingerprint, "Punch In/Out", context, PunchInOutEmp()),
 
           _buildDrawerItem(Icons.person, "Profile", context, ProfileScreen()),
           Divider(),
