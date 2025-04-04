@@ -153,36 +153,45 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
     String firstHeader = headers.first;
     List<String> restHeaders = headers.sublist(1);
 
-    // 🔍 Flatten all values to find global min and max for heatmap scaling
-    List<double> allValues = data.expand((row) {
-      return restHeaders.map((header) {
+    // 🔍 Compute per-column min & max
+    Map<String, double> maxValues = {};
+    Map<String, double> minValues = {};
+
+    for (var header in restHeaders) {
+      List<double> values = data.map((row) {
         return double.tryParse(row[header]?.toString() ?? '') ?? 0;
-      });
-    }).toList();
+      }).toList();
 
-    double maxVal = allValues.where((v) => v > 0).fold<double>(0, (prev, val) => val > prev ? val : prev);
-    double minVal = allValues.where((v) => v < 0).fold<double>(0, (prev, val) => val < prev ? val : prev);
+      if (values.isNotEmpty) {
+        maxValues[header] = values.reduce((a, b) => a > b ? a : b);
+        minValues[header] = values.reduce((a, b) => a < b ? a : b);
+      }
+    }
 
-    // 🔥 Color calculator (with exponential heat)
-    Color getCellColor(double value) {
+    // 🔥 Cell background color
+    Color getCellColor(String header, double value) {
+      double maxVal = maxValues[header] ?? 1;
+      double minVal = minValues[header] ?? -1;
+
       if (value == 0) return Colors.red.shade100;
 
       double ratio = 0;
       if (value > 0 && maxVal > 0) {
-        ratio = (value / maxVal).clamp(0, 1);
-        ratio = ratio * ratio; // exponential emphasis
+        ratio = (value / maxVal).clamp(0.0, 1.0);
+        ratio = ratio * ratio;
         return Color.lerp(Colors.green.shade100, Colors.green.shade900, ratio)!;
       } else if (value < 0 && minVal < 0) {
-        ratio = ((value / minVal).clamp(0, 1).toDouble()).abs();
-
-        ratio = ratio * ratio; // exponential emphasis
+        ratio = (value / minVal).clamp(0.0, 1.0).abs();
+        ratio = ratio * ratio;
         return Color.lerp(Colors.red.shade100, Colors.red.shade900, ratio)!;
       }
-      return Colors.white;
+
+      return Colors.grey.shade100;
     }
 
+    // 🌗 Font color based on background luminance
     Color getTextColor(Color bg) {
-      return ThemeData.estimateBrightnessForColor(bg) == Brightness.dark ? Colors.white : Colors.black;
+      return bg.computeLuminance() < 0.5 ? Colors.white : Colors.black;
     }
 
     return Container(
@@ -200,7 +209,7 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 🔹 Header Row
+              // Header row
               Row(
                 children: [
                   Container(
@@ -235,11 +244,10 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
               ),
               SizedBox(height: 8),
 
-              // 🔹 Data Rows
+              // Data rows
               ...data.map((row) {
                 return Row(
                   children: [
-                    // First column (Segment/Channel)
                     Container(
                       width: cellWidth,
                       height: cellHeight,
@@ -256,7 +264,7 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
                     ),
                     ...restHeaders.map((header) {
                       double val = double.tryParse(row[header]?.toString() ?? "0") ?? 0;
-                      Color bg = getCellColor(val);
+                      Color bg = getCellColor(header, val);
                       Color txtColor = getTextColor(bg);
 
                       return Container(
@@ -286,6 +294,8 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
       ),
     );
   }
+
+
 
 
 
