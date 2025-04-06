@@ -73,11 +73,13 @@ class ApiService {
 
     final response = await request.send();
     final responseBody = await response.stream.bytesToString();
+    final decoded = json.decode(responseBody);
 
-    if (response.statusCode == 201) {
-      return json.decode(responseBody);
+    // ✅ Check for success or warning
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return decoded; // handle success or warning in UI
     } else {
-      throw Exception(json.decode(responseBody)['message'] ?? "Punch-in failed");
+      throw Exception(decoded['message'] ?? "Punch-in failed");
     }
   }
 
@@ -112,10 +114,14 @@ class ApiService {
     final response = await request.send();
     final responseBody = await response.stream.bytesToString();
 
-    if (response.statusCode == 201) {
-      return json.decode(responseBody);
-    } else {
-      throw Exception(json.decode(responseBody)['message'] ?? "Punch-out failed");
+    final decoded = json.decode(responseBody);
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return decoded;
+    }
+    else {
+      // ❌ Error case
+      throw Exception(decoded['message'] ?? "Punch-out failed");
     }
   }
 

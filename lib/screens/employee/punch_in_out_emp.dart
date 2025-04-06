@@ -71,10 +71,14 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
     final location = ref.watch(coordinatesProvider);
     if (_image == null || location.isEmpty) {
       CustomPopup.showPopup(
-          context, "Error", "Please capture an image and fetch location.",
-          isSuccess: false);
+        context,
+        "Warning",
+        "Please capture an image and fetch location.",
+        type: MessageType.warning,
+      );
       return;
     }
+
 
     List<String> coordinates = location.split(',');
     String latitude = coordinates[0].trim();
@@ -83,42 +87,70 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
     setState(() {
       _isPunchingIn = true; // Only update this
     });
-
     try {
       final response = await ApiService.punchIn(latitude, longitude, _image!);
-      if (response.containsKey('message')) {
-        setState(() {
-          _hasPunchedIn = true;
-          _image = null;
-        });
 
-        await _savePunchStatus(true);
-        ref.read(coordinatesProvider.notifier).state = "";
-        CustomPopup.showPopup(
-            context, "Success", "You have successfully punched in.",
-            isSuccess: true);
+      if (response.containsKey('message')) {
+        if (response['warning'] == true) {
+          // Show warning message in orange
+          CustomPopup.showPopup(
+            context,
+            "Warning",
+            response['message'] ?? "There is a warning.",
+            type: MessageType.warning,
+          );
+        }
+        else {
+          // Normal successful punch-in
+          setState(() {
+            _hasPunchedIn = true;
+            _image = null;
+          });
+
+          await _savePunchStatus(true);
+          ref.read(coordinatesProvider.notifier).state = "";
+
+          CustomPopup.showPopup(
+            context,
+            "Success",
+            response['message'] ?? "You have successfully punched in.",
+            isSuccess: true,
+          );
+        }
       } else {
+        // Handle case when response doesn't have a message
         CustomPopup.showPopup(
-            context, "Error", response['message'] ?? "Unexpected response",
-            isSuccess: false);
+          context,
+          "Error",
+          response['message'] ?? "Unexpected response",
+          isSuccess: false,
+        );
       }
     } catch (error) {
+      // Exception caught during API call
       CustomPopup.showPopup(
-          context, "Error", "Something went wrong: ${error.toString()}",
-          isSuccess: false);
+        context,
+        "Error",
+        "Something went wrong: ${error.toString()}",
+        isSuccess: false,
+      );
     } finally {
       setState(() {
-        _isPunchingIn = false; // Reset only this
+        _isPunchingIn = false; // Reset punching state
       });
     }
+
   }
 
   Future<void> _submitPunchOut() async {
     final location = ref.watch(coordinatesProvider);
     if (_image == null || location.isEmpty) {
       CustomPopup.showPopup(
-          context, "Error", "Please capture an image and fetch location.",
-          isSuccess: false);
+        context,
+        "Warning",
+        "Please capture an image and fetch location.",
+        type: MessageType.warning,
+      );
       return;
     }
 
@@ -132,29 +164,49 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
 
     try {
       final response = await ApiService.punchOut(latitude, longitude, _image!);
-      if (response.containsKey('message')) {
-        setState(() {
-          _hasPunchedIn = true;
-          _image = null;
-        });
 
-        await _savePunchStatus(true);
-        ref.read(coordinatesProvider.notifier).state = "";
-        CustomPopup.showPopup(
-            context, "Success", "You have successfully punched in.",
-            isSuccess: true);
+      if (response.containsKey('message')) {
+        if (response['warning'] == true) {
+          CustomPopup.showPopup(
+            context,
+            "Warning",
+            response['message'] ?? "There is a warning.",
+            type: MessageType.warning,
+          );
+        } else {
+          setState(() {
+            _hasPunchedIn = true;
+            _image = null;
+          });
+
+          await _savePunchStatus(true);
+          ref.read(coordinatesProvider.notifier).state = "";
+
+          CustomPopup.showPopup(
+            context,
+            "Success",
+            response['message'] ?? "You have successfully punched out.",
+            isSuccess: true,
+          );
+        }
       } else {
         CustomPopup.showPopup(
-            context, "Error", response['message'] ?? "Unexpected response",
-            isSuccess: false);
+          context,
+          "Error",
+          response['message'] ?? "Unexpected response",
+          isSuccess: false,
+        );
       }
     } catch (error) {
       CustomPopup.showPopup(
-          context, "Error", "Something went wrong: ${error.toString()}",
-          isSuccess: false);
+        context,
+        "Error",
+        "Something went wrong: ${error.toString()}",
+        isSuccess: false,
+      );
     } finally {
       setState(() {
-        _isPunchingOut = false; // Reset only this
+        _isPunchingOut = false;
       });
     }
   }
