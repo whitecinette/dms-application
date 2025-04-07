@@ -10,7 +10,8 @@ import 'package:http_parser/http_parser.dart';
 import 'package:flutter/foundation.dart';
 
 class ApiService {
-  static Future<Map<String, dynamic>> login(String code, String password) async {
+  static Future<Map<String, dynamic>> login(
+      String code, String password) async {
     print("logginnn");
     final url = Uri.parse("${Config.backendUrl}/app/user/login");
 
@@ -35,14 +36,14 @@ class ApiService {
       }
 
       return responseData;
-
     } else {
       throw Exception(json.decode(response.body)['message'] ?? "Login failed");
     }
   }
 
   // punch in api
-  static Future<Map<String, dynamic>> punchIn(String latitude, String longitude, File image) async {
+  static Future<Map<String, dynamic>> punchIn(
+      String latitude, String longitude, File image) async {
     final url = Uri.parse("${Config.backendUrl}/punch-in");
     print("URLLLL: ${Config.backendUrl}/punch-in");
     String? token = await AuthService.getToken();
@@ -56,7 +57,6 @@ class ApiService {
     request.headers["Authorization"] = "Bearer $token";
     // request.headers["Content-Type"] = "multipart/form-data";
     // request.headers["Accept"] = "application/json";
-
 
     // ✅ Correct field names (Must match backend)
     request.fields['latitude'] = latitude;
@@ -85,7 +85,8 @@ class ApiService {
   }
 
 //punch out
-  static Future<Map<String, dynamic>> punchOut(String latitude, String longitude, File image) async {
+  static Future<Map<String, dynamic>> punchOut(
+      String latitude, String longitude, File image) async {
     final url = Uri.parse("${Config.backendUrl}/punch-out");
 
     // Fetch JWT token
@@ -118,17 +119,20 @@ class ApiService {
 
     if (response.statusCode == 201 || response.statusCode == 200) {
       return decoded;
-    }
-    else {
+    } else {
       // ❌ Error case
       throw Exception(decoded['message'] ?? "Punch-out failed");
     }
   }
 
 // Get Weekly Beat Mapping Schedule
-  static Future<Map<String, dynamic>> getWeeklyBeatMappingSchedule(String? startDate, String? endDate) async {
-    final url = Uri.parse("${Config.backendUrl}/get-weekly-beat-mapping-schedule" +
-        (startDate != null && endDate != null ? "?startDate=$startDate&endDate=$endDate" : ""));
+  static Future<Map<String, dynamic>> getWeeklyBeatMappingSchedule(
+      String? startDate, String? endDate) async {
+    final url = Uri.parse(
+        "${Config.backendUrl}/get-weekly-beat-mapping-schedule" +
+            (startDate != null && endDate != null
+                ? "?startDate=$startDate&endDate=$endDate"
+                : ""));
 
     print("Request URL: $url");
 
@@ -157,7 +161,8 @@ class ApiService {
           throw Exception("Unexpected response format: Missing 'data' key");
         }
       } else {
-        throw Exception(json.decode(response.body)['error'] ?? "Failed to fetch weekly beat mapping schedule");
+        throw Exception(json.decode(response.body)['error'] ??
+            "Failed to fetch weekly beat mapping schedule");
       }
     } catch (e) {
       print("Error occurred: $e");
@@ -165,10 +170,12 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> updateWeeklyBeatMappingStatusWithProximity(String scheduleId, String code, String status, double employeeLat, double employeeLong) async {
-
+  static Future<Map<String, dynamic>>
+      updateWeeklyBeatMappingStatusWithProximity(String scheduleId, String code,
+          String status, double employeeLat, double employeeLong) async {
     print("API call initiated...");
-    final url = Uri.parse("${Config.backendUrl}/update-beat-mapping-status-proximity/$scheduleId/$code");
+    final url = Uri.parse(
+        "${Config.backendUrl}/update-beat-mapping-status-proximity/$scheduleId/$code");
 
     print("API URL: $url");
 
@@ -198,7 +205,8 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        throw Exception(json.decode(response.body)['error'] ?? "Failed to update status");
+        throw Exception(
+            json.decode(response.body)['error'] ?? "Failed to update status");
       }
     } catch (e) {
       print("Error occurred: $e");
@@ -226,7 +234,8 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        throw Exception(json.decode(response.body)['message'] ?? "Failed to fetch user details");
+        throw Exception(json.decode(response.body)['message'] ??
+            "Failed to fetch user details");
       }
     } catch (e) {
       print("Error occurred: $e");
@@ -235,7 +244,8 @@ class ApiService {
   }
 
 // update user details by  code
-  static Future<Map<String, dynamic>> editUser(Map<String, dynamic> updateData) async {
+  static Future<Map<String, dynamic>> editUser(
+      Map<String, dynamic> updateData) async {
     final url = Uri.parse("${Config.backendUrl}/edit-users-by-code");
 
     String? token = await AuthService.getToken();
@@ -256,7 +266,8 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        throw Exception(json.decode(response.body)['message'] ?? "Failed to update user");
+        throw Exception(
+            json.decode(response.body)['message'] ?? "Failed to update user");
       }
     } catch (e) {
       print("Error occurred: $e");
@@ -265,7 +276,11 @@ class ApiService {
   }
 
   // Get all attendance records
-  static Future<Map<String, dynamic>> getAllAttendance({String? startDate, String? endDate, int page = 1, int limit = 10}) async {
+  static Future<Map<String, dynamic>> getAllAttendance(
+      {String? startDate,
+      String? endDate,
+      int page = 1,
+      int limit = 10}) async {
     final queryParams = {
       if (startDate != null) 'startDate': startDate,
       if (endDate != null) 'endDate': endDate,
@@ -285,11 +300,11 @@ class ApiService {
         },
       );
 
-
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        throw Exception(json.decode(response.body)['message'] ?? "Failed to fetch attendance records");
+        throw Exception(json.decode(response.body)['message'] ??
+            "Failed to fetch attendance records");
       }
     } catch (e) {
       print("Error occurred: $e");
@@ -298,7 +313,8 @@ class ApiService {
   }
 
 // get all employees
-  static Future<Map<String, dynamic>> getAllEmployees({int page = 1, int limit = 10}) async {
+  static Future<Map<String, dynamic>> getAllEmployees(
+      {int page = 1, int limit = 10}) async {
     final queryParams = {
       'page': page.toString(),
       'limit': limit.toString(),
@@ -319,13 +335,15 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        throw Exception(json.decode(response.body)['message'] ?? "Failed to fetch employee records");
+        throw Exception(json.decode(response.body)['message'] ??
+            "Failed to fetch employee records");
       }
     } catch (e) {
       print("Error occurred: $e");
       throw Exception("Network error or invalid response: $e");
     }
   }
+
   // get salary for all employee
   static Future<Map<String, dynamic>> getAllSalaries() async {
     final url = Uri.parse("${Config.backendUrl}/salary-details");
@@ -342,7 +360,8 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        throw Exception(json.decode(response.body)['message'] ?? "Failed to fetch salary details");
+        throw Exception(json.decode(response.body)['message'] ??
+            "Failed to fetch salary details");
       }
     } catch (e) {
       print("Error occurred: $e");
@@ -351,7 +370,8 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> getUserProfile() async {
-    final url = Uri.parse("${Config.backendUrl}/app/user/profile"); // or your actual profile endpoint
+    final url = Uri.parse(
+        "${Config.backendUrl}/app/user/profile"); // or your actual profile endpoint
     String? token = await AuthService.getToken();
 
     if (token == null) {
@@ -369,7 +389,8 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
-        return responseData["user"]; // assuming your API returns { success: true, user: {...} }
+        return responseData[
+            "user"]; // assuming your API returns { success: true, user: {...} }
       } else {
         throw Exception("Failed to fetch user profile");
       }
@@ -399,8 +420,10 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
-        if (responseData.containsKey("dealers") && responseData["dealers"] is List) {
-          final dealersData = List<Map<String, dynamic>>.from(responseData["dealers"]);
+        if (responseData.containsKey("dealers") &&
+            responseData["dealers"] is List) {
+          final dealersData =
+              List<Map<String, dynamic>>.from(responseData["dealers"]);
           print("✅ Dealers fetched successfully: $dealersData");
           return dealersData;
         } else {
@@ -409,7 +432,8 @@ class ApiService {
       } else {
         final errorData = json.decode(response.body);
         print("❌ Error fetching dealers: ${errorData['message']}");
-        throw Exception(errorData['message'] ?? "Failed to fetch dealer details.");
+        throw Exception(
+            errorData['message'] ?? "Failed to fetch dealer details.");
       }
     } catch (e) {
       print("❗ Error occurred: $e");
@@ -418,11 +442,16 @@ class ApiService {
   }
 
 // Update geo_tag picture latitude and longitude
-  static Future<void> updateGeotag({required String code, required double latitude, required double longitude, required File imageFile,}) async {
+  static Future<void> updateGeotag({
+    required String code,
+    required double latitude,
+    required double longitude,
+    required File imageFile,
+  }) async {
     final url = Uri.parse("${Config.backendUrl}/update-geo-tag-lat-long");
     try {
       var request = http.MultipartRequest('PUT', url)
-        ..headers['Content-Type'] = 'multipart/form-data'  // Add this header
+        ..headers['Content-Type'] = 'multipart/form-data' // Add this header
         ..fields['code'] = code
         ..fields['latitude'] = latitude.toString()
         ..fields['longitude'] = longitude.toString()
@@ -451,6 +480,7 @@ class ApiService {
       throw Exception("Network error or invalid response: $e");
     }
   }
+
   // get all weekly beat mapping status
   static Future<List<Map<String, dynamic>>> getAllWeeklyBeatMapping({
     String? status,
@@ -466,7 +496,8 @@ class ApiService {
     };
 
     final queryString = Uri(queryParameters: queryParams).query;
-    final url = Uri.parse("${Config.backendUrl}/get-all-weekly-beat-mapping?$queryString");
+    final url = Uri.parse(
+        "${Config.backendUrl}/get-all-weekly-beat-mapping?$queryString");
 
     String? token = await AuthService.getToken();
     if (token == null) throw Exception("User not authenticated");
@@ -491,8 +522,10 @@ class ApiService {
       throw Exception("❗ Network error: $e");
     }
   }
+
 // get attendance by employee
-  static Future<List<Map<String, dynamic>>> getEmployeeAttendance({String? status}) async {
+  static Future<List<Map<String, dynamic>>> getEmployeeAttendance(
+      {String? status}) async {
     String queryString = status != null ? "?status=$status" : "";
     final url = Uri.parse("${Config.backendUrl}/get-attandance$queryString");
 
@@ -524,9 +557,4 @@ class ApiService {
       throw Exception("❗ Network error: $e");
     }
   }
-
 }
-
-
-
-
