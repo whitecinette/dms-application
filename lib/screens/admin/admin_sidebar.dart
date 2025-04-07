@@ -1,5 +1,6 @@
 // lib/screens/employee/employee_sidebar.dart
 
+import 'package:dms_app/screens/admin/beat_mapping_status.dart';
 import 'package:dms_app/screens/employee/punch_in_out_emp.dart';
 import 'package:flutter/material.dart';
 import '../employee/sales_dashboard.dart';
@@ -47,7 +48,7 @@ class AdminSidebar extends StatelessWidget {
           _buildDrawerItem(Icons.dashboard, "Sales Dashboard", context, SalesDashboard()),
           _buildDrawerItem(Icons.pie_chart, "Extraction", context, ExtractionStatusAdminScreen()),
           _buildDrawerItem(Icons.monitor_heart, "Pulse", context, PulseScreen()),
-          _buildDrawerItem(Icons.map, "Beat Mapping", context, BeatMappingScreen()),
+          _buildDrawerItem(Icons.map, "Beat Mapping", context, BeatMappingStatusScreen()),
           ExpansionTile(
             leading: Icon(Icons.people),
             title: Text("Human Resources"),

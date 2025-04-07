@@ -83,7 +83,6 @@ class ApiService {
     }
   }
 
-
 //punch out
   static Future<Map<String, dynamic>> punchOut(String latitude, String longitude, File image) async {
     final url = Uri.parse("${Config.backendUrl}/punch-out");
@@ -125,7 +124,6 @@ class ApiService {
     }
   }
 
-
 // Get Weekly Beat Mapping Schedule
   static Future<Map<String, dynamic>> getWeeklyBeatMappingSchedule(String? startDate, String? endDate) async {
     final url = Uri.parse("${Config.backendUrl}/get-weekly-beat-mapping-schedule" +
@@ -165,7 +163,6 @@ class ApiService {
       throw Exception("Network error or invalid response: $e");
     }
   }
-
 
   static Future<Map<String, dynamic>> updateWeeklyBeatMappingStatusWithProximity(String scheduleId, String code, String status, double employeeLat, double employeeLong) async {
 
@@ -208,7 +205,6 @@ class ApiService {
     }
   }
 
-
   static Future<Map<String, dynamic>> getUserDetails() async {
     final url = Uri.parse("${Config.backendUrl}/get-users-by-code");
 
@@ -236,7 +232,6 @@ class ApiService {
       throw Exception("Network error or invalid response: $e");
     }
   }
-
 
 // update user details by  code
   static Future<Map<String, dynamic>> editUser(Map<String, dynamic> updateData) async {
@@ -330,7 +325,6 @@ class ApiService {
       throw Exception("Network error or invalid response: $e");
     }
   }
-
   // get salary for all employee
   static Future<Map<String, dynamic>> getAllSalaries() async {
     final url = Uri.parse("${Config.backendUrl}/salary-details");
@@ -384,7 +378,6 @@ class ApiService {
     }
   }
 
-
 // get dealer by employee code
   static Future<List<Map<String, dynamic>>> getDealersByEmployee() async {
     final url = Uri.parse("${Config.backendUrl}/get-dealer-by-employee");
@@ -423,15 +416,8 @@ class ApiService {
     }
   }
 
-  // update geo_tag picture latitude and longitude
-
 // Update geo_tag picture latitude and longitude
-  static Future<void> updateGeotag({
-    required String code,
-    required double latitude,
-    required double longitude,
-    required File imageFile,
-  }) async {
+  static Future<void> updateGeotag({required String code, required double latitude, required double longitude, required File imageFile,}) async {
     final url = Uri.parse("${Config.backendUrl}/update-geo-tag-lat-long");
     try {
       var request = http.MultipartRequest('PUT', url)
@@ -462,6 +448,46 @@ class ApiService {
     } catch (e) {
       print("❗ Error occurred: $e");
       throw Exception("Network error or invalid response: $e");
+    }
+  }
+  // get all weekly beat mapping status
+  static Future<List<Map<String, dynamic>>> getAllWeeklyBeatMapping({
+    String? status,
+    String? searchQuery,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final queryParams = {
+      if (status != null && status != 'all') 'status': status,
+      if (searchQuery != null && searchQuery.isNotEmpty) 'search': searchQuery,
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+
+    final queryString = Uri(queryParameters: queryParams).query;
+    final url = Uri.parse("${Config.backendUrl}/get-all-weekly-beat-mapping?$queryString");
+
+    String? token = await AuthService.getToken();
+    if (token == null) throw Exception("User not authenticated");
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return List<Map<String, dynamic>>.from(data["data"] ?? []);
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception(errorData['message'] ?? "Error fetching data");
+      }
+    } catch (e) {
+      throw Exception("❗ Network error: $e");
     }
   }
 
