@@ -6,7 +6,8 @@ import 'package:http/http.dart' as http;
 import '../config.dart';
 import 'dart:io';
 import 'package:mime/mime.dart';
-import 'package:http_parser/http_parser.dart'; // ✅ Import this for MediaType
+import 'package:http_parser/http_parser.dart';
+import 'package:flutter/foundation.dart';
 
 class ApiService {
   static Future<Map<String, dynamic>> login(String code, String password) async {
@@ -482,6 +483,39 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return List<Map<String, dynamic>>.from(data["data"] ?? []);
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception(errorData['message'] ?? "Error fetching data");
+      }
+    } catch (e) {
+      throw Exception("❗ Network error: $e");
+    }
+  }
+// get attendance by employee
+  static Future<List<Map<String, dynamic>>> getEmployeeAttendance({String? status}) async {
+    String queryString = status != null ? "?status=$status" : "";
+    final url = Uri.parse("${Config.backendUrl}/get-attandance$queryString");
+
+    String? token = await AuthService.getToken();
+    if (token == null) throw Exception("User not authenticated");
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        if (data['data'] != null && data['data'] is List) {
+          return List<Map<String, dynamic>>.from(data['data']);
+        } else {
+          return [];
+        }
       } else {
         final errorData = json.decode(response.body);
         throw Exception(errorData['message'] ?? "Error fetching data");
