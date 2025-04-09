@@ -30,6 +30,9 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
   List<String> headers = [];
   List<Map<String, dynamic>> tableData = [];
   bool isLoading = false;
+  Map<String, List<Map<String, dynamic>>> productDataMap = {};
+  String? expandedSegment;
+  String? loadingSegment;
 
   @override
   void initState() {
@@ -84,6 +87,41 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
       setState(() {
         isLoading = false;
       });
+    }
+  }
+
+  Future<void> fetchProductWiseData(String segment) async {
+    final filterState = ref.read(salesFilterProvider);
+
+    final uri = Uri.parse('${Config.backendUrl}/user/sales-data/product-wise');
+    final body = {
+      "selected_subords": filterState.selectedSubordinateCodes,
+      "filter_type": widget.selectedType,
+      "start_date": widget.startDate,
+      "end_date": widget.endDate,
+      "segment": segment,
+    };
+
+    final response = await http.post(
+      uri,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer ${widget.token}",
+      },
+      body: jsonEncode(body),
+    );
+
+    print("Product RES: ${response}");
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      setState(() {
+        productDataMap[segment] = List<Map<String, dynamic>>.from(data["data"]);
+      });
+      final decoded = jsonDecode(response.body);
+      print("✅ Product Data Received: $decoded");
+    } else {
+      print("❌ Error fetching model data: ${response.body}");
     }
   }
 
@@ -152,6 +190,7 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
     double cellHeight = 40;
     String firstHeader = headers.first;
     List<String> restHeaders = headers.sublist(1);
+
 
     // 🔍 Compute per-column min & max
     Map<String, double> maxValues = {};
@@ -246,48 +285,159 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
 
               // Data rows
               ...data.map((row) {
-                return Row(
+                final segmentName = row[firstHeader]?.toString() ?? "";
+                final isExpanded = expandedSegment == segmentName;
+                final hasProductData = productDataMap[segmentName]?.isNotEmpty == true;
+                final productRows = productDataMap[segmentName] ?? [];
+
+                return Column(
                   children: [
-                    Container(
-                      width: cellWidth,
-                      height: cellHeight,
-                      alignment: Alignment.center,
-                      margin: EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        row[firstHeader]?.toString() ?? "-",
-                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: fontSize),
+                    GestureDetector(
+                      onTap: () async {
+                        if (expandedSegment == segmentName) {
+                          setState(() => expandedSegment = null);
+                        } else {
+                          setState(() {
+                            expandedSegment = segmentName;
+                            loadingSegment = segmentName; // 🔄 Start loading
+                          });
+                          await fetchProductWiseData(segmentName);
+                          setState(() => loadingSegment = null); // ✅ Done loading
+                        }
+                      },
+
+                      child: Row(
+                        children: [
+                          Container(
+                            width: cellWidth,
+                            height: cellHeight,
+                            alignment: Alignment.center,
+                            margin: EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  segmentName,
+                                  style: TextStyle(fontWeight: FontWeight.w500, fontSize: fontSize),
+                                ),
+                                SizedBox(width: 4),
+                                if (loadingSegment == segmentName)
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                else
+                                  Icon(
+                                    isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                                    size: 16,
+                                  ),
+                              ],
+                            ),
+
+                          ),
+                          ...restHeaders.map((header) {
+                            double val = double.tryParse(row[header]?.toString() ?? "0") ?? 0;
+                            Color bg = getCellColor(header, val);
+                            Color txtColor = getTextColor(bg);
+
+                            return Container(
+                              width: cellWidth,
+                              height: cellHeight,
+                              alignment: Alignment.center,
+                              margin: EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: bg,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                row[header]?.toString() ?? "-",
+                                style: TextStyle(fontSize: fontSize, color: txtColor),
+                              ),
+                            );
+                          }).toList(),
+                        ],
                       ),
                     ),
-                    ...restHeaders.map((header) {
-                      double val = double.tryParse(row[header]?.toString() ?? "0") ?? 0;
-                      Color bg = getCellColor(header, val);
-                      Color txtColor = getTextColor(bg);
 
-                      return Container(
-                        width: cellWidth,
-                        height: cellHeight,
-                        alignment: Alignment.center,
-                        margin: EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: bg,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          row[header]?.toString() ?? "-",
-                          style: TextStyle(
-                            fontSize: fontSize,
-                            color: txtColor,
+                    // 🔻 Product dropdown rows
+                    if (isExpanded && hasProductData)
+                      Container(
+                        height: 200,
+                        margin: EdgeInsets.only(top: 4, bottom: 12),
+                        padding: EdgeInsets.only(top: 4),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: productRows.map((product) {
+                              return Container(
+                                margin: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                                decoration: BoxDecoration(
+                                  color: Color(0xFFF9F5FF), // Lavender white
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.deepPurple.withOpacity(0.12),
+                                      blurRadius: 6,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: cellWidth,
+                                      height: cellHeight,
+                                      alignment: Alignment.center,
+                                      margin: EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        product[firstHeader]?.toString() ?? "-",
+                                        style: TextStyle(fontSize: fontSize * 0.95),
+                                      ),
+                                    ),
+                                    ...restHeaders.map((header) {
+                                      double val = double.tryParse(product[header]?.toString() ?? "0") ?? 0;
+                                      Color bg = getCellColor(header, val);
+                                      Color txtColor = getTextColor(bg);
+
+                                      return Container(
+                                        width: cellWidth,
+                                        height: cellHeight,
+                                        alignment: Alignment.center,
+                                        margin: EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: bg,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          product[header]?.toString() ?? "-",
+                                          style: TextStyle(fontSize: fontSize * 0.95, color: txtColor),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
                           ),
                         ),
-                      );
-                    }).toList(),
+                      ),
+
+
+
                   ],
                 );
               }).toList(),
+
             ],
           ),
         ),
