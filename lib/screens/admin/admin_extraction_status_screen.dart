@@ -1,9 +1,11 @@
+import 'package:dms_app/widgets/shimmer_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:multi_select_flutter/multi_select_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../config.dart';
+import '../../widgets/shimmer_loader.dart';
 
 class ExtractionStatusAdminScreen extends StatefulWidget {
 
@@ -11,6 +13,7 @@ class ExtractionStatusAdminScreen extends StatefulWidget {
   @override
   State<ExtractionStatusAdminScreen> createState() =>
       _ExtractionStatusAdminScreenState();
+
 }
 
 class _ExtractionStatusAdminScreenState extends State<ExtractionStatusAdminScreen> {
@@ -18,6 +21,15 @@ class _ExtractionStatusAdminScreenState extends State<ExtractionStatusAdminScree
     start: DateTime(DateTime.now().year, DateTime.now().month, 1),
     end: DateTime(DateTime.now().year, DateTime.now().month + 1, 0),
   );
+
+  Map<String, List<Map<String, String>>> dropdownOptions = {
+    "mdd": [],
+    "asm": [],
+    "smd": [],
+  };
+
+  bool isLoading = false;
+
 
   final TextEditingController searchController = TextEditingController();
 
@@ -44,10 +56,45 @@ class _ExtractionStatusAdminScreenState extends State<ExtractionStatusAdminScree
   @override
   void initState() {
     super.initState();
+    fetchDropdownData("mdd");
+    fetchDropdownData("asm");
+    fetchDropdownData("smd");
+
     fetchExtractionStatus();
   }
 
+  Future<void> fetchDropdownData(String position) async {
+    final uri = Uri.parse('${Config.backendUrl}/admin/get-users-by-positions');
+    final body = {"positions": [position]};
+
+    final response = await http.post(uri,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body)["data"];
+      setState(() {
+        dropdownOptions[position] = List<Map<String, String>>.from(
+          data.map((item) => {
+            "code": item["code"].toString(),
+            "name": item["name"].toString(),
+          }),
+        );
+      });
+
+
+      print("Fetched for $position: $data");
+
+    } else {
+      print("Failed to fetch $position: ${response.body}");
+    }
+  }
+
+
   Future<void> fetchExtractionStatus() async {
+    setState(() => isLoading = true); // 👈 Start loading
+
     final uri = Uri.parse('${Config.backendUrl}/admin/extraction-status');
     final body = {
       "startDate": DateFormat("yyyy-MM-dd").format(dateRange.start),
@@ -58,10 +105,7 @@ class _ExtractionStatusAdminScreenState extends State<ExtractionStatusAdminScree
     };
 
     final response = await http.post(uri,
-        headers: {
-          "Content-Type": "application/json",
-
-        },
+        headers: {"Content-Type": "application/json"},
         body: jsonEncode(body));
 
     if (response.statusCode == 200) {
@@ -72,7 +116,10 @@ class _ExtractionStatusAdminScreenState extends State<ExtractionStatusAdminScree
     } else {
       print("Error: ${response.body}");
     }
+
+    setState(() => isLoading = false); // 👈 Stop loading
   }
+
 
   List<Map<String, dynamic>> get filteredData {
     final query = searchController.text.toLowerCase();
@@ -101,6 +148,51 @@ class _ExtractionStatusAdminScreenState extends State<ExtractionStatusAdminScree
       ),
     );
   }
+
+  Widget buildMultiSelectDropdown({
+    required String title,
+    required String position,
+    required List<String> selectedValues,
+    required Function(List<String>) onApply,
+  }) {
+    final items = dropdownOptions[position] ?? [];
+
+    return GestureDetector(
+      onTap: () => _showCustomDropdown(context, position, selectedValues, onApply),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                selectedValues.isEmpty
+                    ? title
+                    : selectedValues
+                    .map((code) {
+                  final item = items.firstWhere(
+                        (e) => e["code"] == code,
+                    orElse: () => {"code": code, "name": ""},
+                  );
+                  return item["name"] ?? code;
+                })
+                    .join(", "),
+                style: TextStyle(fontSize: 13),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Icon(Icons.arrow_drop_down),
+          ],
+        ),
+
+      ),
+    );
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -182,6 +274,54 @@ class _ExtractionStatusAdminScreenState extends State<ExtractionStatusAdminScree
 
               SizedBox(height: 10),
 
+              // 🔽 Dropdowns Row
+              Row(
+                children: [
+                  Expanded(
+                    child: buildMultiSelectDropdown(
+                      title: "SMD",
+                      position: "smd",
+                      selectedValues: selectedSmd,
+                      onApply: (values) {
+                        setState(() => selectedSmd = values);
+                        fetchExtractionStatus();
+                      },
+                    ),
+                  ),
+
+                  SizedBox(width: 8),
+
+                  Expanded(
+                    child: buildMultiSelectDropdown(
+                      title: "MDD",
+                      position: "mdd",
+                      selectedValues: selectedMdd,
+                      onApply: (values) {
+                        setState(() => selectedMdd = values);
+                        fetchExtractionStatus();
+                      },
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: buildMultiSelectDropdown(
+                      title: "ASM",
+                      position: "asm",
+                      selectedValues: selectedAsm,
+                      onApply: (values) {
+                        setState(() => selectedAsm = values);
+                        fetchExtractionStatus();
+                      },
+                    ),
+                  ),
+
+
+                ],
+              ),
+
+              SizedBox(height: 10),
+
+
               // 🧾 Dropdowns
               // MultiSelectDialogField(
               //   items: dummyMdd.map((e) => MultiSelectItem(e["code"], "${e["code"]} - ${e["name"]}")).toList(),
@@ -220,7 +360,9 @@ class _ExtractionStatusAdminScreenState extends State<ExtractionStatusAdminScree
 
               // 🔢 Status Grid
               Expanded(
-                child: ListView.builder(
+                child: isLoading ?
+                    ShimmerLoader()
+                    : ListView.builder(
                   itemCount: filteredData.length,
                   itemBuilder: (_, index) {
                     final person = filteredData[index];
@@ -354,6 +496,7 @@ class _ExtractionStatusAdminScreenState extends State<ExtractionStatusAdminScree
                     );
                   },
                 ),
+
               ),
 
             ],
@@ -362,4 +505,65 @@ class _ExtractionStatusAdminScreenState extends State<ExtractionStatusAdminScree
       ),
     );
   }
+
+
+  void _showCustomDropdown(BuildContext context, String position, List<String> selectedValues, Function(List<String>) onApply) {
+    List<String> tempSelected = List.from(selectedValues);
+    final items = dropdownOptions[position] ?? [];
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Select ${position.toUpperCase()}"),
+          content: Container(
+            width: double.maxFinite,
+            height: 300,
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                return ListView(
+                  children: items.map((item) {
+                    final code = item["code"]!;
+                    final name = item["name"]!;
+                    return CheckboxListTile(
+                      value: tempSelected.contains(code),
+                      title: Text("$code - $name", style: TextStyle(fontSize: 13)),
+                      onChanged: (bool? selected) {
+                        setState(() {
+                          if (selected == true) {
+                            tempSelected.add(code);
+                          } else {
+                            tempSelected.remove(code);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("Cancel", style: TextStyle(color: Colors.grey[900])),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                onApply(tempSelected);
+              },
+              child: Text("Apply", style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueGrey[600], // Deep Blue
+              ),
+            ),
+
+          ],
+        );
+      },
+    );
+  }
+
+
 }
