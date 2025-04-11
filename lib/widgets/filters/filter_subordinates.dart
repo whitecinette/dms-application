@@ -83,42 +83,115 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
                         });
                       },
                       child: Container(
-                        margin: EdgeInsets.symmetric(horizontal: 6),
-                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        margin: EdgeInsets.symmetric(horizontal: 0),
+                        padding: EdgeInsets.symmetric(horizontal: 0, vertical: 0),
                         decoration: BoxDecoration(
                           color: isActive ? Colors.blueGrey : Colors.white,
-                          border: Border.all(color: Colors.blueGrey),
-                          borderRadius: BorderRadius.circular(6),
+                          // border: Border.all(color: Colors.blueGrey),
+                          // borderRadius: BorderRadius.circular(6),
                         ),
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Text(
-                              position,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: isActive ? Colors.white : Colors.blueGrey,
-                              ),
-                            ),
-                            if (count > 0)
-                              Container(
-                                margin: EdgeInsets.only(left: 6),
-                                padding: EdgeInsets.all(6),
+                            ...positions.map((position) {
+                              int count = localSelected[position]?.length ?? 0;
+                              bool isActive = activePosition == position;
+
+                              return GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    if (isActive) {
+                                      activePosition = null;
+
+                                      final allSelected = localSelected.values.expand((e) => e).toList();
+                                      final currentSelected = ref.read(salesFilterProvider).selectedSubordinateCodes;
+
+                                      final isDifferent = !_listEquals(allSelected, currentSelected);
+
+                                      if (isDifferent) {
+                                        filterNotifier.updateSubordinates(allSelected);
+                                      }
+                                    } else {
+                                      activePosition = position;
+                                    }
+                                  });
+                                },
+                                child: Container(
+                                  margin: EdgeInsets.symmetric(horizontal: 6),
+                                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: isActive ? Colors.blueGrey : Colors.white,
+                                    border: Border.all(color: Colors.blueGrey),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        position,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: isActive ? Colors.white : Colors.blueGrey,
+                                        ),
+                                      ),
+                                      if (count > 0)
+                                        Container(
+                                          margin: EdgeInsets.only(left: 6),
+                                          padding: EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: Colors.orange,
+                                          ),
+                                          child: Text(
+                                            '$count',
+                                            style: TextStyle(color: Colors.white, fontSize: 10),
+                                          ),
+                                        ),
+                                      Icon(
+                                        isActive ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                                        color: isActive ? Colors.white : Colors.blueGrey,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }),
+
+                            // 👇 Add Clear Button inline
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  localSelected.clear();
+                                  activePosition = null;
+                                  ref.read(salesFilterProvider.notifier).updateSubordinates([]);
+                                });
+                              },
+                              child: Container(
+                                margin: EdgeInsets.symmetric(horizontal: 6),
+                                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.orange,
+                                  color: Colors.white,
+                                  border: Border.all(color: Colors.redAccent),
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: Text(
-                                  '$count',
-                                  style: TextStyle(color: Colors.white, fontSize: 10),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.clear, color: Colors.redAccent, size: 16),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      "Clear",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.redAccent,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            Icon(
-                              isActive ? Icons.arrow_drop_up : Icons.arrow_drop_down,
-                              color: isActive ? Colors.white : Colors.blueGrey,
                             ),
                           ],
                         ),
+
                       ),
                     );
                   }).toList(),
