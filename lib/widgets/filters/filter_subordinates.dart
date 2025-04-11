@@ -85,11 +85,7 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
                       child: Container(
                         margin: EdgeInsets.symmetric(horizontal: 0),
                         padding: EdgeInsets.symmetric(horizontal: 0, vertical: 0),
-                        decoration: BoxDecoration(
-                          color: isActive ? Colors.blueGrey : Colors.white,
-                          // border: Border.all(color: Colors.blueGrey),
-                          // borderRadius: BorderRadius.circular(6),
-                        ),
+
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
