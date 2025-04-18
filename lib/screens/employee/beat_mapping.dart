@@ -290,7 +290,42 @@ class _BeatMappingScreenState extends ConsumerState<BeatMappingScreen> {
                       foregroundColor: Colors.black,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    onPressed: () {},
+                    onPressed: () async {
+                      if ((d['distance'] ?? 9999) > 15000) { // 100 meters = 0.1 km
+                        CustomPopup.showPopup(context, "Too Far", "You are more than 100 meters away from the dealer.", isSuccess: false);
+                        return;
+                      }
+
+                      try {
+                        final res = await ref.read(beatMappingProvider.notifier).markDealerDone(
+                          dealerCode: d['code'],
+                          distance: d['distance'] ?? 0,
+                        );
+
+                        if (res['success']) {
+                          CustomPopup.showPopup(context, "Success", res['message']);
+
+                          // ✅ Mark as done locally in provider state
+                          final updatedDealers = [...ref.read(beatMappingProvider).allDealers];
+                          final index = updatedDealers.indexWhere((item) => item['code'] == d['code']);
+                          if (index != -1) {
+                            updatedDealers[index]['status'] = 'done';
+                            updatedDealers[index]['visits'] = (updatedDealers[index]['visits'] ?? 0) + 1;
+                            ref.read(beatMappingProvider.notifier).state =
+                                ref.read(beatMappingProvider.notifier).state.copyWith(
+                                  allDealers: updatedDealers,
+                                  filteredDealers: updatedDealers,
+                                );
+                          }
+
+                        } else {
+                          CustomPopup.showPopup(context, "Failed", res['message'], isSuccess: false);
+                        }
+                      } catch (e) {
+                        CustomPopup.showPopup(context, "Error", "Something went wrong.", isSuccess: false);
+                      }
+                    },
+
                     child: Text("Mark"),
                   ),
                 )

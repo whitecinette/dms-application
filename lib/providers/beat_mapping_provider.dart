@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import '../config.dart';
 import '../services/auth_service.dart';
 
-
 typedef Dealer = Map<String, dynamic>;
 
 class BeatMappingState {
@@ -181,6 +180,46 @@ class BeatMappingNotifier extends StateNotifier<BeatMappingState> {
 
     state = state.copyWith(isLoading: false);
   }
+
+  Future<Map<String, dynamic>> markDealerDone({
+    required String dealerCode,
+    required double distance,
+  }) async {
+    final token = await AuthService.getToken();
+    if (token == null) return {"success": false, "message": "Token not found"};
+
+    final uri = Uri.parse('${Config.backendUrl}/beat-mapping/mark-done');
+    final body = json.encode({
+      "dealerCode": dealerCode,
+      "distance": distance,
+    });
+
+    try {
+      final response = await http.put(uri, headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      }, body: body);
+
+      final res = json.decode(response.body);
+
+      // ✅ Add success = true only if 200, else false
+      if (response.statusCode == 200) {
+        return {
+          "success": true,
+          "message": res['message'] ?? "Marked successfully"
+        };
+      } else {
+        return {
+          "success": false,
+          "message": res['message'] ?? "Failed to mark dealer"
+        };
+      }
+    } catch (e) {
+      print("Error in markDealerDone: $e");
+      return {"success": false, "message": "Something went wrong"};
+    }
+  }
+
 }
 
 final beatMappingProvider =
