@@ -1,291 +1,315 @@
+// 🔄 Styled Beat Mapping UI to match design
 import 'package:dms_app/utils/custom_pop_up.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:dms_app/services/api_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../../providers/beat_mapping_provider.dart';
 
-class BeatMappingScreen extends StatefulWidget {
+class BeatMappingScreen extends ConsumerStatefulWidget {
   @override
-  _BeatMappingScreenState createState() => _BeatMappingScreenState();
+  ConsumerState<BeatMappingScreen> createState() => _BeatMappingScreenState();
 }
 
-class _BeatMappingScreenState extends State<BeatMappingScreen> {
-  Map<String, dynamic> scheduleData = {};
-  List<dynamic> filteredDealers = [];
-  List<dynamic> allDealers = [];
-  bool isLoading = true;
-  String selectedDay = "Mon";
+class _BeatMappingScreenState extends ConsumerState<BeatMappingScreen> {
+  Position? currentLocation;
   String searchQuery = "";
-  final List<String> weekdays = [
-    "Mon",
-    "Tue",
-    "Wed",
-    "Thu",
-    "Fri",
-    "Sat",
-    "Sun"
-  ];
 
   @override
   void initState() {
     super.initState();
-    fetchSchedules();
+    _initData();
   }
 
-  String getFormattedDate(DateTime date) {
-    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+  Future<void> _initData() async {
+    await _getCurrentLocation();
+    await ref.read(beatMappingProvider.notifier).initialize();
+    await ref.read(beatMappingProvider.notifier).fetchBeatMapping(currentLocation);
   }
 
-  Future<void> fetchSchedules() async {
-    try {
-      String startDate = getFormattedDate(
-          DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1)));
-      String endDate = getFormattedDate(
-          DateTime.now().add(Duration(days: 7 - DateTime.now().weekday)));
-
-      final response =
-          await ApiService.getWeeklyBeatMappingSchedule(startDate, endDate);
-      setState(() {
-        if (response['data'] != null && response['data'].isNotEmpty) {
-          scheduleData = response['data'][0]['schedule'];
-
-          // Assign scheduleId to each dealer in scheduleData
-          String scheduleId = response['data'][0]['_id']; // Extract schedule ID
-          scheduleData.forEach((day, dealers) {
-            for (var dealer in dealers) {
-              dealer['scheduleId'] =
-                  scheduleId; // Assign scheduleId to each dealer
-            }
-          });
-
-          selectedDay = weekdays.firstWhere(
-              (day) => scheduleData.containsKey(day),
-              orElse: () => "Mon");
-          allDealers = scheduleData[selectedDay] ?? [];
-          filteredDealers = List.from(allDealers);
-        }
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() => isLoading = false);
-      print("Error fetching schedules: $e");
-    }
-  }
-
-  void updateSelectedDay(String day) {
-    setState(() {
-      selectedDay = day;
-      allDealers = scheduleData[day] ?? [];
-      filterDealers();
-    });
-  }
-
-  void filterDealers() {
-    setState(() {
-      filteredDealers = allDealers.where((dealer) {
-        return dealer['name'].toLowerCase().contains(searchQuery.toLowerCase());
-      }).toList();
-    });
-  }
-
-  Future<void> _markDoneWithLocation(Map<String, dynamic>? dealer) async {
-    // Check if dealer data exists
-    if (dealer == null) {
-      CustomPopup.showPopup(
-          context, "Error", "No dealer data available for today.",
-          isSuccess: false);
-
+  Future<void> _getCurrentLocation() async {
+    LocationPermission permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      CustomPopup.showPopup(context, "Permission Denied",
+          "Location permission is required.", isSuccess: false);
       return;
     }
-
-    try {
-      // Request location permission
-      LocationPermission permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        CustomPopup.showPopup(
-            context, "Permission Denied", "Location permission is required.",
-            isSuccess: false);
-
-        return;
-      }
-
-      // Get current employee location
-      Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
-      double employeeLat = position.latitude;
-      double employeeLong = position.longitude;
-
-      // Extract latitude and longitude from dealer object
-      double? dealerLat;
-      double? dealerLong;
-
-      try {
-        if (dealer['latitude'] != null) {
-          dealerLat = (dealer['latitude'] is num)
-              ? (dealer['latitude'] as num).toDouble()
-              : (dealer['latitude'] is Map<String, dynamic> &&
-                      dealer['latitude']['\$numberDecimal'] != null)
-                  ? double.tryParse(
-                      dealer['latitude']['\$numberDecimal'].toString())
-                  : double.tryParse(dealer['latitude'].toString());
-        }
-
-        if (dealer['longitude'] != null) {
-          dealerLong = (dealer['longitude'] is num)
-              ? (dealer['longitude'] as num).toDouble()
-              : (dealer['longitude'] is Map<String, dynamic> &&
-                      dealer['longitude']['\$numberDecimal'] != null)
-                  ? double.tryParse(
-                      dealer['longitude']['\$numberDecimal'].toString())
-                  : double.tryParse(dealer['longitude'].toString());
-        }
-
-        if (dealerLat == null || dealerLong == null) {
-          throw FormatException("Dealer location data is missing or invalid");
-        }
-      } catch (error) {
-        print("Error converting latitude/longitude: $error");
-        CustomPopup.showPopup(context, "Invalid Data",
-            "Dealer location data is missing or incorrect.",
-            isSuccess: false);
-
-        return;
-      }
-
-      // Calculate distance
-      double distance = Geolocator.distanceBetween(
-          employeeLat, employeeLong, dealerLat, dealerLong);
-
-      if (distance <= 100) {
-        // Check if within 100 meters
-
-        if (dealer['scheduleId'] == null || dealer['code'] == null) {
-          print("Error: scheduleId or code is null.");
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content:
-                  Text("Error: Required data missing (scheduleId or code).")));
-          return;
-        }
-
-        await ApiService.updateWeeklyBeatMappingStatusWithProximity(
-            dealer['scheduleId'],
-            dealer['code'],
-            'done',
-            employeeLat,
-            employeeLong);
-
-        setState(() {
-          dealer['status'] = 'done';
-        });
-
-        CustomPopup.showPopup(
-            context, "Success", "Dealer marked as done successfully!");
-      } else {
-        CustomPopup.showPopup(
-            context, "Too Far", "You are too far from the dealer location.",
-            isSuccess: false);
-      }
-    } catch (e) {
-      CustomPopup.showPopup(context, "Error", "An error occurred: $e",
-          isSuccess: false);
-    }
+    currentLocation = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
   }
 
   @override
   Widget build(BuildContext context) {
+    final provider = ref.watch(beatMappingProvider);
+    final controller = ref.read(beatMappingProvider.notifier);
+    final dealers = provider.filteredDealers;
+    final isLoading = provider.isLoading;
+
     return Scaffold(
-      appBar: AppBar(title: Text("Beat Mapping")),
-      body: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: weekdays.map((day) {
-                return GestureDetector(
-                  onTap: () => updateSelectedDay(day),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                    decoration: BoxDecoration(
-                      color:
-                          selectedDay == day ? Colors.blue : Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      day,
-                      style: TextStyle(
-                        color: selectedDay == day ? Colors.white : Colors.black,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            SizedBox(height: 10),
-            TextField(
-              decoration: InputDecoration(
-                hintText: "Search Dealers...",
-                prefixIcon: Icon(Icons.search),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  searchQuery = value;
-                  filterDealers();
-                });
-              },
-            ),
-            SizedBox(height: 10),
-            Expanded(
-              child: isLoading
-                  ? Center(child: CircularProgressIndicator())
-                  : filteredDealers.isEmpty
-                      ? Center(
-                          child: Text("No dealers found for $selectedDay."))
-                      : ListView.builder(
-                          itemCount: filteredDealers.length,
-                          itemBuilder: (context, index) {
-                            final dealer = filteredDealers[index];
-                            return Card(
-                              margin: EdgeInsets.symmetric(vertical: 8),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: dealer['status'] == 'done'
-                                      ? Colors.green
-                                      : Colors.orange,
-                                  child: Icon(
-                                    dealer['status'] == 'done'
-                                        ? Icons.check
-                                        : Icons.pending,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                title: Text(
-                                    "${dealer['name'] ?? "Unknown Dealer"}"),
-                                subtitle: Text("Code: ${dealer['code']}"),
-                                trailing: dealer['status'] == 'pending'
-                                    ? ElevatedButton(
-                                        onPressed: () =>
-                                            _markDoneWithLocation(dealer),
-                                        child: Text("Mark Done"),
-                                      )
-                                    : Text(
-                                        dealer['status'].toUpperCase(),
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.green,
-                                        ),
-                                      ),
-                              ),
-                            );
-                          },
-                        ),
-            ),
-          ],
-        ),
+      appBar: AppBar(
+        title: Text("Beat Mapping"),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: () async {
+              await controller.fetchBeatMapping(currentLocation);
+            },
+          )
+        ],
       ),
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : Column(
+        children: [
+          _buildFilters(controller, provider.dateRange),
+          _buildStatsSummary(dealers),
+          _buildSearchBar(controller),
+          Expanded(child: _buildDealerList(dealers)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilters(BeatMappingNotifier controller, DateTimeRange dateRange) {
+    final dropdownValues = ref.watch(beatMappingProvider).dropdownValues;
+    final formatter = DateFormat('dd MMM');
+
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () async {
+                  final picked = await showDateRangePicker(
+                    context: context,
+                    initialDateRange: dateRange,
+                    firstDate: DateTime.now().subtract(Duration(days: 365)),
+                    lastDate: DateTime.now().add(Duration(days: 365)),
+                  );
+                  if (picked != null) {
+                    controller.setDateRange(picked);
+                    controller.fetchBeatMapping(currentLocation);
+                  }
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Text("${formatter.format(dateRange.start)} to ${formatter.format(dateRange.end)}"),
+                      SizedBox(width: 6),
+                      Icon(Icons.calendar_today, size: 16)
+                    ],
+                  ),
+                ),
+              ),
+              Spacer(),
+              TextButton(
+                onPressed: () {
+                  controller.resetFilters();
+                  controller.fetchBeatMapping(currentLocation);
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.orange,
+                ),
+                child: Text("Reset Filters"),
+              )
+            ],
+          ),
+          SizedBox(height: 8),
+          ExpansionTile(
+            title: Text("Show Filters", style: TextStyle(fontWeight: FontWeight.w500)),
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.only(top: 6),
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: dropdownValues.entries.map((entry) {
+                  return Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: DropdownButton<String>(
+                      underline: SizedBox(),
+                      hint: Text(entry.key),
+                      value: null,
+                      items: entry.value
+                          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                          .toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          controller.addFilter(entry.key, val);
+                          controller.fetchBeatMapping(currentLocation);
+                        }
+                      },
+                    ),
+                  );
+                }).toList(),
+              )
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(BeatMappingNotifier controller) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: TextField(
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.blue.shade50,
+          prefixIcon: Icon(Icons.search),
+          hintText: "Search by name/code",
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+        onChanged: (val) {
+          searchQuery = val;
+          controller.applySearch(val);
+        },
+      ),
+    );
+  }
+
+  Widget _buildStatsSummary(List<dynamic> dealers) {
+    int total = dealers.length;
+    int done = dealers.where((d) => d['status'] == 'done').length;
+    int pending = total - done;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _statBox("Total", total, Colors.orange.shade200, Colors.orange),
+          _statBox("Done", done, Colors.green.shade100, Colors.green),
+          _statBox("Pending", pending, Colors.red.shade100, Colors.red),
+        ],
+      ),
+    );
+  }
+
+  Widget _statBox(String title, int value, Color bg, Color fg) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(title, style: TextStyle(color: fg, fontWeight: FontWeight.bold)),
+          Text("$value", style: TextStyle(color: fg, fontSize: 20)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDealerList(List<dynamic> dealers) {
+    return ListView.builder(
+      itemCount: dealers.length,
+      itemBuilder: (context, index) {
+        final d = dealers[index];
+        final isDone = d['status'] == 'done';
+        return Card(
+          color: isDone ? Colors.green.shade50 : null,
+          margin: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(d['code'] ?? '', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(d['name'] ?? ''),
+                      ],
+                    ),
+                    Column(
+                      children: [
+                        Icon(Icons.navigation_outlined, size: 18),
+                        Text("${d['distance']?.toStringAsFixed(1)} kms")
+                      ],
+                    )
+                  ],
+                ),
+                SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _tag(d['zone']),
+                    _tag(d['district']),
+                    _tag(d['taluka']),
+                    _tag(d['position']),
+                  ],
+                ),
+                SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: isDone
+                      ? Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check, color: Colors.white, size: 16),
+                        SizedBox(width: 4),
+                        Text("Done", style: TextStyle(color: Colors.white)),
+                        SizedBox(width: 4),
+                        CircleAvatar(
+                          radius: 10,
+                          backgroundColor: Colors.white,
+                          child: Text("${d['visits']}", style: TextStyle(fontSize: 10)),
+                        )
+                      ],
+                    ),
+                  )
+                      : ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange.shade100,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {},
+                    child: Text("Mark"),
+                  ),
+                )
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _tag(String? label) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade100,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(label ?? '-', style: TextStyle(fontSize: 12)),
     );
   }
 }
