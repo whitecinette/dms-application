@@ -64,6 +64,7 @@ class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Sub
           "filter_type": filterType ?? filter.selectedType,
           "start_date": (startDate ?? filter.startDate).toIso8601String().split("T")[0],
           "end_date": (endDate ?? filter.endDate).toIso8601String().split("T")[0],
+          "subordinate_codes": filter.selectedSubordinateCodes,
         }),
       );
 
