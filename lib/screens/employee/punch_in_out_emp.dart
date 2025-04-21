@@ -266,6 +266,7 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
             Spacer(), // Pushes the circle avatar to the center
 
             // Image Capture Section
+            // Image Capture Section
             GestureDetector(
               onTap: _captureImage,
               child: Container(
@@ -286,10 +287,10 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
                 ),
                 child: CircleAvatar(
                   radius: 90,
-                  backgroundImage: _image != null ? FileImage(_image!) : null,
                   backgroundColor: Colors.white,
+                  backgroundImage: _image != null ? FileImage(_image!) : null,
                   child: _image == null
-                      ? Icon(Icons.person, size: 80, color: Colors.grey[700])
+                      ? Icon(Icons.camera_alt, size: 80, color: Colors.grey[700])
                       : null,
                 ),
               ),
