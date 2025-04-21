@@ -2,6 +2,7 @@
 
 import 'package:dms_app/screens/employee/geo_tag.dart';
 import 'package:dms_app/screens/employee/punch_in_out_emp.dart';
+import 'package:dms_app/screens/employee/travel_schedule.dart';
 import 'package:flutter/material.dart';
 import 'sales_dashboard.dart';
 import 'extraction.dart';
@@ -58,6 +59,7 @@ class EmployeeSidebar extends StatelessWidget {
             ],
           ),
           _buildDrawerItem(Icons.flag, "Targets", context, TargetsScreen()),
+          _buildDrawerItem(Icons.directions_car, "Travel", context, TravelScheduleScreen()),
           _buildDrawerItem(Icons.campaign, "Announcements", context, AnnouncementsScreen()),
           _buildDrawerItem(Icons.map, "Geo Tagging", context, GeoTagScreen()),
           _buildDrawerItem(Icons.fingerprint, "Punch In/Out", context, PunchInOutEmp()),

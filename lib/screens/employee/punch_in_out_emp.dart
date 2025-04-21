@@ -68,7 +68,13 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
   }
 
   Future<void> _submitPunchIn() async {
+    if (_image == null) {
+      await _captureImage(); // Automatically open camera if no image
+    }
+
     final location = ref.watch(coordinatesProvider);
+
+    // Re-check if image is still null or location is empty after capture
     if (_image == null || location.isEmpty) {
       CustomPopup.showPopup(
         context,
@@ -79,29 +85,26 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
       return;
     }
 
-
     List<String> coordinates = location.split(',');
     String latitude = coordinates[0].trim();
     String longitude = coordinates[1].trim();
 
     setState(() {
-      _isPunchingIn = true; // Only update this
+      _isPunchingIn = true;
     });
+
     try {
       final response = await ApiService.punchIn(latitude, longitude, _image!);
 
       if (response.containsKey('message')) {
         if (response['warning'] == true) {
-          // Show warning message in orange
           CustomPopup.showPopup(
             context,
             "Warning",
             response['message'] ?? "There is a warning.",
             type: MessageType.warning,
           );
-        }
-        else {
-          // Normal successful punch-in
+        } else {
           setState(() {
             _hasPunchedIn = true;
             _image = null;
@@ -118,7 +121,6 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
           );
         }
       } else {
-        // Handle case when response doesn't have a message
         CustomPopup.showPopup(
           context,
           "Error",
@@ -127,7 +129,6 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
         );
       }
     } catch (error) {
-      // Exception caught during API call
       CustomPopup.showPopup(
         context,
         "Error",
@@ -136,14 +137,19 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
       );
     } finally {
       setState(() {
-        _isPunchingIn = false; // Reset punching state
+        _isPunchingIn = false;
       });
     }
-
   }
 
   Future<void> _submitPunchOut() async {
+    if (_image == null) {
+      await _captureImage(); // Automatically open camera if no image
+    }
+
     final location = ref.watch(coordinatesProvider);
+
+    // Re-check if image is still null or location is empty after capture
     if (_image == null || location.isEmpty) {
       CustomPopup.showPopup(
         context,
@@ -159,7 +165,7 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
     String longitude = coordinates[1].trim();
 
     setState(() {
-      _isPunchingOut = true; // Only update this
+      _isPunchingOut = true;
     });
 
     try {
