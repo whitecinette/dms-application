@@ -18,6 +18,7 @@ class _GeoTagScreenState extends ConsumerState<GeoTagScreen> {
   String? selectedDealer;
   File? _image;
   bool _isSubmitting = false;
+  bool _isLoadingDealers = false;
 
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
@@ -26,8 +27,11 @@ class _GeoTagScreenState extends ConsumerState<GeoTagScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await LocationService(ref).getLocation();
-      await fetchDealers();
+      // Run both tasks in parallel
+      await Future.wait([
+        LocationService(ref).getLocation(),
+        fetchDealers(),
+      ]);
     });
     _searchController.addListener(_filterDealers);
   }
@@ -54,6 +58,7 @@ class _GeoTagScreenState extends ConsumerState<GeoTagScreen> {
   }
 
   Future<void> fetchDealers() async {
+    setState(() => _isLoadingDealers = true);
     try {
       final fetchedDealers = await ApiService.getDealersByEmployee();
       setState(() {
@@ -62,9 +67,10 @@ class _GeoTagScreenState extends ConsumerState<GeoTagScreen> {
       });
     } catch (error) {
       CustomPopup.showPopup(context, "Error", "Error fetching dealers: ${error.toString()}", isSuccess: false);
+    } finally {
+      setState(() => _isLoadingDealers = false);
     }
   }
-
 
   Future<void> _updateGeoTag() async {
     if (selectedDealer == null || _image == null) {
