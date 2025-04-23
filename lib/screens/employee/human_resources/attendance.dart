@@ -31,6 +31,22 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     super.initState();
     attendanceFuture = ApiService.getEmployeeAttendance();
   }
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case "Pending":
+        return Colors.orange;
+      case "Approved":
+      case "Present":
+        return Colors.green;
+      case "Absent":
+      case "Rejected":
+        return Colors.red;
+      case "Half Day":
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
 
   void _filterByStatus(String? status) {
     setState(() {
@@ -42,11 +58,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   String formatDate(String date) {
-    return DateFormat('dd MMM yyyy').format(DateTime.parse(date));
+    return DateFormat('dd MMM yyyy')
+        .format(DateTime.parse(date).toLocal());
   }
 
   String formatTime(String time) {
-    return DateFormat('hh:mm a').format(DateTime.parse(time));
+    return DateFormat('hh:mm a')
+        .format(DateTime.parse(time).toLocal());
   }
 
   @override
@@ -62,14 +80,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => setState(() => showPunchIn = true),
+                    onPressed: () =>
+                        setState(() => showPunchIn = true),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: showPunchIn ? Colors.blue : Colors.grey[300],
+                      backgroundColor: showPunchIn
+                          ? Colors.blue
+                          : Colors.grey[300],
                     ),
                     child: Text(
                       "Punch In",
                       style: TextStyle(
-                        color: showPunchIn ? Colors.white : Colors.black,
+                        color:
+                            showPunchIn ? Colors.white : Colors.black,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -78,14 +100,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => setState(() => showPunchIn = false),
+                    onPressed: () =>
+                        setState(() => showPunchIn = false),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: !showPunchIn ? Colors.blue : Colors.grey[300],
+                      backgroundColor: !showPunchIn
+                          ? Colors.blue
+                          : Colors.grey[300],
                     ),
                     child: Text(
                       "Punch Out",
                       style: TextStyle(
-                        color: !showPunchIn ? Colors.white : Colors.black,
+                        color: !showPunchIn
+                            ? Colors.white
+                            : Colors.black,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -122,63 +149,64 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             child: FutureBuilder<List<Map<String, dynamic>>>(
               future: attendanceFuture,
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  // Show shimmer while loading
+                if (snapshot.connectionState ==
+                    ConnectionState.waiting) {
                   return ListView.builder(
                     padding: const EdgeInsets.all(12),
-                    itemCount: 5,
+                    itemCount:
+                        5, // <- Just show 5 shimmer placeholders
                     itemBuilder: (context, index) {
-                      return Shimmer.fromColors(
-                        baseColor: Colors.grey[300]!,
-                        highlightColor: Colors.grey[100]!,
-                        child: Card(
-                          elevation: 4,
-                          margin: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
+                      return Card(
+                        elevation: 4,
+                        margin:
+                            const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Shimmer.fromColors(
+                            baseColor: Colors.grey[300]!,
+                            highlightColor: Colors.grey[100]!,
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
                               children: [
-                                // Date & status shimmer
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Container(width: 100, height: 16, color: Colors.white),
-                                    Container(width: 60, height: 20, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20))),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-
-                                // Punch in/out shimmer
+                                Container(
+                                    height: 16,
+                                    width: 120,
+                                    color: Colors.white),
+                                const SizedBox(height: 10),
                                 Row(
                                   children: [
-                                    CircleAvatar(radius: 30, backgroundColor: Colors.white),
+                                    CircleAvatar(
+                                        radius: 30,
+                                        backgroundColor:
+                                            Colors.white),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Container(width: 120, height: 14, color: Colors.white),
+                                          Container(
+                                              height: 14,
+                                              width: double.infinity,
+                                              color: Colors.white),
                                           const SizedBox(height: 6),
-                                          Container(width: 100, height: 12, color: Colors.white),
-                                          const SizedBox(height: 6),
-                                          Container(width: 150, height: 12, color: Colors.white),
+                                          Container(
+                                              height: 14,
+                                              width: 150,
+                                              color: Colors.white),
                                         ],
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 16),
-
-                                // Hours worked shimmer
-                                Row(
-                                  children: [
-                                    Icon(Icons.access_time, size: 20, color: Colors.grey[400]),
-                                    const SizedBox(width: 6),
-                                    Container(width: 120, height: 12, color: Colors.white),
-                                  ],
-                                ),
+                                const SizedBox(height: 10),
+                                Container(
+                                    height: 14,
+                                    width: 100,
+                                    color: Colors.white),
                               ],
                             ),
                           ),
@@ -204,13 +232,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.info_outline, size: 60, color: Colors.grey),
+                        Icon(Icons.info_outline,
+                            size: 60, color: Colors.grey),
                         const SizedBox(height: 10),
                         Text(
-                          selectedStatus == null || selectedStatus == "All"
+                          selectedStatus == null ||
+                                  selectedStatus == "All"
                               ? "No attendance records found."
                               : "No records found for status: $selectedStatus",
-                          style: const TextStyle(fontSize: 16, color: Colors.grey),
+                          style: const TextStyle(
+                              fontSize: 16, color: Colors.grey),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -225,35 +256,43 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     final item = data[index];
                     return Card(
                       elevation: 4,
-                      margin: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      margin:
+                          const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
                           children: [
                             // Date & Status
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
                                   formatDate(item['date']),
-                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold),
                                 ),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: item['status'] == "Pending" ? Colors.orange[100] : Colors.green[100],
+                                    color: _getStatusColor(item['status']).withOpacity(0.2),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
                                     item['status'],
                                     style: TextStyle(
-                                      color: item['status'] == "Pending" ? Colors.orange[800] : Colors.green[800],
+                                      color: _getStatusColor(item['status']),
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
+
+
                               ],
                             ),
                             const SizedBox(height: 10),
@@ -264,19 +303,32 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                 children: [
                                   CircleAvatar(
                                     radius: 30,
-                                    backgroundImage: NetworkImage(item['punchInImage']),
+                                    backgroundImage: NetworkImage(
+                                        item['punchInImage']),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           "Punch In: ${formatTime(item['punchIn'])}",
-                                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                                          style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight:
+                                                  FontWeight.w500),
                                         ),
-                                        Text("Code: ${item['punchInCode'] ?? 'N/A'}", style: TextStyle(color: Colors.grey[700])),
-                                        Text("Location: ${item['punchInName']}", style: TextStyle(color: Colors.grey[700])),
+                                        Text(
+                                            "Code: ${item['punchInCode'] ?? 'N/A'}",
+                                            style: TextStyle(
+                                                color: Colors
+                                                    .grey[700])),
+                                        Text(
+                                            "Location: ${item['punchInName']}",
+                                            style: TextStyle(
+                                                color: Colors
+                                                    .grey[700])),
                                       ],
                                     ),
                                   ),
@@ -287,21 +339,38 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                 children: [
                                   CircleAvatar(
                                     radius: 30,
-                                    backgroundImage: item['punchOutImage'] != null
-                                        ? NetworkImage(item['punchOutImage'])
-                                        : const AssetImage("assets/images/placeholder.png") as ImageProvider,
+                                    backgroundImage: item[
+                                                'punchOutImage'] !=
+                                            null
+                                        ? NetworkImage(
+                                            item['punchOutImage'])
+                                        : const AssetImage(
+                                                "assets/images/placeholder.png")
+                                            as ImageProvider,
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           "Punch Out: ${item['punchOut'] != null ? formatTime(item['punchOut']) : 'Not yet'}",
-                                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                                          style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight:
+                                                  FontWeight.w500),
                                         ),
-                                        Text("Code: ${item['punchOutCode'] ?? 'N/A'}", style: TextStyle(color: Colors.grey[700])),
-                                        Text("Location: ${item['punchOutName'] ?? 'N/A'}", style: TextStyle(color: Colors.grey[700])),
+                                        Text(
+                                            "Code: ${item['punchOutCode'] ?? 'N/A'}",
+                                            style: TextStyle(
+                                                color: Colors
+                                                    .grey[700])),
+                                        Text(
+                                            "Location: ${item['punchOutName'] ?? 'N/A'}",
+                                            style: TextStyle(
+                                                color: Colors
+                                                    .grey[700])),
                                       ],
                                     ),
                                   ),
@@ -313,11 +382,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                             // Hours Worked
                             Row(
                               children: [
-                                Icon(Icons.access_time, size: 20, color: Colors.grey[600]),
+                                Icon(Icons.access_time,
+                                    size: 20,
+                                    color: Colors.grey[600]),
                                 const SizedBox(width: 6),
                                 Text(
                                   "Hours Worked: ${item['hoursWorked']}",
-                                  style: TextStyle(color: Colors.grey[800]),
+                                  style: TextStyle(
+                                      color: Colors.grey[800]),
                                 ),
                               ],
                             ),
