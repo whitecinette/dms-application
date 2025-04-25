@@ -97,14 +97,16 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
       final response = await ApiService.punchIn(latitude, longitude, _image!);
 
       if (response.containsKey('message')) {
-        if (response['warning'] == true) {
+        if (response['warning'] == true || response['statusCode'] == 403) {
           CustomPopup.showPopup(
             context,
             "Warning",
             response['message'] ?? "There is a warning.",
             type: MessageType.warning,
           );
-        } else {
+        }
+
+        else {
           setState(() {
             _hasPunchedIn = true;
             _image = null;

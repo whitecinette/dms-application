@@ -41,31 +41,26 @@ class ApiService {
     }
   }
 
-  // punch in api
   static Future<Map<String, dynamic>> punchIn(
       String latitude, String longitude, File image) async {
     final url = Uri.parse("${Config.backendUrl}/punch-in");
-    print("URLLLL: ${Config.backendUrl}/punch-in");
     String? token = await AuthService.getToken();
-    print("Token: $token");
 
     if (token == null) {
-      throw Exception("User is not authenticated");
+      return {
+        "warning": true,
+        "message": "User is not authenticated",
+      };
     }
 
     var request = http.MultipartRequest("POST", url);
     request.headers["Authorization"] = "Bearer $token";
-    // request.headers["Content-Type"] = "multipart/form-data";
-    // request.headers["Accept"] = "application/json";
-
-    // ✅ Correct field names (Must match backend)
     request.fields['latitude'] = latitude;
     request.fields['longitude'] = longitude;
 
-    // ✅ Ensure correct field name: "punchInImage" (Same as in Multer)
     final mimeType = lookupMimeType(image.path) ?? "image/jpeg";
     final fileStream = await http.MultipartFile.fromPath(
-      'punchInImage', // ✅ Must match "punchInImage" in upload.single("punchInImage")
+      'punchInImage',
       image.path,
       contentType: MediaType.parse(mimeType),
     );
@@ -76,13 +71,13 @@ class ApiService {
     final responseBody = await response.stream.bytesToString();
     final decoded = json.decode(responseBody);
 
-    // ✅ Check for success or warning
-    if (response.statusCode == 201 || response.statusCode == 200) {
-      return decoded; // handle success or warning in UI
-    } else {
-      throw Exception(decoded['message'] ?? "Punch-in failed");
-    }
+    // ✅ Return full response to frontend no matter what
+    return {
+      "statusCode": response.statusCode,
+      ...decoded,
+    };
   }
+
 
 //punch out
   static Future<Map<String, dynamic>> punchOut(

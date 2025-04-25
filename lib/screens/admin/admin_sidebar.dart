@@ -1,5 +1,6 @@
 // lib/screens/employee/employee_sidebar.dart
 
+import 'package:dms_app/screens/admin/attendance.dart';
 import 'package:dms_app/screens/admin/beat_mapping_status.dart';
 import 'package:dms_app/screens/employee/punch_in_out_emp.dart';
 import 'package:flutter/material.dart';
@@ -53,7 +54,7 @@ class AdminSidebar extends StatelessWidget {
             leading: Icon(Icons.people),
             title: Text("Human Resources"),
             children: [
-              _buildDrawerItem(Icons.event, "Attendance", context, AttendanceScreen()),
+              _buildDrawerItem(Icons.event, "Attendance", context, AllAttendanceScreen()),
               _buildDrawerItem(Icons.receipt, "Payslip", context, PayslipScreen()),
               _buildDrawerItem(Icons.card_giftcard, "Vouchers", context, VouchersScreen()),
             ],
