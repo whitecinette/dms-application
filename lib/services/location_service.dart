@@ -24,7 +24,6 @@ class LocationService {
 
       // Fetch address based on coordinates
       await getAddress(position.latitude, position.longitude);
-
     } catch (e) {
       ref.read(coordinatesProvider.notifier).state = "Error: $e";
       ref.read(addressProvider.notifier).state = "Error fetching address";
@@ -40,8 +39,7 @@ class LocationService {
 
       if (placemarks.isNotEmpty) {
         final place = placemarks.first;
-        final address =
-            "${place.name}, ${place.locality}, ${place.subAdministrativeArea}";
+        final address = "${place.name}, ${place.thoroughfare}, ${place.locality}, ${place.subAdministrativeArea}, ${place.postalCode}, ${place.country}";
         ref.read(addressProvider.notifier).state = address;
       } else {
         ref.read(addressProvider.notifier).state = "Location not found";
@@ -64,4 +62,3 @@ class LocationService {
     );
   }
 }
-

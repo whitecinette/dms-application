@@ -21,13 +21,13 @@ class _GeoTagScreenState extends ConsumerState<GeoTagScreen> {
   bool _isLoadingDealers = false;
 
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Run both tasks in parallel
       await Future.wait([
         LocationService(ref).getLocation(),
         fetchDealers(),
@@ -47,12 +47,6 @@ class _GeoTagScreenState extends ConsumerState<GeoTagScreen> {
           final code = dealer['code'].toString().toLowerCase();
           return name.contains(query) || code.contains(query);
         }).toList();
-
-        if (filteredDealers.length == 1) {
-          selectedDealer = filteredDealers.first['code'];
-          _searchController.text = filteredDealers.first['name'];
-          filteredDealers = [];
-        }
       });
     });
   }
@@ -108,7 +102,6 @@ class _GeoTagScreenState extends ConsumerState<GeoTagScreen> {
         _isSubmitting = false;
         _image = null;
         selectedDealer = null;
-        _searchController.clear();
       });
     } catch (error) {
       setState(() => _isSubmitting = false);
@@ -137,6 +130,7 @@ class _GeoTagScreenState extends ConsumerState<GeoTagScreen> {
           children: [
             TextField(
               controller: _searchController,
+              focusNode: _searchFocusNode,
               decoration: InputDecoration(
                 hintText: "Search or Select Dealer",
                 prefixIcon: const Icon(Icons.search, color: Colors.blue),
@@ -168,8 +162,11 @@ class _GeoTagScreenState extends ConsumerState<GeoTagScreen> {
                           setState(() {
                             selectedDealer = dealer['code'];
                             _searchController.text = dealer['name'];
-                            filteredDealers = [];
+                            filteredDealers = []; // Clear the filtered list
                           });
+
+                          // Unfocus the text field to close the dropdown
+                          _searchFocusNode.unfocus();
                         },
                       );
                     },
@@ -189,11 +186,10 @@ class _GeoTagScreenState extends ConsumerState<GeoTagScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      isLoading
-                          ? "Fetching location..."
-                          : (address ?? "Fetching address..."),
+                      ref.watch(addressProvider),
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                    ),
+                    )
+
                   ),
                   IconButton(
                     icon: const Icon(Icons.refresh, color: Colors.blue),
