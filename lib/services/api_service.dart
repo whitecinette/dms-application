@@ -53,30 +53,47 @@ class ApiService {
       };
     }
 
-    var request = http.MultipartRequest("POST", url);
-    request.headers["Authorization"] = "Bearer $token";
-    request.fields['latitude'] = latitude;
-    request.fields['longitude'] = longitude;
+    try {
+      var request = http.MultipartRequest("POST", url);
+      request.headers["Authorization"] = "Bearer $token";
+      request.fields['latitude'] = latitude;
+      request.fields['longitude'] = longitude;
 
-    final mimeType = lookupMimeType(image.path) ?? "image/jpeg";
-    final fileStream = await http.MultipartFile.fromPath(
-      'punchInImage',
-      image.path,
-      contentType: MediaType.parse(mimeType),
-    );
+      final mimeType = lookupMimeType(image.path) ?? "image/jpeg";
+      final fileStream = await http.MultipartFile.fromPath(
+        'punchInImage',
+        image.path,
+        contentType: MediaType.parse(mimeType),
+      );
 
-    request.files.add(fileStream);
+      request.files.add(fileStream);
 
-    final response = await request.send();
-    final responseBody = await response.stream.bytesToString();
-    final decoded = json.decode(responseBody);
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
 
-    // ✅ Return full response to frontend no matter what
-    return {
-      "statusCode": response.statusCode,
-      ...decoded,
-    };
+      try {
+        final decoded = json.decode(responseBody);
+
+        return {
+          "statusCode": response.statusCode,
+          ...decoded,
+        };
+      } catch (e) {
+        return {
+          "statusCode": response.statusCode,
+          "warning": true,
+          "message": "Server returned an unexpected response. Please try again later.",
+          "rawResponse": responseBody,
+        };
+      }
+    } catch (e) {
+      return {
+        "warning": true,
+        "message": "Network or server error occurred: ${e.toString()}",
+      };
+    }
   }
+
 
 
 //punch out
