@@ -23,6 +23,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     "Approved",
     "Rejected",
   ];
+  DateTime? startDate;
+  DateTime? endDate;
 
   late Future<List<Map<String, dynamic>>> attendanceFuture;
 
@@ -53,9 +55,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       selectedStatus = status;
       attendanceFuture = ApiService.getEmployeeAttendance(
         status: status != null && status != "All" ? status : null,
+        startDate: startDate,
+        endDate: endDate,
       );
     });
   }
+
 
   String formatDate(String date) {
     return DateFormat('dd MMM yyyy')
@@ -124,25 +129,136 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
           // Dropdown
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: DropdownButtonFormField<String>(
-              value: selectedStatus ?? "All",
-              decoration: const InputDecoration(
-                labelText: "Filter by Status",
-                border: OutlineInputBorder(),
-              ),
-              items: statusOptions.map((status) {
-                return DropdownMenuItem(
-                  value: status,
-                  child: Text(status),
-                );
-              }).toList(),
-              onChanged: (value) {
-                _filterByStatus(value);
-              },
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: startDate ?? DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              startDate = picked;
+                              attendanceFuture = ApiService.getEmployeeAttendance(
+                                status: selectedStatus != "All" ? selectedStatus : null,
+                                startDate: startDate,
+                                endDate: endDate,
+                              );
+                            });
+                          }
+                        },
+                        child: AbsorbPointer(
+                          child: TextFormField(
+                            decoration: const InputDecoration(
+                              labelText: "Start Date",
+                              hintText: "Select date",
+                              border: OutlineInputBorder(),
+                              suffixIcon: Icon(Icons.calendar_today),
+                            ),
+                            controller: TextEditingController(
+                              text: startDate != null
+                                  ? DateFormat('dd MMM yyyy').format(startDate!)
+                                  : '',
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: endDate ?? DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              endDate = picked;
+                              attendanceFuture = ApiService.getEmployeeAttendance(
+                                status: selectedStatus != "All" ? selectedStatus : null,
+                                startDate: startDate,
+                                endDate: endDate,
+                              );
+                            });
+                          }
+                        },
+                        child: AbsorbPointer(
+                          child: TextFormField(
+                            decoration: const InputDecoration(
+                              labelText: "End Date",
+                              hintText: "Select date",
+                              border: OutlineInputBorder(),
+                              suffixIcon: Icon(Icons.calendar_today),
+                            ),
+                            controller: TextEditingController(
+                              text: endDate != null
+                                  ? DateFormat('dd MMM yyyy').format(endDate!)
+                                  : '',
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: selectedStatus ?? "All",
+                        items: statusOptions.map((status) {
+                          return DropdownMenuItem(
+                            value: status,
+                            child: Text(
+                              status,
+                              style: const TextStyle(fontSize: 12), // Smaller text
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (value) => _filterByStatus(value),
+                        decoration: const InputDecoration(
+                          labelText: "Filter by Status",
+                          labelStyle: TextStyle(fontSize: 12), // Smaller label text
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          startDate = null;
+                          endDate = null;
+                          selectedStatus = "All";
+                          attendanceFuture = ApiService.getEmployeeAttendance();
+                        });
+                      },
+                      child: const Text(
+                        "Reset Filter",
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 10),
+
+
+
 
           // Data
           Expanded(

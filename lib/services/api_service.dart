@@ -10,8 +10,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:flutter/foundation.dart';
 
 class ApiService {
-  static Future<Map<String, dynamic>> login(
-      String code, String password) async {
+  static Future<Map<String, dynamic>> login(String code, String password) async {
     print("logginnn");
     final url = Uri.parse("${Config.backendUrl}/app/user/login");
 
@@ -41,8 +40,7 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> punchIn(
-      String latitude, String longitude, File image) async {
+  static Future<Map<String, dynamic>> punchIn(String latitude, String longitude, File image) async {
     final url = Uri.parse("${Config.backendUrl}/punch-in");
     String? token = await AuthService.getToken();
 
@@ -97,8 +95,7 @@ class ApiService {
 
 
 //punch out
-  static Future<Map<String, dynamic>> punchOut(
-      String latitude, String longitude, File image) async {
+  static Future<Map<String, dynamic>> punchOut(String latitude, String longitude, File image) async {
     final url = Uri.parse("${Config.backendUrl}/punch-out");
 
     // Fetch JWT token
@@ -138,8 +135,7 @@ class ApiService {
   }
 
 // Get Weekly Beat Mapping Schedule
-  static Future<Map<String, dynamic>> getWeeklyBeatMappingSchedule(
-      String? startDate, String? endDate) async {
+  static Future<Map<String, dynamic>> getWeeklyBeatMappingSchedule(String? startDate, String? endDate) async {
     final url = Uri.parse(
         "${Config.backendUrl}/get-weekly-beat-mapping-schedule" +
             (startDate != null && endDate != null
@@ -182,9 +178,7 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>>
-      updateWeeklyBeatMappingStatusWithProximity(String scheduleId, String code,
-          String status, double employeeLat, double employeeLong) async {
+  static Future<Map<String, dynamic>> updateWeeklyBeatMappingStatusWithProximity(String scheduleId, String code, String status, double employeeLat, double employeeLong) async {
     print("API call initiated...");
     final url = Uri.parse(
         "${Config.backendUrl}/update-beat-mapping-status-proximity/$scheduleId/$code");
@@ -226,8 +220,7 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> getUserDetails() async {
-    final url = Uri.parse("${Config.backendUrl}/get-users-by-code");
+  static Future<Map<String, dynamic>> getUserDetails() async {final url = Uri.parse("${Config.backendUrl}/get-users-by-code");
 
     String? token = await AuthService.getToken();
     if (token == null) {
@@ -256,8 +249,7 @@ class ApiService {
   }
 
 // update user details by  code
-  static Future<Map<String, dynamic>> editUser(
-      Map<String, dynamic> updateData) async {
+  static Future<Map<String, dynamic>> editUser(Map<String, dynamic> updateData) async {
     final url = Uri.parse("${Config.backendUrl}/edit-users-by-code");
 
     String? token = await AuthService.getToken();
@@ -288,17 +280,7 @@ class ApiService {
   }
 
   // Get all attendance records
-  static Future<Map<String, dynamic>> getAllAttendance(
-      {String? startDate,
-      String? endDate,
-      int page = 1,
-      int limit = 10}) async {
-    final queryParams = {
-      if (startDate != null) 'startDate': startDate,
-      if (endDate != null) 'endDate': endDate,
-      'page': page.toString(),
-      'limit': limit.toString(),
-    };
+  static Future<Map<String, dynamic>> getAllAttendance({String? startDate, String? endDate, int page = 1, int limit = 10}) async {final queryParams = {if (startDate != null) 'startDate': startDate, if (endDate != null) 'endDate': endDate, 'page': page.toString(), 'limit': limit.toString(),};
 
     final url = Uri.parse("${Config.backendUrl}/get-all-attendance")
         .replace(queryParameters: queryParams);
@@ -325,12 +307,7 @@ class ApiService {
   }
 
 // get all employees
-  static Future<Map<String, dynamic>> getAllEmployees(
-      {int page = 1, int limit = 10}) async {
-    final queryParams = {
-      'page': page.toString(),
-      'limit': limit.toString(),
-    };
+  static Future<Map<String, dynamic>> getAllEmployees({int page = 1, int limit = 10}) async {final queryParams = {'page': page.toString(), 'limit': limit.toString(),};
 
     final url = Uri.parse("${Config.backendUrl}/get-emp-for-hr")
         .replace(queryParameters: queryParams);
@@ -536,17 +513,26 @@ class ApiService {
   }
 
 // get attendance by employee
-  static Future<List<Map<String, dynamic>>> getEmployeeAttendance(
-      {String? status}) async {
-    String queryString = status != null ? "?status=$status" : "";
-    final url = Uri.parse("${Config.backendUrl}/get-attandance$queryString");
+  static Future<List<Map<String, dynamic>>> getEmployeeAttendance({
+    String? status,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    // Build query parameters
+    final queryParams = <String, String>{};
+
+    if (status != null) queryParams['status'] = status;
+    if (startDate != null) queryParams['startDate'] = startDate.toIso8601String().split('T').first;
+    if (endDate != null) queryParams['endDate'] = endDate.toIso8601String().split('T').first;
+
+    final uri = Uri.parse("${Config.backendUrl}/get-attandance").replace(queryParameters: queryParams);
 
     String? token = await AuthService.getToken();
     if (token == null) throw Exception("User not authenticated");
 
     try {
       final response = await http.get(
-        url,
+        uri,
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
@@ -555,7 +541,6 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-
         if (data['data'] != null && data['data'] is List) {
           return List<Map<String, dynamic>>.from(data['data']);
         } else {
@@ -569,4 +554,5 @@ class ApiService {
       throw Exception("❗ Network error: $e");
     }
   }
+
 }
