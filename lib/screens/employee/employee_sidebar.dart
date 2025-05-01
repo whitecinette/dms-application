@@ -1,6 +1,7 @@
 // lib/screens/employee/employee_sidebar.dart
 
 import 'package:dms_app/screens/employee/geo_tag.dart';
+import 'package:dms_app/screens/employee/market_coverage.dart';
 import 'package:dms_app/screens/employee/punch_in_out_emp.dart';
 import 'package:dms_app/screens/employee/travel_schedule.dart';
 import 'package:flutter/material.dart';
@@ -49,6 +50,7 @@ class EmployeeSidebar extends StatelessWidget {
           _buildDrawerItem(Icons.pie_chart, "Extraction", context, ExtractionScreen()),
           _buildDrawerItem(Icons.monitor_heart, "Pulse", context, PulseScreen()),
           _buildDrawerItem(Icons.map, "Beat Mapping", context, BeatMappingScreen()),
+          _buildDrawerItem(Icons.map, "Market Coverage", context, MarketCoverageScreen()),
           ExpansionTile(
             leading: Icon(Icons.people),
             title: Text("Human Resources"),

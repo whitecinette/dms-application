@@ -1,0 +1,429 @@
+// 📍 Market Coverage UI (Flutter) strictly based on provided screenshot
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:geolocator/geolocator.dart';
+import '../../providers/market_coverage_provider.dart';
+import '../../utils/custom_pop_up.dart';
+
+class MarketCoverageScreen extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<MarketCoverageScreen> createState() => _MarketCoverageScreenState();
+}
+
+class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
+  Position? currentLocation;
+  bool showFilters = false;
+  bool showRoutes = false;
+  String searchQuery = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _initData();
+  }
+
+  Future<void> _initData() async {
+    final controller = ref.read(marketCoverageProvider.notifier);
+    final permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      CustomPopup.showPopup(context, "Permission Denied", "Location permission is required.", isSuccess: false);
+      return;
+    }
+    currentLocation = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    await controller.initialize();
+    await controller.fetchCoverageData(currentLocation: currentLocation);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = ref.watch(marketCoverageProvider);
+    final controller = ref.read(marketCoverageProvider.notifier);
+    final dealers = provider.filteredDealers;
+    final isLoading = provider.isLoading;
+    final dateRange = provider.dateRange;
+    final formatter = DateFormat("dd MMM");
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Market Coverage"),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: () async {
+              if (currentLocation == null) return;
+              await controller.fetchCoverageData(currentLocation: currentLocation);
+            },
+          ),
+        ],
+      ),
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : Column(
+        children: [
+          _buildHeader(controller, dateRange),
+          _buildToggleBar(dateRange),
+          if (showFilters) _buildFilterDropdowns(controller),
+          if (showRoutes) _buildRouteDropdown(),
+          _buildStatsSummary(dealers),
+          _buildSearchBar(controller),
+          Expanded(child: _buildDealerList(dealers)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(MarketCoverageNotifier controller, DateTimeRange dateRange) {
+    final formatter = DateFormat('dd MMM');
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () async {
+              final picked = await showDateRangePicker(
+                context: context,
+                initialDateRange: dateRange,
+                firstDate: DateTime.now().subtract(Duration(days: 365)),
+                lastDate: DateTime.now().add(Duration(days: 365)),
+              );
+
+              if (picked != null) {
+                controller.setDateRange(picked);
+
+                // 🔁 Refresh the location correctly
+                final loc = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+                setState(() {
+                  currentLocation = loc;
+                });
+
+                // 🔁 Now fetch using updated date + location
+                await controller.fetchCoverageData(currentLocation: loc);
+              }
+            },
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text("${formatter.format(dateRange.start)} to ${formatter.format(dateRange.end)}"),
+            ),
+          ),
+          Spacer(),
+          TextButton(
+            onPressed: () {
+              controller.resetFilters();
+              controller.fetchCoverageData(currentLocation: currentLocation);
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.orange,
+              side: BorderSide(color: Colors.orange.shade200),
+            ),
+            child: Text("Reset Filters"),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToggleBar(DateTimeRange range) {
+    return Container(
+      color: Colors.blue.shade50,
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          InkWell(
+            onTap: () => setState(() => showFilters = !showFilters),
+            child: Row(
+              children: [
+                Text("Show Filters"),
+                Icon(showFilters ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down),
+              ],
+            ),
+          ),
+          InkWell(
+            onTap: () => setState(() => showRoutes = !showRoutes),
+            child: Row(
+              children: [
+                Text("Show Routes"),
+                SizedBox(width: 6),
+                CircleAvatar(
+                  radius: 10,
+                  backgroundColor: Colors.purple,
+                  child: Text("2", style: TextStyle(color: Colors.white, fontSize: 12)),
+                ),
+                Icon(showRoutes ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRouteDropdown() {
+    final dummyRoutes = ["jaipur-dausa-chomu", "ajmer-beawar", "udaipur-rajsamand"];
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: TextField(
+            decoration: InputDecoration(
+              prefixIcon: Icon(Icons.search),
+              hintText: "Search",
+              filled: true,
+              fillColor: Colors.grey.shade100,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+            ),
+          ),
+        ),
+        ...dummyRoutes.map((r) => Container(
+          margin: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          padding: EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: r == "jaipur-dausa-chomu" ? Colors.blue.shade100 : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.near_me_outlined, size: 20),
+              SizedBox(width: 10),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(r, style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(r.replaceAll('-', ', ')),
+              ])
+            ],
+          ),
+        ))
+      ],
+    );
+  }
+
+  Widget _buildFilterDropdowns(MarketCoverageNotifier controller) {
+    final filters = ["status", "zone", "taluka", "district", "dealer/mdd"];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("Filters", style: TextStyle(fontWeight: FontWeight.bold)),
+              TextButton(
+                onPressed: controller.resetFilters,
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.orange,
+                  side: BorderSide(color: Colors.orange.shade200),
+                ),
+                child: Text("Reset Filters"),
+              )
+            ],
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: filters.map((filter) => Container(
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: DropdownButton<String>(
+                underline: SizedBox(),
+                hint: Text(filter),
+                items: ["Option 1", "Option 2"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                onChanged: (_) {},
+              ),
+            )).toList(),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(MarketCoverageNotifier controller) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: TextField(
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.blue.shade50,
+          prefixIcon: Icon(Icons.search),
+          hintText: "Search by name/code",
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+        onChanged: (val) {
+          searchQuery = val;
+          controller.applySearch(val);
+        },
+      ),
+    );
+  }
+
+  Widget _buildStatsSummary(List<dynamic> dealers) {
+    int total = dealers.length;
+    int done = dealers.where((d) => d['status'] == 'done').length;
+    int pending = total - done;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _statBox("Total", total, Colors.orange.shade100, Colors.orange),
+          _statBox("Done", done, Colors.green.shade100, Colors.green),
+          _statBox("Pending", pending, Colors.red.shade100, Colors.red),
+        ],
+      ),
+    );
+  }
+
+  Widget _statBox(String title, int value, Color bg, Color fg) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(title, style: TextStyle(color: fg, fontWeight: FontWeight.bold)),
+          Text("$value", style: TextStyle(color: fg, fontSize: 20)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDealerList(List<dynamic> dealers) {
+    return ListView.builder(
+      itemCount: dealers.length,
+      itemBuilder: (context, index) {
+        final d = dealers[index];
+        final isDone = d['status'] == 'done';
+        return Card(
+          color: isDone ? Colors.green.shade50 : null,
+          margin: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(d['code'] ?? '', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(d['name'] ?? ''),
+                      ],
+                    ),
+                    Column(
+                      children: [
+                        Icon(Icons.navigation_outlined, size: 18),
+                        Text("${d['distance']?.toStringAsFixed(1)} kms")
+                      ],
+                    )
+                  ],
+                ),
+                SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _tag(d['zone']),
+                    _tag(d['district']),
+                    _tag(d['taluka']),
+                    _tag(d['position']),
+                    if (d['route'] != null) _tag(d['route']),
+                  ],
+                ),
+                SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: isDone
+                      ? Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check, color: Colors.white, size: 16),
+                        SizedBox(width: 4),
+                        Text("Done", style: TextStyle(color: Colors.white)),
+                        SizedBox(width: 4),
+                        CircleAvatar(
+                          radius: 10,
+                          backgroundColor: Colors.white,
+                          child: Text("${d['visits']}", style: TextStyle(fontSize: 10)),
+                        )
+                      ],
+                    ),
+                  )
+                      : ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange.shade100,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () async {
+                      if ((d['distance'] ?? 9999) > 15.0) {
+                        CustomPopup.showPopup(context, "Too Far", "You are more than 100 meters away from the dealer.", isSuccess: false);
+                        return;
+                      }
+
+                      try {
+                        final res = await ref.read(marketCoverageProvider.notifier).markDealerDone(
+                          dealerCode: d['code'],
+                          distance: d['distance'] ?? 0,
+                        );
+
+                        if (res['success']) {
+                          CustomPopup.showPopup(context, "Success", res['message']);
+
+                          final updatedDealers = [...ref.read(marketCoverageProvider).allDealers];
+                          final index = updatedDealers.indexWhere((item) => item['code'] == d['code']);
+                          if (index != -1) {
+                            updatedDealers[index]['status'] = 'done';
+                            updatedDealers[index]['visits'] = (updatedDealers[index]['visits'] ?? 0) + 1;
+                            ref.read(marketCoverageProvider.notifier).state =
+                                ref.read(marketCoverageProvider.notifier).state.copyWith(
+                                  allDealers: updatedDealers,
+                                  filteredDealers: updatedDealers,
+                                );
+                          }
+                        } else {
+                          CustomPopup.showPopup(context, "Failed", res['message'], isSuccess: false);
+                        }
+                      } catch (e) {
+                        CustomPopup.showPopup(context, "Error", "Something went wrong.", isSuccess: false);
+                      }
+                    },
+                    child: Text("Mark"),
+                  ),
+                )
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _tag(String? label) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade100,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(label ?? '-', style: TextStyle(fontSize: 12)),
+    );
+  }
+}
