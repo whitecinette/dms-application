@@ -22,9 +22,9 @@ class _AddRouteModalState extends ConsumerState<AddRouteModal> {
     "taluka": [],
   };
 
-  final List<String> districtOptions = ['Kota', 'Jaipur', 'Ajmer'];
-  final List<String> zoneOptions = ['Zone A', 'Zone B'];
-  final List<String> talukaOptions = ['Ganganagar', 'Malpura', 'Tonk'];
+  List<String> districtOptions = [];
+  List<String> zoneOptions = [];
+  List<String> talukaOptions = [];
 
   @override
   void initState() {
@@ -34,6 +34,18 @@ class _AddRouteModalState extends ConsumerState<AddRouteModal> {
       start: DateTime(today.year, today.month, today.day),
       end: DateTime(today.year, today.month, today.day + 1),
     );
+    _fetchDropdownOptions();
+  }
+
+  Future<void> _fetchDropdownOptions() async {
+    final options = await ref.read(routePlanProvider.notifier).fetchMarketCoverageDropdown();
+    if (options != null) {
+      setState(() {
+        districtOptions = options['district'] ?? [];
+        zoneOptions = options['zone'] ?? [];
+        talukaOptions = options['taluka'] ?? [];
+      });
+    }
   }
 
   void _addItem(String key, String value) {
@@ -208,8 +220,6 @@ class _AddRouteModalState extends ConsumerState<AddRouteModal> {
                 _buildDropdownButton('taluka', talukaOptions),
               ],
             ),
-
-
             SizedBox(height: 12),
             _buildChips(),
             SizedBox(height: 16),
@@ -234,7 +244,6 @@ class _AddRouteModalState extends ConsumerState<AddRouteModal> {
   }
 }
 
-
 class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
   DateTimeRange? selectedRange;
 
@@ -251,8 +260,6 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
     _fetchRoutes();
   }
 
-
-
   Future<void> _fetchRoutes({bool reset = false}) async {
     if (reset) {
       final now = DateTime.now();
@@ -266,8 +273,6 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
       await ref.read(routePlanProvider.notifier).fetchRoutePlans();
     }
   }
-
-
 
   void _openAddModal() {
     showModalBottomSheet(
@@ -301,7 +306,6 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
             ),
           ),
         ],
-
       ),
       body: Column(
         children: [
@@ -348,7 +352,6 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
                     ),
                   ],
                 )
-
               ],
             ),
           ),
@@ -389,7 +392,6 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
                     ),
                   ),
                 );
-
               },
             ),
           ),
@@ -398,4 +400,3 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
     );
   }
 }
-

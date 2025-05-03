@@ -129,7 +129,6 @@ class RoutePlanNotifier extends StateNotifier<RoutePlanState> {
 
       final success = response.statusCode == 200 || response.statusCode == 201;
 
-      // Refresh list after adding new route plan
       if (success) {
         await fetchRoutePlans();
       }
@@ -139,6 +138,33 @@ class RoutePlanNotifier extends StateNotifier<RoutePlanState> {
       print("Error adding route plan: $e");
       state = state.copyWith(isLoading: false);
       return false;
+    }
+  }
+
+  Future<Map<String, List<String>>?> fetchMarketCoverageDropdown() async {
+    final token = await AuthService.getToken();
+    if (token == null) return null;
+
+    final uri = Uri.parse("${Config.backendUrl}/user/market-coverage/dropdown");
+
+    try {
+      final response = await http.get(uri, headers: {
+        'Authorization': 'Bearer $token',
+      });
+
+      if (response.statusCode == 200) {
+        final jsonRes = json.decode(response.body);
+        return {
+          "district": List<String>.from(jsonRes['district'] ?? []),
+          "zone": List<String>.from(jsonRes['zone'] ?? []),
+          "taluka": List<String>.from(jsonRes['taluka'] ?? []),
+        };
+      } else {
+        return null;
+      }
+    } catch (e) {
+      print("Error fetching dropdowns: $e");
+      return null;
     }
   }
 }
