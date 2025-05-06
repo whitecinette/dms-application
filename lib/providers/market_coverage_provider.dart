@@ -195,7 +195,7 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
         ...state.selectedFilters,
         key: updated,
       });
-      fetchCoverageData();
+      // fetchCoverageData();
     }
   }
 
@@ -254,6 +254,7 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
       "travel": [],
       "routes": state.selectedFilters["routes"] ?? [],
     });
+
     if (currentLocation == null) {
       try {
         currentLocation = await Geolocator.getCurrentPosition(
@@ -263,7 +264,6 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
         print("⚠️ Failed to fetch location: $e");
       }
     }
-
 
     try {
       final response = await http.post(uri, headers: {
@@ -276,42 +276,57 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
         if (res['data'] != null) {
           final List<Dealer> all = List.from(res['data']);
 
-          // Step 1: First set raw data
-          state = state.copyWith(
-            allDealers: all,
-            filteredDealers: all,
-            isLoading: false,
-          );
+          // Step 1: Add distance to all dealers
+          for (final d in all) {
+            final lat = d['latitude'] is Map
+                ? double.tryParse(d['latitude']['\$numberDecimal'].toString()) ?? 0.0
+                : (d['latitude']?.toDouble() ?? 0.0);
 
-          // Step 2: Recalculate distance after state set
-          if (currentLocation != null) {
-            final updated = [...state.filteredDealers];
-            for (final d in updated) {
-              final lat = d['latitude'] is Map
-                  ? double.tryParse(d['latitude']['\$numberDecimal'].toString()) ?? 0.0
-                  : (d['latitude']?.toDouble() ?? 0.0);
+            final lng = d['longitude'] is Map
+                ? double.tryParse(d['longitude']['\$numberDecimal'].toString()) ?? 0.0
+                : (d['longitude']?.toDouble() ?? 0.0);
 
-              final lng = d['longitude'] is Map
-                  ? double.tryParse(d['longitude']['\$numberDecimal'].toString()) ?? 0.0
-                  : (d['longitude']?.toDouble() ?? 0.0);
-
-
+            if (currentLocation != null) {
               d['distance'] = Geolocator.distanceBetween(
                 currentLocation.latitude,
                 currentLocation.longitude,
                 lat,
                 lng,
               ) / 1000;
+            } else {
+              d['distance'] = null;
             }
-
-            updated.sort((a, b) => (a['distance'] ?? 9999).compareTo(b['distance'] ?? 9999));
-
-            // Step 3: Set again with distance
-            state = state.copyWith(
-              allDealers: updated,
-              filteredDealers: updated,
-            );
           }
+
+          // Step 2: Get route itinerary list
+          final selectedRouteNames = state.selectedFilters['routes'] ?? [];
+          final itinerarySet = <String>{};
+          for (final r in state.routes) {
+            if (selectedRouteNames.contains(r['name'])) {
+              final items = r['itinerary'] as List<dynamic>? ?? [];
+              itinerarySet.addAll(items.map((e) => e.toString()));
+            }
+          }
+
+          // Step 3: Apply all filters
+          final filtered = all.where((d) {
+            final statusMatch = state.selectedFilters['status']!.isEmpty || state.selectedFilters['status']!.contains(d['status']);
+            final zoneMatch = state.selectedFilters['zone']!.isEmpty || state.selectedFilters['zone']!.contains(d['zone']);
+            final distMatch = state.selectedFilters['district']!.isEmpty || state.selectedFilters['district']!.contains(d['district']);
+            final talukaMatch = state.selectedFilters['taluka']!.isEmpty || state.selectedFilters['taluka']!.contains(d['taluka']);
+            final positionMatch = state.selectedFilters['dealer/mdd']!.isEmpty || state.selectedFilters['dealer/mdd']!.contains(d['position']);
+            final routeMatch = itinerarySet.isEmpty || itinerarySet.contains(d['taluka']);
+            return statusMatch && zoneMatch && distMatch && talukaMatch && positionMatch && routeMatch;
+          }).toList();
+
+          filtered.sort((a, b) => (a['distance'] ?? 9999).compareTo(b['distance'] ?? 9999));
+
+          // Step 4: Update state
+          state = state.copyWith(
+            allDealers: all,
+            filteredDealers: filtered,
+            isLoading: false,
+          );
           return;
         }
       }
@@ -415,6 +430,14 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
 
     state = state.copyWith(dateRange: DateTimeRange(start: newStart, end: newEnd));
     fetchCoverageData(); // 🔁 Refresh based on new dates
+  }
+
+  void updateFilter(String key, List<String> updatedList) {
+    state = state.copyWith(selectedFilters: {
+      ...state.selectedFilters,
+      key: updatedList,
+    });
+    fetchCoverageData();
   }
 
 

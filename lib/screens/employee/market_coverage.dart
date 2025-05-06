@@ -148,7 +148,21 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
                 }),
                 child: Row(
                   children: [
-                    Text("Show Filters"),
+                    Row(
+                      children: [
+                        Text("Show Filters"),
+                        SizedBox(width: 6),
+                        CircleAvatar(
+                          radius: 10,
+                          backgroundColor: Colors.orange,
+                          child: Text(
+                            _getSelectedFilterCount().toString(),
+                            style: TextStyle(color: Colors.white, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+
                     Icon(showFilters ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down),
                   ],
                 ),
@@ -281,56 +295,82 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
   }
 
 
-
-  Widget _buildFilterDropdowns(MarketCoverageNotifier controller, MarketCoverageState provider)
-  {
+  Widget _buildFilterDropdowns(MarketCoverageNotifier controller, MarketCoverageState provider) {
     final filters = ["status", "zone", "taluka", "district", "dealer/mdd"];
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("Filters", style: TextStyle(fontWeight: FontWeight.bold)),
-              TextButton(
-                onPressed: controller.resetFilters,
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.orange,
-                  side: BorderSide(color: Colors.orange.shade200),
-                ),
-                child: Text("Reset Filters"),
-              )
-            ],
-          ),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: filters.map((filter) => Container(
-              padding: EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(6),
+            children: filters.map((filter) {
+              final selectedValues = provider.selectedFilters[filter] ?? [];
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: DropdownButton<String>(
+                      underline: SizedBox(),
+                      hint: Text(filter),
+                      value: null,
+                      items: provider.dropdownValues[filter]!
+                          .map((e) => DropdownMenuItem(
+                        value: e,
+                        child: Text(e),
+                      ))
+                          .toList(),
+                      onChanged: (val) => controller.applyFilter(filter, val),
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: selectedValues.map((val) {
+                      return Chip(
+                        label: Text(val),
+                        backgroundColor: Colors.blue.shade100,
+                        deleteIcon: Icon(Icons.close, size: 16),
+                        onDeleted: () {
+                          final updated = [...selectedValues]..remove(val);
+                          controller.updateFilter(filter, updated);
+                        },
+                      );
+                    }).toList(),
+                  )
+                ],
+              );
+            }).toList(),
+          ),
+          SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ElevatedButton.icon(
+              onPressed: () => controller.fetchCoverageData(),
+              icon: Icon(Icons.check_circle_outline),
+              label: Text("Apply Filters"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade100,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6), // 👈 Reduce this value as needed
+                ),
               ),
-              child: DropdownButton<String>(
-                underline: SizedBox(),
-                hint: Text(filter),
-                value: provider.selectedFilters[filter]?.isNotEmpty == true
-                    ? provider.selectedFilters[filter]!.first
-                    : null,
-                items: provider.dropdownValues[filter]!
-                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                    .toList(),
-                onChanged: (val) => controller.applyFilter(filter, val),
-              ),
-
-            )).toList(),
+            ),
           )
         ],
       ),
     );
   }
+
 
   Widget _buildSearchBar(MarketCoverageNotifier controller) {
     return Padding(
@@ -514,4 +554,18 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
       child: Text(label ?? '-', style: TextStyle(fontSize: 12)),
     );
   }
+
+  int _getSelectedFilterCount() {
+    final filters = ref.read(marketCoverageProvider).selectedFilters;
+    int total = 0;
+    for (final entry in filters.entries) {
+      if (entry.key != 'routes') {
+        total += entry.value.length;
+      }
+    }
+    return total;
+  }
+
+
+
 }
