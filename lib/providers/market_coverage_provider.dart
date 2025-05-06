@@ -13,6 +13,7 @@ typedef Dealer = Map<String, dynamic>;
 
 class MarketCoverageState {
   final bool isLoading;
+  final bool isRouteLoading;
   final List<Dealer> allDealers;
   final List<Dealer> filteredDealers;
   final List<Map<String, dynamic>> routes;
@@ -25,6 +26,7 @@ class MarketCoverageState {
 
   MarketCoverageState({
     required this.isLoading,
+    this.isRouteLoading = false,
     required this.allDealers,
     required this.filteredDealers,
     required this.routes,
@@ -38,6 +40,7 @@ class MarketCoverageState {
 
   MarketCoverageState copyWith({
     bool? isLoading,
+    bool? isRouteLoading,
     List<Dealer>? allDealers,
     List<Dealer>? filteredDealers,
     List<Map<String, dynamic>>? routes, // ✅ Fix here
@@ -50,6 +53,7 @@ class MarketCoverageState {
   }) {
     return MarketCoverageState(
       isLoading: isLoading ?? this.isLoading,
+      isRouteLoading: isRouteLoading ?? this.isRouteLoading,
       allDealers: allDealers ?? this.allDealers,
       filteredDealers: filteredDealers ?? this.filteredDealers,
       routes: routes ?? this.routes, // ✅ Matches the new type
@@ -316,8 +320,13 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
   }
 
   Future<void> fetchRoutePlans() async {
+    state = state.copyWith(isRouteLoading: true); // 🔄 Start loading
+
     final token = await AuthService.getToken();
-    if (token == null) return;
+    if (token == null) {
+      state = state.copyWith(isRouteLoading: false); // ❌ Stop loading if no token
+      return;
+    }
 
     final uri = Uri.parse('${Config.backendUrl}/user/route-plan/get');
     final body = json.encode({
@@ -334,11 +343,17 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
       if (response.statusCode == 200) {
         final res = json.decode(response.body);
         final List<Map<String, dynamic>> routeObjects = List<Map<String, dynamic>>.from(res['data']);
-        state = state.copyWith(routes: routeObjects);
 
+        state = state.copyWith(
+          routes: routeObjects,
+          isRouteLoading: false, // ✅ Stop loading on success
+        );
+      } else {
+        state = state.copyWith(isRouteLoading: false); // ❌ Stop loading on error
       }
     } catch (e) {
       print("⚠️ Error fetching routes: $e");
+      state = state.copyWith(isRouteLoading: false); // ❌ Stop loading on exception
     }
   }
 

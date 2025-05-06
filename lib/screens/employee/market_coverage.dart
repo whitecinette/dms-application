@@ -149,10 +149,18 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
             ),
           ),
           InkWell(
-            onTap: () => setState(() {
-              showRoutes = !showRoutes;
-              if (showRoutes) showFilters = false;
-            }),
+            onTap: () {
+              final shouldShow = !showRoutes;
+
+              setState(() {
+                showRoutes = shouldShow;
+                if (shouldShow) showFilters = false;
+              });
+
+              if (shouldShow) {
+                ref.read(marketCoverageProvider.notifier).fetchRoutePlans();
+              }
+            },
 
             child: Row(
               children: [
@@ -176,6 +184,13 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
     final provider = ref.watch(marketCoverageProvider);
     final routes = provider.routes;
     final isLoading = provider.isLoading;
+
+    if (provider.isRouteLoading) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     if (routes.isEmpty && isLoading) {
       return Padding(
