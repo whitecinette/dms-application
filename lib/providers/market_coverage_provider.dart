@@ -127,20 +127,62 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
   void toggleRoute(String routeName) {
     final current = List<String>.from(state.selectedFilters['routes'] ?? []);
 
+    // 1. Toggle route name
     if (current.contains(routeName)) {
       current.remove(routeName);
     } else {
       current.add(routeName);
     }
 
+    // 2. Get selected routes
+    final selectedRoutes = state.routes.where((r) => current.contains(r['name'])).toList();
+
+    // 3. Merge itinerary zones/districts/talukas
+    final Set<String> itineraryZones = {};
+    final Set<String> itineraryDistricts = {};
+    final Set<String> itineraryTalukas = {};
+
+    DateTime? minStart;
+    DateTime? maxEnd;
+
+    for (final route in selectedRoutes) {
+      final itinerary = List<String>.from(route['itinerary'] ?? []);
+
+      // Simple assumption: we match all in any field
+      for (final item in itinerary) {
+        itineraryZones.add(item);
+        itineraryDistricts.add(item);
+        itineraryTalukas.add(item);
+      }
+
+      final start = DateTime.tryParse(route['startDate'] ?? '');
+      final end = DateTime.tryParse(route['endDate'] ?? '');
+      if (start != null && (minStart == null || start.isBefore(minStart))) {
+        minStart = start;
+      }
+      if (end != null && (maxEnd == null || end.isAfter(maxEnd))) {
+        maxEnd = end;
+      }
+    }
+
+    // 4. Filter all dealers
+    final filtered = state.allDealers.where((dealer) {
+      return itineraryZones.contains(dealer['zone']) ||
+          itineraryDistricts.contains(dealer['district']) ||
+          itineraryTalukas.contains(dealer['taluka']);
+    }).toList();
+
+    // 5. Set state
     state = state.copyWith(
       selectedFilters: {
         ...state.selectedFilters,
         'routes': current,
       },
+      filteredDealers: filtered,
+      dateRange: (minStart != null && maxEnd != null)
+          ? DateTimeRange(start: minStart, end: maxEnd)
+          : state.dateRange,
     );
-
-    fetchCoverageData();
   }
 
 
@@ -356,6 +398,25 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
       state = state.copyWith(isRouteLoading: false); // ❌ Stop loading on exception
     }
   }
+
+  void updateDateRangeBasedOnRoutes() {
+    final selectedRouteNames = state.selectedFilters['routes'] ?? [];
+    final selectedRoutes = state.routes.where((r) => selectedRouteNames.contains(r['name'])).toList();
+
+    if (selectedRoutes.isEmpty) return;
+
+    final startDates = selectedRoutes.map((r) => DateTime.tryParse(r['startDate'] ?? '')).whereType<DateTime>();
+    final endDates = selectedRoutes.map((r) => DateTime.tryParse(r['endDate'] ?? '')).whereType<DateTime>();
+
+    if (startDates.isEmpty || endDates.isEmpty) return;
+
+    final newStart = startDates.reduce((a, b) => a.isBefore(b) ? a : b);
+    final newEnd = endDates.reduce((a, b) => a.isAfter(b) ? a : b);
+
+    state = state.copyWith(dateRange: DateTimeRange(start: newStart, end: newEnd));
+    fetchCoverageData(); // 🔁 Refresh based on new dates
+  }
+
 
 
 

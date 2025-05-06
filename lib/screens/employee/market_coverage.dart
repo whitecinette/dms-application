@@ -129,52 +129,63 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
   }
 
   Widget _buildToggleBar(DateTimeRange range) {
+    final selectedRouteCount = ref.watch(marketCoverageProvider).selectedFilters['routes']?.length ?? 0;
+    final formatter = DateFormat('dd MMM');
+
     return Container(
       color: Colors.blue.shade50,
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          InkWell(
-            onTap: () => setState(() {
-              showFilters = !showFilters;
-              if (showFilters) showRoutes = false;
-            }),
-
-            child: Row(
-              children: [
-                Text("Show Filters"),
-                Icon(showFilters ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down),
-              ],
-            ),
-          ),
-          InkWell(
-            onTap: () {
-              final shouldShow = !showRoutes;
-
-              setState(() {
-                showRoutes = shouldShow;
-                if (shouldShow) showFilters = false;
-              });
-
-              if (shouldShow) {
-                ref.read(marketCoverageProvider.notifier).fetchRoutePlans();
-              }
-            },
-
-            child: Row(
-              children: [
-                Text("Show Routes"),
-                SizedBox(width: 6),
-                CircleAvatar(
-                  radius: 10,
-                  backgroundColor: Colors.purple,
-                  child: Text("2", style: TextStyle(color: Colors.white, fontSize: 12)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              InkWell(
+                onTap: () => setState(() {
+                  showFilters = !showFilters;
+                  if (showFilters) showRoutes = false;
+                }),
+                child: Row(
+                  children: [
+                    Text("Show Filters"),
+                    Icon(showFilters ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down),
+                  ],
                 ),
-                Icon(showRoutes ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down),
-              ],
-            ),
+              ),
+              InkWell(
+                onTap: () {
+                  final shouldShow = !showRoutes;
+
+                  setState(() {
+                    showRoutes = shouldShow;
+                    if (shouldShow) showFilters = false;
+                  });
+
+                  if (shouldShow) {
+                    ref.read(marketCoverageProvider.notifier).fetchRoutePlans();
+                  }
+                },
+                child: Row(
+                  children: [
+                    Text("Show Routes"),
+                    SizedBox(width: 6),
+                    CircleAvatar(
+                      radius: 10,
+                      backgroundColor: Colors.purple,
+                      child: Text("$selectedRouteCount", style: TextStyle(color: Colors.white, fontSize: 12)),
+                    ),
+                    Icon(showRoutes ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down),
+                  ],
+                ),
+              ),
+            ],
           ),
+          SizedBox(height: 6),
+          // Text(
+          //   "Selected Dates: ${formatter.format(range.start)} to ${formatter.format(range.end)}",
+          //   style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+          // ),
         ],
       ),
     );
@@ -192,12 +203,18 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
       );
     }
 
-    if (routes.isEmpty && isLoading) {
+    if (routes.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(
+          child: Text(
+            "No routes found, please refresh or add new!",
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ),
       );
     }
+
 
     return SizedBox(
       height: 300, // Set a height so the dropdown is scrollable
@@ -226,7 +243,12 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
                 final isSelected = provider.selectedFilters['routes']?.contains(r['name']) ?? false;
 
                 return InkWell(
-                  onTap: () => ref.read(marketCoverageProvider.notifier).toggleRoute(r['name'] ?? ''),
+                  onTap: () {
+                    final notifier = ref.read(marketCoverageProvider.notifier);
+                    notifier.toggleRoute(r['name'] ?? '');
+                    notifier.updateDateRangeBasedOnRoutes(); // 👈 You need to define this method in the provider
+                  },
+
                   child: Container(
                     margin: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     padding: EdgeInsets.all(12),
