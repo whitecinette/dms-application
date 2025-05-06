@@ -186,7 +186,7 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
                     SizedBox(width: 6),
                     CircleAvatar(
                       radius: 10,
-                      backgroundColor: Colors.purple,
+                      backgroundColor: Colors.orange,
                       child: Text("$selectedRouteCount", style: TextStyle(color: Colors.white, fontSize: 12)),
                     ),
                     Icon(showRoutes ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down),
@@ -296,8 +296,6 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
 
 
   Widget _buildFilterDropdowns(MarketCoverageNotifier controller, MarketCoverageState provider) {
-    final filters = ["status", "zone", "taluka", "district", "dealer/mdd"];
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Column(
@@ -306,7 +304,7 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: filters.map((filter) {
+            children: provider.dropdownValues.keys.map((filter) {
               final selectedValues = provider.selectedFilters[filter] ?? [];
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -361,7 +359,7 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
                 backgroundColor: Colors.green.shade100,
                 foregroundColor: Colors.black,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6), // 👈 Reduce this value as needed
+                  borderRadius: BorderRadius.circular(6),
                 ),
               ),
             ),

@@ -212,23 +212,39 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
   }
 
   Future<void> initialize() async {
-    for (final field in ['zone', 'district', 'taluka', 'dealer/mdd']) {
-      final uri = Uri.parse('${Config.backendUrl}/beat-mapping/dropdown?field=$field');
-      final response = await http.get(uri);
-      if (response.statusCode == 200) {
-        final res = json.decode(response.body);
-        if (res['values'] != null) {
-          state = state.copyWith(dropdownValues: {
-            ...state.dropdownValues,
-            field: List<String>.from(res['values']),
-          });
-        }
-      }
+    final token = await AuthService.getToken();
+    if (token == null) {
+      print("❌ No token found");
+      return;
     }
+
+    final uri = Uri.parse('${Config.backendUrl}/user/market-coverage/dropdown');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final res = json.decode(response.body);
+      if (res['success'] == true) {
+        final Map<String, List<String>> newDropdownValues = {};
+        res.forEach((key, value) {
+          if (key != 'success' && value is List) {
+            newDropdownValues[key] = List<String>.from(value);
+          }
+        });
+        state = state.copyWith(dropdownValues: newDropdownValues);
+        print("🟦 Fetched Dropdown Values: $newDropdownValues");
+      }
+    } else {
+      print("❌ Failed to fetch dropdowns: ${response.statusCode} - ${response.body}");
+    }
+
     await fetchRoutePlans();
     fetchCoverageData();
-
-
   }
 
   Future<void> fetchCoverageData({Position? currentLocation}) async {
