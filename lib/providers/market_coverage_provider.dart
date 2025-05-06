@@ -15,7 +15,7 @@ class MarketCoverageState {
   final bool isLoading;
   final List<Dealer> allDealers;
   final List<Dealer> filteredDealers;
-  final List<String> routes;
+  final List<Map<String, dynamic>> routes;
   final Map<String, List<String>> dropdownValues;
   final Map<String, List<String>> selectedFilters;
   final DateTimeRange dateRange;
@@ -40,7 +40,7 @@ class MarketCoverageState {
     bool? isLoading,
     List<Dealer>? allDealers,
     List<Dealer>? filteredDealers,
-    List<String>? routes,
+    List<Map<String, dynamic>>? routes, // ✅ Fix here
     Map<String, List<String>>? dropdownValues,
     Map<String, List<String>>? selectedFilters,
     DateTimeRange? dateRange,
@@ -52,7 +52,7 @@ class MarketCoverageState {
       isLoading: isLoading ?? this.isLoading,
       allDealers: allDealers ?? this.allDealers,
       filteredDealers: filteredDealers ?? this.filteredDealers,
-      routes: routes ?? this.routes,
+      routes: routes ?? this.routes, // ✅ Matches the new type
       dropdownValues: dropdownValues ?? this.dropdownValues,
       selectedFilters: selectedFilters ?? this.selectedFilters,
       dateRange: dateRange ?? this.dateRange,
@@ -61,6 +61,7 @@ class MarketCoverageState {
       pending: pending ?? this.pending,
     );
   }
+
 }
 
 class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
@@ -119,12 +120,27 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
     fetchCoverageData();
   }
 
-  void toggleRoute(String route) {
-    final current = [...state.routes];
-    current.contains(route) ? current.remove(route) : current.add(route);
-    state = state.copyWith(routes: current);
+  void toggleRoute(String routeName) {
+    final current = List<String>.from(state.selectedFilters['routes'] ?? []);
+
+    if (current.contains(routeName)) {
+      current.remove(routeName);
+    } else {
+      current.add(routeName);
+    }
+
+    state = state.copyWith(
+      selectedFilters: {
+        ...state.selectedFilters,
+        'routes': current,
+      },
+    );
+
     fetchCoverageData();
   }
+
+
+
 
   void applyFilter(String key, String? value) {
     if (value != null) {
@@ -163,7 +179,10 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
         }
       }
     }
+    await fetchRoutePlans();
     fetchCoverageData();
+
+
   }
 
   Future<void> fetchCoverageData({Position? currentLocation}) async {
@@ -295,6 +314,34 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
       return {"success": false, "message": "Something went wrong"};
     }
   }
+
+  Future<void> fetchRoutePlans() async {
+    final token = await AuthService.getToken();
+    if (token == null) return;
+
+    final uri = Uri.parse('${Config.backendUrl}/user/route-plan/get');
+    final body = json.encode({
+      "startDate": DateFormat("yyyy-MM-dd").format(state.dateRange.start),
+      "endDate": DateFormat("yyyy-MM-dd").format(state.dateRange.end),
+    });
+
+    try {
+      final response = await http.post(uri, headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      }, body: body);
+
+      if (response.statusCode == 200) {
+        final res = json.decode(response.body);
+        final List<Map<String, dynamic>> routeObjects = List<Map<String, dynamic>>.from(res['data']);
+        state = state.copyWith(routes: routeObjects);
+
+      }
+    } catch (e) {
+      print("⚠️ Error fetching routes: $e");
+    }
+  }
+
 
 
 }

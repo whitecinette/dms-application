@@ -63,7 +63,8 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
         children: [
           _buildHeader(controller, dateRange),
           _buildToggleBar(dateRange),
-          if (showFilters) _buildFilterDropdowns(controller),
+          if (showFilters) _buildFilterDropdowns(controller, provider),
+
           if (showRoutes) _buildRouteDropdown(),
           _buildStatsSummary(dealers),
           _buildSearchBar(controller),
@@ -135,7 +136,11 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           InkWell(
-            onTap: () => setState(() => showFilters = !showFilters),
+            onTap: () => setState(() {
+              showFilters = !showFilters;
+              if (showFilters) showRoutes = false;
+            }),
+
             child: Row(
               children: [
                 Text("Show Filters"),
@@ -144,7 +149,11 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
             ),
           ),
           InkWell(
-            onTap: () => setState(() => showRoutes = !showRoutes),
+            onTap: () => setState(() {
+              showRoutes = !showRoutes;
+              if (showRoutes) showFilters = false;
+            }),
+
             child: Row(
               children: [
                 Text("Show Routes"),
@@ -164,44 +173,80 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
   }
 
   Widget _buildRouteDropdown() {
-    final dummyRoutes = ["jaipur-dausa-chomu", "ajmer-beawar", "udaipur-rajsamand"];
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: TextField(
-            decoration: InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              hintText: "Search",
-              filled: true,
-              fillColor: Colors.grey.shade100,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+    final provider = ref.watch(marketCoverageProvider);
+    final routes = provider.routes;
+    final isLoading = provider.isLoading;
+
+    if (routes.isEmpty && isLoading) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return SizedBox(
+      height: 300, // Set a height so the dropdown is scrollable
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: TextField(
+              decoration: InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: "Search",
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+              ),
             ),
           ),
-        ),
-        ...dummyRoutes.map((r) => Container(
-          margin: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          padding: EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: r == "jaipur-dausa-chomu" ? Colors.blue.shade100 : Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(10),
+          Expanded(
+            child: ListView(
+              children: routes.map((r) {
+                final itineraryList = (r['itinerary'] ?? []) as List<dynamic>;
+                final itinerary = itineraryList.join(', ');
+                final start = DateFormat("dd MMM yyyy").format(DateTime.tryParse(r['startDate'] ?? '') ?? DateTime.now());
+                final end = DateFormat("dd MMM yyyy").format(DateTime.tryParse(r['endDate'] ?? '') ?? DateTime.now());
+
+                final isSelected = provider.selectedFilters['routes']?.contains(r['name']) ?? false;
+
+                return InkWell(
+                  onTap: () => ref.read(marketCoverageProvider.notifier).toggleRoute(r['name'] ?? ''),
+                  child: Container(
+                    margin: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isSelected ? Colors.blue.shade100 : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.near_me_outlined, size: 20),
+                        SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${r['name'] ?? ''}', style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text(itinerary),
+                            Text("$start to $end"),
+                          ],
+                        )
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
           ),
-          child: Row(
-            children: [
-              Icon(Icons.near_me_outlined, size: 20),
-              SizedBox(width: 10),
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(r, style: TextStyle(fontWeight: FontWeight.bold)),
-                Text(r.replaceAll('-', ', ')),
-              ])
-            ],
-          ),
-        ))
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildFilterDropdowns(MarketCoverageNotifier controller) {
+
+
+  Widget _buildFilterDropdowns(MarketCoverageNotifier controller, MarketCoverageState provider)
+  {
     final filters = ["status", "zone", "taluka", "district", "dealer/mdd"];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -234,9 +279,15 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
               child: DropdownButton<String>(
                 underline: SizedBox(),
                 hint: Text(filter),
-                items: ["Option 1", "Option 2"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                onChanged: (_) {},
+                value: provider.selectedFilters[filter]?.isNotEmpty == true
+                    ? provider.selectedFilters[filter]!.first
+                    : null,
+                items: provider.dropdownValues[filter]!
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
+                onChanged: (val) => controller.applyFilter(filter, val),
               ),
+
             )).toList(),
           )
         ],
