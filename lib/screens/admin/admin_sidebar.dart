@@ -37,13 +37,20 @@ class AdminSidebar extends StatelessWidget {
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: BoxDecoration(color: Colors.blue),
+            decoration: BoxDecoration(color: Colors.blue.shade900),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(user['name'], style: TextStyle(color: Colors.white, fontSize: 20)),
-                Text(user['role'], style: TextStyle(color: Colors.white60)),
+                Text(
+                  user['name'] ?? '',
+                  style: TextStyle(color: Colors.white, fontSize: 20),
+                ),
+                Text(
+                  "${user['code'] ?? ''} | ${user['role'] ?? ''}",
+                  style: TextStyle(color: Colors.white60, fontSize: 15),
+                ),
               ],
+
             ),
           ),
           _buildDrawerItem(Icons.dashboard, "Sales Dashboard", context, SalesDashboard()),
