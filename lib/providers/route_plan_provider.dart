@@ -167,6 +167,20 @@ class RoutePlanNotifier extends StateNotifier<RoutePlanState> {
       return null;
     }
   }
+
+  Future<bool> deleteRoute(String routeId) async {
+    final token = await AuthService.getToken();
+    final uri = Uri.parse('${Config.backendUrl}/route-plan/delete/$routeId');
+    print("URI ${uri}");
+
+    final response = await http.delete(uri, headers: {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    });
+
+    return response.statusCode == 200;
+  }
+
 }
 
 final routePlanProvider =

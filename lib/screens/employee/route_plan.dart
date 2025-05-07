@@ -401,8 +401,46 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
                         ),
                       ],
                     ),
+                    trailing: IconButton(
+                      icon: Icon(Icons.delete_outline, color: Colors.redAccent),
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (BuildContext dialogContext) {
+                            return AlertDialog(
+                              title: Text("Delete Route"),
+                              content: Text("Are you sure you want to delete this route? This will also remove related dealers from schedule."),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(dialogContext, false),
+                                  child: Text("Cancel"),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.redAccent,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  onPressed: () => Navigator.pop(dialogContext, true),
+                                  child: Text("Delete"),
+                                ),
+
+                              ],
+                            );
+                          },
+                        );
+
+                        if (confirm == true) {
+                          final success = await ref.read(routePlanProvider.notifier).deleteRoute(route['_id']);
+                          if (success) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Route deleted successfully")));
+                            _fetchRoutes();
+                          }
+                        }
+                      },
+                    ),
                   ),
                 );
+
               },
             ),
           ),

@@ -16,6 +16,8 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
   bool showFilters = false;
   bool showRoutes = false;
   String searchQuery = "";
+  String routeSearchQuery = "";
+
 
   @override
   void initState() {
@@ -239,16 +241,26 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
             child: TextField(
               decoration: InputDecoration(
                 prefixIcon: Icon(Icons.search),
-                hintText: "Search",
+                hintText: "Search Routes",
                 filled: true,
                 fillColor: Colors.grey.shade100,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
               ),
+              onChanged: (val) {
+                setState(() {
+                  routeSearchQuery = val.toLowerCase().trim();
+                });
+              },
             ),
+
           ),
           Expanded(
             child: ListView(
-              children: routes.map((r) {
+              children: routes.where((r) {
+                final name = (r['name'] ?? '').toString().toLowerCase();
+                final itineraryString = (r['itinerary'] ?? []).join(',').toLowerCase();
+                return name.contains(routeSearchQuery) || itineraryString.contains(routeSearchQuery);
+              }).map((r) {
                 final itineraryList = (r['itinerary'] ?? []) as List<dynamic>;
                 final itinerary = itineraryList.join(', ');
                 final start = DateFormat("dd MMM yyyy").format(DateTime.tryParse(r['startDate'] ?? '') ?? DateTime.now());
