@@ -257,8 +257,12 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
 
     selectedRange = DateTimeRange(start: startOfMonth, end: endOfMonth);
 
-    _fetchRoutes();
+    // ✅ Ensures provider is ready before we fetch
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchRoutes();
+    });
   }
+
 
   Future<void> _fetchRoutes({bool reset = false}) async {
     if (reset) {
@@ -369,7 +373,14 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
+            child: state.filteredRoutes.isEmpty
+                ? Center(
+              child: Text(
+                "No routes found! Please refresh or add new.",
+                style: TextStyle(color: Colors.grey, fontSize: 16),
+              ),
+            )
+                : ListView.builder(
               itemCount: state.filteredRoutes.length,
               itemBuilder: (context, index) {
                 final route = state.filteredRoutes[index];
@@ -395,6 +406,7 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
               },
             ),
           ),
+
         ],
       ),
     );
