@@ -31,6 +31,7 @@ class ApiService {
 
       // ✅ Save user
       if (responseData.containsKey("user")) {
+        print("User data received: ${responseData['user']}");
         await AuthService.saveUser(responseData["user"]);
       }
 
@@ -95,7 +96,7 @@ class ApiService {
 
 
 //punch out
-  static Future<Map<String, dynamic>> punchOut(String latitude, String longitude, File image) async {
+  static Future<Map<String, dynamic>> punchOut(String latitude, String longitude, File image, {String? dealerCode}) async {
     final url = Uri.parse("${Config.backendUrl}/punch-out");
 
     // Fetch JWT token
@@ -110,6 +111,10 @@ class ApiService {
     // ✅ Sending location data
     request.fields['latitude'] = latitude;
     request.fields['longitude'] = longitude;
+    // ✅ Add dealerCode only if it's provided
+    if (dealerCode != null && dealerCode.isNotEmpty) {
+      request.fields['dealerCode'] = dealerCode;
+    }
 
     // ✅ Ensuring correct field name for backend (Must match multer field)
     final mimeType = lookupMimeType(image.path) ?? "image/jpeg";
@@ -222,30 +227,30 @@ class ApiService {
 
   static Future<Map<String, dynamic>> getUserDetails() async {final url = Uri.parse("${Config.backendUrl}/get-users-by-code");
 
-    String? token = await AuthService.getToken();
-    if (token == null) {
-      throw Exception("User is not authenticated");
-    }
+  String? token = await AuthService.getToken();
+  if (token == null) {
+    throw Exception("User is not authenticated");
+  }
 
-    try {
-      final response = await http.get(
-        url,
-        headers: {
-          "Authorization": "Bearer $token",
-          "Content-Type": "application/json"
-        },
-      );
+  try {
+    final response = await http.get(
+      url,
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json"
+      },
+    );
 
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception(json.decode(response.body)['message'] ??
-            "Failed to fetch user details");
-      }
-    } catch (e) {
-      print("Error occurred: $e");
-      throw Exception("Network error or invalid response: $e");
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception(json.decode(response.body)['message'] ??
+          "Failed to fetch user details");
     }
+  } catch (e) {
+    print("Error occurred: $e");
+    throw Exception("Network error or invalid response: $e");
+  }
   }
 
 // update user details by  code
@@ -282,55 +287,55 @@ class ApiService {
   // Get all attendance records
   static Future<Map<String, dynamic>> getAllAttendance({String? startDate, String? endDate, int page = 1, int limit = 10}) async {final queryParams = {if (startDate != null) 'startDate': startDate, if (endDate != null) 'endDate': endDate, 'page': page.toString(), 'limit': limit.toString(),};
 
-    final url = Uri.parse("${Config.backendUrl}/get-all-attendance")
-        .replace(queryParameters: queryParams);
+  final url = Uri.parse("${Config.backendUrl}/get-all-attendance")
+      .replace(queryParameters: queryParams);
 
-    try {
-      final response = await http.get(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-      );
+  try {
+    final response = await http.get(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+    );
 
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception(json.decode(response.body)['message'] ??
-            "Failed to fetch attendance records");
-      }
-    } catch (e) {
-      print("Error occurred: $e");
-      throw Exception("Network error or invalid response: $e");
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception(json.decode(response.body)['message'] ??
+          "Failed to fetch attendance records");
     }
+  } catch (e) {
+    print("Error occurred: $e");
+    throw Exception("Network error or invalid response: $e");
+  }
   }
 
 // get all employees
   static Future<Map<String, dynamic>> getAllEmployees({int page = 1, int limit = 10}) async {final queryParams = {'page': page.toString(), 'limit': limit.toString(),};
 
-    final url = Uri.parse("${Config.backendUrl}/get-emp-for-hr")
-        .replace(queryParameters: queryParams);
+  final url = Uri.parse("${Config.backendUrl}/get-emp-for-hr")
+      .replace(queryParameters: queryParams);
 
-    try {
-      final response = await http.get(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-      );
+  try {
+    final response = await http.get(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+    );
 
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception(json.decode(response.body)['message'] ??
-            "Failed to fetch employee records");
-      }
-    } catch (e) {
-      print("Error occurred: $e");
-      throw Exception("Network error or invalid response: $e");
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception(json.decode(response.body)['message'] ??
+          "Failed to fetch employee records");
     }
+  } catch (e) {
+    print("Error occurred: $e");
+    throw Exception("Network error or invalid response: $e");
+  }
   }
 
   // get salary for all employee
@@ -379,7 +384,7 @@ class ApiService {
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
         return responseData[
-            "user"]; // assuming your API returns { success: true, user: {...} }
+        "user"]; // assuming your API returns { success: true, user: {...} }
       } else {
         throw Exception("Failed to fetch user profile");
       }
@@ -412,7 +417,7 @@ class ApiService {
         if (responseData.containsKey("dealers") &&
             responseData["dealers"] is List) {
           final dealersData =
-              List<Map<String, dynamic>>.from(responseData["dealers"]);
+          List<Map<String, dynamic>>.from(responseData["dealers"]);
           // print("✅ Dealers fetched successfully: $dealersData");
           return dealersData;
         } else {
@@ -555,4 +560,24 @@ class ApiService {
     }
   }
 
+  static Future<List<Map<String, dynamic>>> getJaipurDealers({String? search}) async {
+    // Add search parameter to the query if it's provided
+    final uri = Uri.parse('${Config.backendUrl}/get-jaipur-dealers')
+        .replace(queryParameters: search != null ? {'search': search} : {});
+
+    final response = await http.get(uri);
+    print("Dealer API response: ${response.statusCode}");
+    print("Body: ${response.body}");
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> jsonResponse = json.decode(response.body);
+      final List dealers = jsonResponse['data']; // ✅ Access `data` key
+      return List<Map<String, dynamic>>.from(dealers);
+    } else {
+      throw Exception('Failed to load dealers: ${response.statusCode}');
+    }
+  }
+
+
 }
+

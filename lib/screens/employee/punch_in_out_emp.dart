@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:dms_app/screens/employee/sales_dashboard.dart';
 import 'package:dms_app/services/api_service.dart';
+import 'package:dms_app/services/auth_service.dart';
 import 'package:dms_app/utils/custom_pop_up.dart';
+import 'package:dms_app/utils/dealer_selector_popup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -25,23 +27,41 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
   bool _isPunchingOut = false;
   String _currentTime = "";
   String _currentDate = "";
+  String? _userRole;
+  String? _selectedDealerCode;
+  bool _isSelectingDealerAndPunching = false;
 
   @override
   void initState() {
     super.initState();
     _loadPunchStatus();
+    _loadUserRole();
     _updateTime();
     Timer.periodic(Duration(seconds: 1), (timer) => _updateTime());
   }
+  Future<void> _loadUserRole() async {
+    final user = await AuthService.getUser();
+    if (user != null && user.containsKey('position')) {
+      setState(() {
+        _userRole = user['position']?.toString().toLowerCase();
+      });
+    } else {
+      print("No position found in user data"); // Debugging line
+    }
+  }
 
   void _updateTime() {
-    final now = DateTime.now();
+    final now = DateTime.now().toLocal(); // Ensure local time (IST if device is set to India)
+    final hour = now.hour % 12 == 0 ? 12 : now.hour % 12;
+    final minute = now.minute.toString().padLeft(2, '0');
+    final period = now.hour >= 12 ? 'PM' : 'AM';
+
     setState(() {
-      _currentTime =
-          "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
-      _currentDate = "${now.day}/${now.month}/${now.year}";
+      _currentTime = '$hour:$minute $period';
+      _currentDate = '${now.day}/${now.month}/${now.year}';
     });
   }
+
 
   /// Load the punch-in status from local storage
   Future<void> _loadPunchStatus() async {
@@ -167,11 +187,12 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
     String longitude = coordinates[1].trim();
 
     setState(() {
-      _isPunchingOut = true;
+      _isPunchingOut = true; // ✅ Show spinner
     });
 
+
     try {
-      final response = await ApiService.punchOut(latitude, longitude, _image!);
+      final response = await ApiService.punchOut(latitude, longitude, _image!, dealerCode: _selectedDealerCode);
 
       if (response.containsKey('message')) {
         if (response['warning'] == true) {
@@ -181,10 +202,11 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
             response['message'] ?? "There is a warning.",
             type: MessageType.warning,
           );
-        } else {
+        }
           setState(() {
             _hasPunchedIn = true;
             _image = null;
+            _selectedDealerCode = null;
           });
 
           await _savePunchStatus(true);
@@ -196,7 +218,7 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
             response['message'] ?? "You have successfully punched out.",
             isSuccess: true,
           );
-        }
+
       } else {
         CustomPopup.showPopup(
           context,
@@ -219,6 +241,47 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
     }
   }
 
+  Future<void> _showDealerSelectionDialog() async {
+    final location = ref.watch(coordinatesProvider);
+
+    if (_image == null || location.isEmpty) {
+      CustomPopup.showPopup(
+        context,
+        "Warning",
+        "Please capture an image and fetch location first.",
+        type: MessageType.warning,
+      );
+      return;
+    }
+
+    setState(() {
+      _isSelectingDealerAndPunching = true;
+    });
+
+    try {
+      final selectedDealerCode = await showDealerSelectionDialog(context);
+      if (selectedDealerCode != null) {
+        print("Selected Dealer: $selectedDealerCode");
+        setState(() {
+          _selectedDealerCode = selectedDealerCode;
+        });
+
+        await _submitPunchOut();
+      }
+    } catch (e) {
+      CustomPopup.showPopup(
+        context,
+        "Error",
+        "Something went wrong: $e",
+        isSuccess: false,
+      );
+    } finally {
+      setState(() {
+        _isSelectingDealerAndPunching = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final location = ref.watch(coordinatesProvider);
@@ -226,129 +289,280 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Punch In/Out"),
+        title: Text("Punch In / Out"),
         backgroundColor: Colors.blueAccent,
         elevation: 5,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            tooltip: "Refresh Page",
+            onPressed: () {
+              setState(() {
+                _image = null;
+                _hasPunchedIn = false;
+                _selectedDealerCode = null;
+                ref.read(coordinatesProvider.notifier).state = "";
+                _loadUserRole();
+                _loadPunchStatus();
+                _updateTime();
+              });
+            },
+          ),
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: SafeArea(
         child: Column(
           children: [
-            // Date & Time Row
-            Container(
-              padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blueAccent, width: 1),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _currentDate,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  Text(
-                    _currentTime,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
 
-            Spacer(), // Pushes the circle avatar to the center
-
-            // Image Capture Section
-            // Image Capture Section
-            GestureDetector(
-              onTap: _captureImage,
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [Colors.blueAccent, Colors.lightBlue.shade200],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.blue.withOpacity(0.4),
-                      blurRadius: 10,
-                      spreadRadius: 2,
+                    // Date & Time
+                    Container(
+                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.blueAccent),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.calendar_today, size: 20, color: Colors.blue),
+                              SizedBox(width: 8),
+                              Text(
+                                _currentDate,
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              Icon(Icons.access_time, size: 20, color: Colors.blue),
+                              SizedBox(width: 8),
+                              Text(
+                                _currentTime,
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
+                    if (_selectedDealerCode != null) ...[
+                      SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.orange),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.store, color: Colors.deepOrange),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                "Selected Dealer: $_selectedDealerCode",
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    SizedBox(height: 80),
+                    // Centered Image Capture
+                    Align(
+                      alignment: Alignment.center,
+                      child: GestureDetector(
+                        onTap: _captureImage,
+                        child: Container(
+                          padding: EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: [Colors.blueAccent, Colors.lightBlueAccent],
+                              begin: Alignment.center,
+                              end: Alignment.bottomRight,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.blue.withOpacity(0.4),
+                                blurRadius: 10,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 80,
+                            backgroundColor: Colors.white,
+                            backgroundImage: _image != null ? FileImage(_image!) : null,
+                            child: _image == null
+                                ? Icon(Icons.camera_alt, size: 60, color: Colors.grey[700])
+                                : null,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(height: 10),
+                    Text(
+                      'Tap above to capture image',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                    ),
+
+                    SizedBox(height: 20),
                   ],
                 ),
-                child: CircleAvatar(
-                  radius: 90,
-                  backgroundColor: Colors.white,
-                  backgroundImage: _image != null ? FileImage(_image!) : null,
-                  child: _image == null
-                      ? Icon(Icons.camera_alt, size: 80, color: Colors.grey[700])
-                      : null,
-                ),
-              ),
-            ),
-            SizedBox(height: 10),
-            Text(
-              'Tap to Capture Image',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
               ),
             ),
 
-            Spacer(), // Pushes content below the circle down
+            // Bottom Content: Location + Buttons
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
 
-            // Location or Loading
-            isLoading
-                ? CircularProgressIndicator()
-                : Text(
-                    location.isNotEmpty ? location : "Location not available",
+                  // Location Box
+                  Container(
+                    padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.location_on, color: Colors.redAccent),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: isLoading
+                              ? Center(child: CircularProgressIndicator())
+                              : Text(
+                            location.isNotEmpty ? location : "Location not available",
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
 
-            SizedBox(height: 20),
+                  SizedBox(height: 20),
 
-            // Punch In/Out Buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _isPunchingIn ? null : _submitPunchIn,
-                  icon: Icon(Icons.login),
-                  label: _isPunchingIn
-                      ? CircularProgressIndicator(color: Colors.white)
-                      : Text("Punch In"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    minimumSize: Size(120, 50),
+                  // Punch Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _isPunchingIn ? null : _submitPunchIn,
+                          icon: Icon(Icons.login),
+                          label: _isPunchingIn
+                              ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                              : Text("Punch In"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            minimumSize: Size(double.infinity, 50),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 15),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _isPunchingOut
+                              ? null
+                              : () {
+                            if (_selectedDealerCode != null) {
+                              CustomPopup.showPopup(
+                                context,
+                                "Warning",
+                                "Please deselect the dealer before punching out.",
+                                type: MessageType.warning,
+                              );
+                            } else {
+                              _submitPunchOut();
+                            }
+                          },
+                          icon: Icon(Icons.logout),
+                          label: _isPunchingOut
+                              ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                              : Text("Punch Out"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            minimumSize: Size(double.infinity, 50),
+                          ),
+                        ),
+                      ),
+
+                    ],
                   ),
-                ),
-                SizedBox(width: 10),
-                ElevatedButton.icon(
-                  onPressed: _isPunchingOut ? null : _submitPunchOut,
-                  icon: Icon(Icons.logout),
-                  label: _isPunchingOut
-                      ? CircularProgressIndicator(color: Colors.white)
-                      : Text("Punch Out"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    minimumSize: Size(120, 50),
-                  ),
-                ),
-              ],
+
+                  if (_userRole == 'delivery boy') ...[
+                    SizedBox(height: 15),
+                    ElevatedButton.icon(
+                      onPressed: _isPunchingIn || _isPunchingOut
+                          ? null
+                          : () {
+                        if (_image == null || location.isEmpty) {
+                          CustomPopup.showPopup(
+                            context,
+                            "Warning",
+                            "Please capture an image and fetch location first.",
+                            type: MessageType.warning,
+                          );
+                        } else {
+                          _showDealerSelectionDialog();
+                        }
+                      },
+                      icon: Icon(Icons.store),
+                      label: _isSelectingDealerAndPunching
+                          ? SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                          : Text("Select Dealer & Punch"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        minimumSize: Size(double.infinity, 50),
+                      ),
+                    ),
+                  ],
+
+                  SizedBox(height: 20),
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
   }
+
+
+
 }
+
