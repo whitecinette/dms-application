@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../providers/route_plan_provider.dart';
+import '../employee/market_coverage.dart';
+import '../../providers/market_coverage_provider.dart';
+
 
 class RoutePlanScreen extends ConsumerStatefulWidget {
   @override
@@ -388,6 +391,18 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
                   margin: EdgeInsets.all(10),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: ListTile(
+                    onTap: () {
+                      final provider = ref.read(marketCoverageProvider.notifier);
+                      provider.resetFilters(); // ✅ Clear all filters including routes
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MarketCoverageScreen(initialRouteName: route['name']),
+                        ),
+                      );
+                    },
+
                     leading: Icon(Icons.near_me_outlined),
                     title: Text(route['name'], style: TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Column(

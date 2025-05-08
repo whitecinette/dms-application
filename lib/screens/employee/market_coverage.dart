@@ -7,9 +7,13 @@ import '../../providers/market_coverage_provider.dart';
 import '../../utils/custom_pop_up.dart';
 
 class MarketCoverageScreen extends ConsumerStatefulWidget {
+  final String? initialRouteName;
+  const MarketCoverageScreen({this.initialRouteName, super.key});
+
   @override
   ConsumerState<MarketCoverageScreen> createState() => _MarketCoverageScreenState();
 }
+
 
 class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
   Position? currentLocation;
@@ -33,9 +37,24 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
       return;
     }
     currentLocation = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    controller.state = controller.state.copyWith(isLoading: true); // ✅ Immediate loading
+
     await controller.initialize();
-    await controller.fetchCoverageData(currentLocation: currentLocation);
+
+    if (widget.initialRouteName != null) {
+      controller.toggleRoute(widget.initialRouteName!);
+      controller.updateDateRangeBasedOnRoutes();
+      controller.fetchCoverageData(currentLocation: currentLocation);
+      setState(() {
+        showRoutes = false;
+      });
+    } else {
+      controller.fetchCoverageData(currentLocation: currentLocation);
+    }
+
+
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -283,19 +302,37 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(Icons.near_me_outlined, size: 20),
                         SizedBox(width: 10),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('${r['name'] ?? ''}', style: TextStyle(fontWeight: FontWeight.bold)),
-                            Text(itinerary),
-                            Text("$start to $end"),
-                          ],
-                        )
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${r['name'] ?? ''}',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                                softWrap: true,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                itinerary,
+                                softWrap: true,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                "$start to $end",
+                                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
+
                   ),
                 );
               }).toList(),
