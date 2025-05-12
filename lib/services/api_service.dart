@@ -443,31 +443,39 @@ class ApiService {
     required File imageFile,
   }) async {
     final url = Uri.parse("${Config.backendUrl}/update-geo-tag-lat-long");
+
+    // ✅ Get JWT token using the same method as punchOut
+    String? token = await AuthService.getToken();
+    if (token == null) {
+      throw Exception("User is not authenticated");
+    }
+
     try {
-      var request = http.MultipartRequest('PUT', url)
-        ..headers['Content-Type'] = 'multipart/form-data' // Add this header
-        ..fields['code'] = code
-        ..fields['latitude'] = latitude.toString()
-        ..fields['longitude'] = longitude.toString()
-        ..files.add(
-          await http.MultipartFile.fromPath(
-            'geotag_picture',
-            imageFile.path,
-            contentType: MediaType('image', 'jpeg'),
-          ),
-        );
+      var request = http.MultipartRequest('PUT', url);
+      request.headers['Authorization'] = 'Bearer $token';
+
+      request.fields['code'] = code;
+      request.fields['latitude'] = latitude.toString();
+      request.fields['longitude'] = longitude.toString();
+
+      final mimeType = lookupMimeType(imageFile.path) ?? "image/jpeg";
+      final imageMultipart = await http.MultipartFile.fromPath(
+        'geotag_picture', // ✅ Must match multer field name
+        imageFile.path,
+        contentType: MediaType.parse(mimeType),
+      );
+
+      request.files.add(imageMultipart);
 
       final response = await request.send();
-
-      final responseData = await response.stream.bytesToString();
-      // log("🔎 Response Data: $responseData");
+      final responseBody = await response.stream.bytesToString();
 
       if (response.statusCode == 200) {
-        final decodedData = json.decode(responseData);
-        print("✅ Geotag updated successfully: ${decodedData['message']}");
+        final decoded = json.decode(responseBody);
+        print("✅ Geotag updated successfully: ${decoded['message']}");
       } else {
-        print("❌ Error updating geotag: ${response.reasonPhrase}");
-        throw Exception("Failed to update geotag: ${response.reasonPhrase}");
+        final decoded = json.decode(responseBody);
+        throw Exception(decoded['message'] ?? "Failed to update geotag");
       }
     } catch (e) {
       print("❗ Error occurred: $e");
