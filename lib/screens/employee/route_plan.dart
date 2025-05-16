@@ -72,33 +72,65 @@ class _AddRouteModalState extends ConsumerState<AddRouteModal> {
 
   void _showMultiSelect(BuildContext context, String label, List<String> options) {
     showModalBottomSheet(
+      isScrollControlled: true,
       context: context,
       builder: (context) {
         final selected = Set<String>.from(itinerary[label]!);
+        String searchQuery = "";
+
         return StatefulBuilder(
           builder: (context, setStateModal) {
+            final filteredOptions = options
+                .where((option) => option.toLowerCase().contains(searchQuery.toLowerCase()))
+                .toList();
+
             return Padding(
-              padding: EdgeInsets.all(16),
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text("Select $label", style: TextStyle(fontWeight: FontWeight.bold)),
-                  ...options.map((option) {
-                    final isSelected = selected.contains(option);
-                    return CheckboxListTile(
-                      value: isSelected,
-                      title: Text(option),
-                      onChanged: (checked) {
-                        setStateModal(() {
-                          if (checked == true) {
-                            selected.add(option);
-                          } else {
-                            selected.remove(option);
-                          }
-                        });
+
+                  SizedBox(height: 8),
+                  TextField(
+                    decoration: InputDecoration(
+                      hintText: "Search...",
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onChanged: (val) => setStateModal(() => searchQuery = val),
+                  ),
+
+                  SizedBox(height: 12),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: filteredOptions.length,
+                      itemBuilder: (context, index) {
+                        final option = filteredOptions[index];
+                        final isSelected = selected.contains(option);
+                        return CheckboxListTile(
+                          value: isSelected,
+                          title: Text(option),
+                          onChanged: (checked) {
+                            setStateModal(() {
+                              if (checked == true) {
+                                selected.add(option);
+                              } else {
+                                selected.remove(option);
+                              }
+                            });
+                          },
+                        );
                       },
-                    );
-                  }).toList(),
+                    ),
+                  ),
+
                   SizedBox(height: 10),
                   ElevatedButton(
                     onPressed: () {
@@ -116,6 +148,7 @@ class _AddRouteModalState extends ConsumerState<AddRouteModal> {
     );
   }
 
+
   Widget _buildDropdownButton(String label, List<String> options) {
     return InkWell(
       onTap: () => _showMultiSelect(context, label, options),
@@ -130,7 +163,7 @@ class _AddRouteModalState extends ConsumerState<AddRouteModal> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(label, style: TextStyle(color: Colors.deepPurple)),
-            SizedBox(width: 4),
+            SizedBox(width: 200),
             Icon(Icons.arrow_drop_down, color: Colors.deepPurple),
           ],
         ),
@@ -218,8 +251,8 @@ class _AddRouteModalState extends ConsumerState<AddRouteModal> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildDropdownButton('district', districtOptions),
-                _buildDropdownButton('zone', zoneOptions),
+                // _buildDropdownButton('district', districtOptions),
+                // _buildDropdownButton('zone', zoneOptions),
                 _buildDropdownButton('taluka', talukaOptions),
               ],
             ),
