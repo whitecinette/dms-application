@@ -160,7 +160,7 @@ class _SalesOverviewState extends ConsumerState<SalesOverview> {
     return Expanded(
       child: Container(
         height: height,
-        padding: EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
@@ -173,33 +173,52 @@ class _SalesOverviewState extends ConsumerState<SalesOverview> {
             )
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: fontSize * 0.75,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF6C757D),
-              ),
-            ),
-            SizedBox(height: 8),
-            Expanded(
-              child: Text(
-                value,
-                style: TextStyle(
-                  fontSize: fontSize * 2,
-                  fontWeight: FontWeight.w300,
-                  fontFamily: 'Roboto',
-                  color: valueColor ?? Colors.black,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: constraints.maxWidth,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: fontSize * 0.75,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF6C757D),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
+                const SizedBox(height: 8),
+                Expanded(
+                  child: Container(
+                    width: constraints.maxWidth,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: fontSize * 2,
+                          fontWeight: FontWeight.w300,
+                          fontFamily: 'Roboto',
+                          color: valueColor ?? Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
+
 }
