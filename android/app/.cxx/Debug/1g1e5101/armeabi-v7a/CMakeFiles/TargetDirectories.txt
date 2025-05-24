@@ -1,0 +1,2 @@
+/Users/macbookair/Desktop/DMS_APP/dms-application/android/app/.cxx/Debug/1g1e5101/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Users/macbookair/Desktop/DMS_APP/dms-application/android/app/.cxx/Debug/1g1e5101/armeabi-v7a/CMakeFiles/rebuild_cache.dir

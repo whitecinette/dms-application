@@ -530,9 +530,13 @@ class ApiService {
     String? status,
     DateTime? startDate,
     DateTime? endDate,
+    int page = 1,
+    int limit = 20,
   }) async {
-    // Build query parameters
-    final queryParams = <String, String>{};
+    final queryParams = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
 
     if (status != null) queryParams['status'] = status;
     if (startDate != null) queryParams['startDate'] = startDate.toIso8601String().split('T').first;
