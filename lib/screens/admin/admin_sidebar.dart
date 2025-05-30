@@ -1,5 +1,6 @@
 // lib/screens/employee/employee_sidebar.dart
 
+import 'package:dms_app/screens/admin/admin_extraction_report.dart';
 import 'package:dms_app/screens/admin/attendance.dart';
 import 'package:dms_app/screens/admin/beat_mapping_status.dart';
 import 'package:dms_app/screens/employee/punch_in_out_emp.dart';
@@ -54,7 +55,35 @@ class AdminSidebar extends StatelessWidget {
             ),
           ),
           _buildDrawerItem(Icons.dashboard, "Sales Dashboard", context, SalesDashboard()),
-          _buildDrawerItem(Icons.pie_chart, "Extraction", context, ExtractionStatusAdminScreen()),
+          // _buildDrawerItem(Icons.pie_chart, "Extraction", context, ExtractionStatusAdminScreen()),
+          // _buildDrawerItem(Icons.analytics, "Extraction Report", context, ExtractionReportScreen()),
+          ExpansionTile(
+            leading: Icon(Icons.pie_chart),
+            title: Text("Extraction"),
+            children: [
+              ListTile(
+                leading: Icon(Icons.check_circle_outline),
+                title: Text("Extraction Status"),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => ExtractionStatusAdminScreen()),
+                  );
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.analytics),
+                title: Text("Extraction Report"),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => ExtractionReportScreen()),
+                  );
+                },
+              ),
+            ],
+          ),
+
           _buildDrawerItem(Icons.monitor_heart, "Pulse", context, PulseScreen()),
           _buildDrawerItem(Icons.map, "Beat Mapping", context, BeatMappingStatusScreen()),
           ExpansionTile(
