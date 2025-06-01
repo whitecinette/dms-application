@@ -589,7 +589,26 @@ class ApiService {
       throw Exception('Failed to load dealers: ${response.statusCode}');
     }
   }
+// get hierarchy filters
 
+  static Future<List<Map<String, dynamic>>> getHierarchyFilters({Map<String, String>? query}) async {
+    print("hittingg");
+    // Build the query parameters dynamically
+    final uri = Uri.parse('${Config.backendUrl}/get-hierarchy-filter')
+        .replace(queryParameters: query ?? {});
+
+    final response = await http.get(uri);
+    print("Hierarchy API response: ${response.statusCode}");
+    print("Body: ${response.body}");
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> jsonResponse = json.decode(response.body);
+      final List data = jsonResponse['data'];
+      return List<Map<String, dynamic>>.from(data);
+    } else {
+      throw Exception('Failed to load hierarchy filters: ${response.statusCode}');
+    }
+  }
 
 }
 

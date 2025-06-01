@@ -30,6 +30,28 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
     "OnePlus", "Realme", "Motorola", "Others",
   ];
 
+  // New: Lists of maps with code + name for dropdowns:
+  final List<Map<String, String>> smdList = [
+    {"code": "6434002", "name": "Siddha Corporation Szd"},
+    {"code": "6434003", "name": "Another SMD Name"},
+  ];
+  final List<Map<String, String>> asmList = [
+    {"code": "SID006", "name": "Yuvraj Jain"},
+    {"code": "SID007", "name": "Another ASM Name"},
+  ];
+  final List<Map<String, String>> mddList = [
+    {"code": "RAJR001447", "name": "Shri Laxmi Oil & Flour Mill"},
+    {"code": "RAJR001448", "name": "Another MDD Name"},
+  ];
+  final List<Map<String, String>> tseList = [
+    {"code": "RAJF001432", "name": "Yogesh Prajapat"},
+    {"code": "RAJF001433", "name": "Another TSE Name"},
+  ];
+  final List<Map<String, String>> dealerList = [
+    {"code": "RAJD004024", "name": "Shree Shyam Service Point"},
+    {"code": "RAJD004025", "name": "Another Dealer Name"},
+  ];
+
   DateTimeRange? selectedDateRange;
   List<Map<String, dynamic>> tableData = [];
   bool loading = false;
@@ -101,6 +123,7 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
     return Color.lerp(Colors.white, Colors.deepOrange.shade700, normalized)!;
   }
 
+  // Modified buildDropdown for normal string list
   Widget buildDropdown(
       String label,
       List<String> items,
@@ -111,7 +134,7 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
       }) {
     return Container(
       width: width,
-      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 1), // reduced vertical padding here
+      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
         border: Border.all(color: Colors.black, width: 1.5),
         borderRadius: BorderRadius.circular(6),
@@ -125,7 +148,7 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
             return DropdownMenuItem<String>(
               value: value,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),  // reduce padding inside dropdown items too
+                padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize)),
               ),
             );
@@ -136,6 +159,35 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
     );
   }
 
+  // New: buildDropdown for code+name list
+  Widget buildCodeNameDropdown(String label, List<Map<String, String>> items, String? selectedCode, Function(String?) onChanged, {double width = 130, double fontSize = 10,}) {
+    return Container(
+      width: 85,
+      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.black, width: 1.5),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isExpanded: true,
+          value: selectedCode,
+          hint: Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize)),
+          items: items.map((item) {
+            final displayText = "${item['code']} ${item['name']}";
+            return DropdownMenuItem<String>(
+              value: item['code'],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text(displayText, style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize)),
+              ),
+            );
+          }).toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
 
   Widget buildHeaderCell(String text, {double width = 100}) {
     return Container(
@@ -244,15 +296,15 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      buildDropdown("SMD", ["SMD 1", "SMD 2"], selectedSMD, (val) => setState(() => selectedSMD = val)),
+                      buildCodeNameDropdown("SMD", smdList, selectedSMD, (val) => setState(() => selectedSMD = val)),
                       SizedBox(width: 10),
-                      buildDropdown("ASM", ["ASM 1", "ASM 2"], selectedASM, (val) => setState(() => selectedASM = val)),
+                      buildCodeNameDropdown("ASM", asmList, selectedASM, (val) => setState(() => selectedASM = val)),
                       SizedBox(width: 10),
-                      buildDropdown("MDD", ["MDD 1", "MDD 2"], selectedMDD, (val) => setState(() => selectedMDD = val)),
+                      buildCodeNameDropdown("MDD", mddList, selectedMDD, (val) => setState(() => selectedMDD = val)),
                       SizedBox(width: 10),
-                      buildDropdown("TSE", ["TSE 1", "TSE 2"], selectedTSE, (val) => setState(() => selectedTSE = val)),
+                      buildCodeNameDropdown("TSE", tseList, selectedTSE, (val) => setState(() => selectedTSE = val)),
                       SizedBox(width: 10),
-                      buildDropdown("Dealer", ["Dealer A", "Dealer B"], selectedDealer, (val) => setState(() => selectedDealer = val)),
+                      buildCodeNameDropdown("Dealer", dealerList, selectedDealer, (val) => setState(() => selectedDealer = val)),
                     ],
                   ),
                 ),
