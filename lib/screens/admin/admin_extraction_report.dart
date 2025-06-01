@@ -159,31 +159,94 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
     );
   }
 
-  // New: buildDropdown for code+name list
-  Widget buildCodeNameDropdown(String label, List<Map<String, String>> items, String? selectedCode, Function(String?) onChanged, {double width = 130, double fontSize = 10,}) {
+// Modified version for single select with name shown on button + highlight selected card
+  Widget buildCodeNameSelector(
+      String label,
+      List<Map<String, String>> items,
+      String? selectedCode,
+      Function(String?) onSelected,
+      ) {
+    final isSelected = selectedCode != null && selectedCode.isNotEmpty;
+    final selectedCount = isSelected ? 1 : 0;
+
     return Container(
-      width: 85,
-      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      width: 100,
       decoration: BoxDecoration(
         border: Border.all(color: Colors.black, width: 1.5),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          isExpanded: true,
-          value: selectedCode,
-          hint: Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize)),
-          items: items.map((item) {
-            final displayText = "${item['code']} ${item['name']}";
-            return DropdownMenuItem<String>(
-              value: item['code'],
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Text(displayText, style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize)),
+      child: TextButton(
+        onPressed: () {
+          showModalBottomSheet(
+            context: context,
+            builder: (context) {
+              return Container(
+                height: 350,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Text("Select $label", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: items.length,
+                        itemBuilder: (context, index) {
+                          final item = items[index];
+                          final selected = item['code'] == selectedCode;
+
+                          return Card(
+                            color: selected ? Colors.blue.shade100 : Colors.white,
+                            margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            child: ListTile(
+                              title: Text(item['name'] ?? ""),
+                              subtitle: Text(item['code'] ?? ""),
+                              trailing: selected ? Icon(Icons.check_circle, color: Colors.blue) : null,
+                              onTap: () {
+                                if (selected) {
+                                  onSelected(null); // Deselect
+                                } else {
+                                  onSelected(item['code']);
+                                }
+                                Navigator.pop(context);
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: Colors.black,
               ),
-            );
-          }).toList(),
-          onChanged: onChanged,
+            ),
+            if (selectedCount > 0) ...[
+              SizedBox(width: 6),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$selectedCount',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -296,15 +359,16 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      buildCodeNameDropdown("SMD", smdList, selectedSMD, (val) => setState(() => selectedSMD = val)),
+                      buildCodeNameSelector("SMD", smdList, selectedSMD, (val) => setState(() => selectedSMD = val)),
                       SizedBox(width: 10),
-                      buildCodeNameDropdown("ASM", asmList, selectedASM, (val) => setState(() => selectedASM = val)),
+                      buildCodeNameSelector("ASM", asmList, selectedASM, (val) => setState(() => selectedASM = val)),
                       SizedBox(width: 10),
-                      buildCodeNameDropdown("MDD", mddList, selectedMDD, (val) => setState(() => selectedMDD = val)),
+                      buildCodeNameSelector("MDD", mddList, selectedMDD, (val) => setState(() => selectedMDD = val)),
                       SizedBox(width: 10),
-                      buildCodeNameDropdown("TSE", tseList, selectedTSE, (val) => setState(() => selectedTSE = val)),
+                      buildCodeNameSelector("TSE", tseList, selectedTSE, (val) => setState(() => selectedTSE = val)),
                       SizedBox(width: 10),
-                      buildCodeNameDropdown("Dealer", dealerList, selectedDealer, (val) => setState(() => selectedDealer = val)),
+                      buildCodeNameSelector("Dealer", dealerList, selectedDealer, (val) => setState(() => selectedDealer = val)),
+
                     ],
                   ),
                 ),
