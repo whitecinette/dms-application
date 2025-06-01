@@ -13,39 +13,133 @@ class ExtractionReportScreen extends StatefulWidget {
 class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
   bool isValueSelected = true;
   String? selectedRegion;
+  String? selectedSMD;
   String? selectedASM;
   String? selectedMDD;
   String? selectedTSE;
   String? selectedDealer;
+  String? selectedDistrict;
+  String? selectedTaluka;
+  String? selectedZone;
+
+  final List<String> districts = ['District A', 'District B', 'District C'];
+  final List<String> talukas = ['Taluka 1', 'Taluka 2', 'Taluka 3'];
+  final List<String> zones = ['Zone X', 'Zone Y', 'Zone Z'];
+  final List<String> brands = [
+    "Samsung", "Vivo", "Oppo", "Xiaomi", "Apple",
+    "OnePlus", "Realme", "Motorola", "Others",
+  ];
 
   DateTimeRange? selectedDateRange;
   List<Map<String, dynamic>> tableData = [];
   bool loading = false;
 
-  final List<String> brands = [
-    "Samsung",
-    "Vivo",
-    "Oppo",
-    "Xiaomi",
-    "Apple",
-    "OnePlus",
-    "Realme",
-    "Motorola",
-    "Others",
-  ];
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    selectedDateRange = DateTimeRange(
+      start: DateTime(now.year, now.month, 1),
+      end: DateTime(now.year, now.month + 1, 0),
+    );
+    fetchReport();
+  }
+
+  Future<void> fetchReport() async {
+    setState(() => loading = true);
+
+    final dateFormat = DateFormat('yyyy-MM-dd');
+    final startDate = selectedDateRange?.start;
+    final endDate = selectedDateRange?.end;
+    final uri = Uri.parse(
+      "${Config.backendUrl}/get-extraction-report-for-admin"
+          "?metric=${isValueSelected ? "value" : "volume"}"
+          "${startDate != null ? "&startDate=${dateFormat.format(startDate)}" : ""}"
+          "${endDate != null ? "&endDate=${dateFormat.format(endDate)}" : ""}",
+    );
+
+    try {
+      final response = await http.get(uri);
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        final data = jsonResponse['data'] as List<dynamic>? ?? [];
+        tableData = data.map((e) => Map<String, dynamic>.from(e)).toList();
+      } else {
+        tableData = [];
+      }
+    } catch (e) {
+      tableData = [];
+    }
+
+    setState(() => loading = false);
+  }
+
+  Future<void> pickDateRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      initialDateRange: selectedDateRange,
+    );
+
+    if (picked != null) {
+      setState(() => selectedDateRange = picked);
+      fetchReport();
+    }
+  }
+
+  String getDateRangeText() {
+    if (selectedDateRange == null) return "Select Date Range";
+    final start = selectedDateRange!.start;
+    final end = selectedDateRange!.end;
+    return "${start.day}/${start.month}/${start.year} - ${end.day}/${end.month}/${end.year}";
+  }
+
+  Color heatMapColor(double value, double maxValue) {
+    if (maxValue == 0) return Colors.white;
+    final normalized = (value / maxValue).clamp(0.0, 1.0);
+    return Color.lerp(Colors.white, Colors.deepOrange.shade700, normalized)!;
+  }
+
+  Widget buildDropdown(
+      String label,
+      List<String> items,
+      String? selectedItem,
+      Function(String?) onChanged, {
+        double width = 110,
+        double fontSize = 10,
+      }) {
+    return Container(
+      width: width,
+      padding: EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.black, width: 1.5), // Thick border
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isExpanded: true,
+          value: selectedItem,
+          hint: Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize)),
+          items: items.map((String value) {
+            return DropdownMenuItem<String>(
+              value: value,
+              child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize)),
+            );
+          }).toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
 
   Widget buildHeaderCell(String text, {double width = 100}) {
     return Container(
       width: width,
       padding: EdgeInsets.symmetric(horizontal: 4, vertical: 10),
       alignment: Alignment.center,
-      child: Text(
-        text,
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-        textAlign: TextAlign.center,
-        overflow: TextOverflow.ellipsis,
-        maxLines: 1,
-      ),
+      child: Text(text, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center),
     );
   }
 
@@ -62,107 +156,6 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
           fontSize: 12,
           color: highlight ? Colors.white : Colors.black,
         ),
-      ),
-    );
-  }
-
-  String getDateRangeText() {
-    if (selectedDateRange == null) return "Select Date Range";
-    final start = selectedDateRange!.start;
-    final end = selectedDateRange!.end;
-    return "${start.day}/${start.month}/${start.year} - ${end.day}/${end.month}/${end.year}";
-  }
-
-  Future<void> pickDateRange() async {
-    final now = DateTime.now();
-    final firstDayOfMonth = DateTime(now.year, now.month, 1);
-    final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
-
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-      initialDateRange: selectedDateRange ??
-          DateTimeRange(start: firstDayOfMonth, end: lastDayOfMonth),
-      helpText: "Select date range",
-    );
-
-    if (picked != null) {
-      setState(() => selectedDateRange = picked);
-      await fetchReport();
-    }
-  }
-
-  Future<void> fetchReport() async {
-    setState(() => loading = true);
-
-    final dateFormat = DateFormat('yyyy-MM-dd');
-    final startDateStr = selectedDateRange != null ? dateFormat.format(selectedDateRange!.start) : null;
-    final endDateStr = selectedDateRange != null ? dateFormat.format(selectedDateRange!.end) : null;
-
-    final uri = Uri.parse(
-        "${Config.backendUrl}/get-extraction-report-for-admin"
-            "?metric=${isValueSelected ? "value" : "volume"}"
-            "${startDateStr != null ? "&startDate=$startDateStr" : ""}"
-            "${endDateStr != null ? "&endDate=$endDateStr" : ""}"
-            "${selectedASM != null ? "&asm=$selectedASM" : ""}"
-            "${selectedMDD != null ? "&mdd=$selectedMDD" : ""}"
-            "${selectedTSE != null ? "&tse=$selectedTSE" : ""}"
-            "${selectedDealer != null ? "&dealer=$selectedDealer" : ""}"
-    );
-
-    try {
-      final response = await http.get(uri);
-      if (response.statusCode == 200) {
-        final jsonResponse = json.decode(response.body);
-        List<dynamic> data = jsonResponse['data'] ?? [];
-        tableData = data.map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e)).toList();
-      } else {
-        tableData = [];
-      }
-    } catch (e) {
-      tableData = [];
-      print("Error: $e");
-    }
-
-    setState(() => loading = false);
-  }
-
-  Color heatMapColor(double value, double maxValue) {
-    if (maxValue == 0) return Colors.white;
-    final normalized = (value / maxValue).clamp(0.0, 1.0);
-    return Color.lerp(Colors.white, Colors.deepOrange.shade700, normalized)!;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    final now = DateTime.now();
-    final firstDay = DateTime(now.year, now.month, 1);
-    final lastDay = DateTime(now.year, now.month + 1, 0);
-    selectedDateRange = DateTimeRange(start: firstDay, end: lastDay);
-    fetchReport();
-  }
-
-  Widget buildDropdown(String label, List<String> items, String? selectedValue, Function(String?) onChanged) {
-    return SizedBox(
-      width: 83,
-      child: DropdownButtonFormField<String>(
-        isDense: true,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        ),
-        value: selectedValue,
-        style: TextStyle(fontSize: 10),
-        items: items.map((item) {
-          return DropdownMenuItem(
-            value: item,
-            child: Text(item, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10)),
-          );
-        }).toList(),
-        onChanged: onChanged,
       ),
     );
   }
@@ -185,14 +178,14 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Filters
+            // Top filters
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: pickDateRange,
                     icon: Icon(Icons.date_range),
-                    label: Text(getDateRangeText()),
+                    label: Text(getDateRangeText(), style: TextStyle(fontSize: 12)),
                     style: ElevatedButton.styleFrom(
                       padding: EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
@@ -210,7 +203,6 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
                       scale: 0.7,
                       child: Switch(
                         value: isValueSelected,
-                        activeColor: Colors.grey,
                         onChanged: (val) {
                           setState(() => isValueSelected = val);
                           fetchReport();
@@ -227,93 +219,92 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
             ),
             SizedBox(height: 10),
 
-            // Region
-            DropdownButtonFormField<String>(
-              decoration: InputDecoration(
-                labelText: "Select Region",
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-              ),
-              value: selectedRegion,
-              items: ['North', 'South', 'East', 'West'].map((region) =>
-                  DropdownMenuItem(value: region, child: Text(region))).toList(),
-              onChanged: (value) => setState(() => selectedRegion = value),
+            // Scroll-safe dropdowns
+            // Filters grouped in two rows
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      buildDropdown("District", districts, selectedDistrict, (val) => setState(() => selectedDistrict = val)),
+                      SizedBox(width: 10),
+                      buildDropdown("Taluka", talukas, selectedTaluka, (val) => setState(() => selectedTaluka = val)),
+                      SizedBox(width: 10),
+                      buildDropdown("Zone", zones, selectedZone, (val) => setState(() => selectedZone = val)),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 10),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      buildDropdown("SMD", ["SMD 1", "SMD 2"], selectedSMD, (val) => setState(() => selectedSMD = val)),
+                      SizedBox(width: 10),
+                      buildDropdown("ASM", ["ASM 1", "ASM 2"], selectedASM, (val) => setState(() => selectedASM = val)),
+                      SizedBox(width: 10),
+                      buildDropdown("MDD", ["MDD 1", "MDD 2"], selectedMDD, (val) => setState(() => selectedMDD = val)),
+                      SizedBox(width: 10),
+                      buildDropdown("TSE", ["TSE 1", "TSE 2"], selectedTSE, (val) => setState(() => selectedTSE = val)),
+                      SizedBox(width: 10),
+                      buildDropdown("Dealer", ["Dealer A", "Dealer B"], selectedDealer, (val) => setState(() => selectedDealer = val)),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            SizedBox(height: 10),
 
-            // ASM/MDD/TSE/Dealer
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  buildDropdown("asm", ["ASM 1", "ASM 2"], selectedASM, (val) {
-                    setState(() => selectedASM = val);
-                    fetchReport();
-                  }),
-                  SizedBox(width: 6),
-                  buildDropdown("mdd", ["MDD 1", "MDD 2"], selectedMDD, (val) {
-                    setState(() => selectedMDD = val);
-                    fetchReport();
-                  }),
-                  SizedBox(width: 6),
-                  buildDropdown("tse", ["TSE 1", "TSE 2"], selectedTSE, (val) {
-                    setState(() => selectedTSE = val);
-                    fetchReport();
-                  }),
-                  SizedBox(width: 6),
-                  buildDropdown("dealer", ["Dealer A", "Dealer B"], selectedDealer, (val) {
-                    setState(() => selectedDealer = val);
-                    fetchReport();
-                  }),
-                ],
-              ),
-            ),
             SizedBox(height: 14),
 
-            // Table
+            // Table section
             Expanded(
               child: loading
-                  ? ShimmerLoader() // 👈 Show shimmer when loading
+                  ? ShimmerLoader()
                   : tableData.isEmpty
                   ? Center(child: Text("No data found"))
                   : SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                child: Table(
-                  defaultColumnWidth: FixedColumnWidth(100),
-                  border: TableBorder.all(color: Colors.grey.shade300),
+                child: Column(
                   children: [
-                    TableRow(
-                      decoration: BoxDecoration(color: Colors.blueGrey.shade100),
+                    Table(
+                      defaultColumnWidth: FixedColumnWidth(100),
+                      border: TableBorder.all(color: Colors.grey.shade300),
                       children: [
-                        buildHeaderCell("Price Band"),
-                        ...brands.map((b) => buildHeaderCell(b)).toList(),
-                        buildHeaderCell("Rank of Samsung", width: 120),
+                        TableRow(
+                          decoration: BoxDecoration(color: Colors.blueGrey.shade100),
+                          children: [
+                            buildHeaderCell("Price Band"),
+                            ...brands.map((b) => buildHeaderCell(b)).toList(),
+                            buildHeaderCell("Rank of Samsung", width: 120),
+                          ],
+                        ),
+                        ...tableData.map((row) {
+                          return TableRow(
+                            children: [
+                              buildCardCell(row["Price Class"] ?? "-"),
+                              ...brands.map((brand) {
+                                final val = row[brand] ?? 0;
+                                return buildCardCell(
+                                  val.toString(),
+                                  background: heatMapColor(
+                                    (val is num) ? val.toDouble() : 0,
+                                    maxValue,
+                                  ),
+                                  highlight: (val is num && val > maxValue * 0.7),
+                                );
+                              }).toList(),
+                              buildCardCell(row["Rank of Samsung"]?.toString() ?? "-"),
+                            ],
+                          );
+                        }).toList(),
                       ],
                     ),
-                    ...tableData.map((row) {
-                      return TableRow(
-                        children: [
-                          buildCardCell(row["Price Class"] ?? "-"),
-                          ...brands.map((brand) {
-                            final val = row[brand] ?? 0;
-                            return buildCardCell(
-                              val.toString(),
-                              background: heatMapColor(
-                                (val is num) ? val.toDouble() : 0,
-                                maxValue,
-                              ),
-                              highlight: (val is num && val > maxValue * 0.7),
-                            );
-                          }).toList(),
-                          buildCardCell(row["Rank of Samsung"]?.toString() ?? "-"),
-                        ],
-                      );
-                    }).toList(),
                   ],
                 ),
               ),
             ),
-
           ],
         ),
       ),
