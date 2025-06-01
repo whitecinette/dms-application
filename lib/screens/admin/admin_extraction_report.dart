@@ -106,14 +106,14 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
       List<String> items,
       String? selectedItem,
       Function(String?) onChanged, {
-        double width = 110,
+        double width = 80,
         double fontSize = 10,
       }) {
     return Container(
       width: width,
-      padding: EdgeInsets.symmetric(horizontal: 8),
+      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 1), // reduced vertical padding here
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.black, width: 1.5), // Thick border
+        border: Border.all(color: Colors.black, width: 1.5),
         borderRadius: BorderRadius.circular(6),
       ),
       child: DropdownButtonHideUnderline(
@@ -124,7 +124,10 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
           items: items.map((String value) {
             return DropdownMenuItem<String>(
               value: value,
-              child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),  // reduce padding inside dropdown items too
+                child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize)),
+              ),
             );
           }).toList(),
           onChanged: onChanged,
