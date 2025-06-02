@@ -590,10 +590,11 @@ class ApiService {
     }
   }
 // get hierarchy filters
+  static Future<Map<String, List<Map<String, dynamic>>>> getHierarchyFilters({
+    Map<String, String>? query,
+  }) async {
+    print("Hitting the hierarchy data...");
 
-  static Future<List<Map<String, dynamic>>> getHierarchyFilters({Map<String, String>? query}) async {
-    print("hittingg");
-    // Build the query parameters dynamically
     final uri = Uri.parse('${Config.backendUrl}/get-hierarchy-filter')
         .replace(queryParameters: query ?? {});
 
@@ -603,8 +604,14 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> jsonResponse = json.decode(response.body);
-      final List data = jsonResponse['data'];
-      return List<Map<String, dynamic>>.from(data);
+
+      // Convert each key (smd, asm, etc.) to List<Map>
+      final Map<String, List<Map<String, dynamic>>> parsedData = {};
+      jsonResponse.forEach((key, value) {
+        parsedData[key] = List<Map<String, dynamic>>.from(value);
+      });
+
+      return parsedData;
     } else {
       throw Exception('Failed to load hierarchy filters: ${response.statusCode}');
     }

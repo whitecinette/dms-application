@@ -3,6 +3,6 @@
 class Config {
   // You can update this URL to your backend's address
   // static const String backendUrl = "https://dms.siddhaconnect.com";
-  static const String backendUrl = "http://192.168.31.227:8080";
+  static const String backendUrl = "http://192.168.31.226:8080";
 
 }

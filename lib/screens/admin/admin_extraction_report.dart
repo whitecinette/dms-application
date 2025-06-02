@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dms_app/services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../widgets/shimmer_loader.dart';
@@ -21,6 +22,15 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
   String? selectedDistrict;
   String? selectedTaluka;
   String? selectedZone;
+  bool isLoading = true;
+
+  Map<String, List<Map<String, String>>> hierarchyData = {};
+
+  List<Map<String, String>> smdList = [];
+  List<Map<String, String>> asmList = [];
+  List<Map<String, String>> mddList = [];
+  List<Map<String, String>> tseList = [];
+  List<Map<String, String>> dealerList = [];
 
   final List<String> districts = ['District A', 'District B', 'District C'];
   final List<String> talukas = ['Taluka 1', 'Taluka 2', 'Taluka 3'];
@@ -30,27 +40,6 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
     "OnePlus", "Realme", "Motorola", "Others",
   ];
 
-  // New: Lists of maps with code + name for dropdowns:
-  final List<Map<String, String>> smdList = [
-    {"code": "6434002", "name": "Siddha Corporation Szd"},
-    {"code": "6434003", "name": "Another SMD Name"},
-  ];
-  final List<Map<String, String>> asmList = [
-    {"code": "SID006", "name": "Yuvraj Jain"},
-    {"code": "SID007", "name": "Another ASM Name"},
-  ];
-  final List<Map<String, String>> mddList = [
-    {"code": "RAJR001447", "name": "Shri Laxmi Oil & Flour Mill"},
-    {"code": "RAJR001448", "name": "Another MDD Name"},
-  ];
-  final List<Map<String, String>> tseList = [
-    {"code": "RAJF001432", "name": "Yogesh Prajapat"},
-    {"code": "RAJF001433", "name": "Another TSE Name"},
-  ];
-  final List<Map<String, String>> dealerList = [
-    {"code": "RAJD004024", "name": "Shree Shyam Service Point"},
-    {"code": "RAJD004025", "name": "Another Dealer Name"},
-  ];
 
   DateTimeRange? selectedDateRange;
   List<Map<String, dynamic>> tableData = [];
@@ -64,6 +53,7 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
       start: DateTime(now.year, now.month, 1),
       end: DateTime(now.year, now.month + 1, 0),
     );
+    loadHierarchyFilters();
     fetchReport();
   }
 
@@ -73,12 +63,21 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
     final dateFormat = DateFormat('yyyy-MM-dd');
     final startDate = selectedDateRange?.start;
     final endDate = selectedDateRange?.end;
-    final uri = Uri.parse(
-      "${Config.backendUrl}/get-extraction-report-for-admin"
-          "?metric=${isValueSelected ? "value" : "volume"}"
-          "${startDate != null ? "&startDate=${dateFormat.format(startDate)}" : ""}"
-          "${endDate != null ? "&endDate=${dateFormat.format(endDate)}" : ""}",
-    );
+
+    Map<String, String> queryParams = {
+      "metric": isValueSelected ? "value" : "volume",
+    };
+
+    if (startDate != null) queryParams["startDate"] = dateFormat.format(startDate);
+    if (endDate != null) queryParams["endDate"] = dateFormat.format(endDate);
+    if (selectedSMD != null) queryParams["smd"] = selectedSMD!;
+    if (selectedASM != null) queryParams["asm"] = selectedASM!;
+    if (selectedMDD != null) queryParams["mdd"] = selectedMDD!;
+    if (selectedTSE != null) queryParams["tse"] = selectedTSE!;
+    if (selectedDealer != null) queryParams["dealer"] = selectedDealer!;
+
+    final uri = Uri.parse("${Config.backendUrl}/get-extraction-report-for-admin")
+        .replace(queryParameters: queryParams);
 
     try {
       final response = await http.get(uri);
@@ -95,6 +94,43 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
 
     setState(() => loading = false);
   }
+
+  Future<void> loadHierarchyFilters({Map<String, String>? filters}) async {
+    try {
+      final data = await ApiService.getHierarchyFilters(query: filters);
+      print("Hierarchy filter data fetched: $data");
+
+      setState(() {
+        smdList = List<Map<String, String>>.from((data['smd'] ?? []).map((e) => {
+          'code': e['code'].toString(),
+          'name': e['name'].toString(),
+        }));
+
+        asmList = List<Map<String, String>>.from((data['asm'] ?? []).map((e) => {
+          'code': e['code'].toString(),
+          'name': e['name'].toString(),
+        }));
+
+        mddList = List<Map<String, String>>.from((data['mdd'] ?? []).map((e) => {
+          'code': e['code'].toString(),
+          'name': e['name'].toString(),
+        }));
+
+        tseList = List<Map<String, String>>.from((data['tse'] ?? []).map((e) => {
+          'code': e['code'].toString(),
+          'name': e['name'].toString(),
+        }));
+
+        dealerList = List<Map<String, String>>.from((data['dealer'] ?? []).map((e) => {
+          'code': e['code'].toString(),
+          'name': e['name'].toString(),
+        }));
+      });
+    } catch (e) {
+      print('Failed to load hierarchy filters: $e');
+    }
+  }
+
 
   Future<void> pickDateRange() async {
     final picked = await showDateRangePicker(
@@ -124,14 +160,7 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
   }
 
   // Modified buildDropdown for normal string list
-  Widget buildDropdown(
-      String label,
-      List<String> items,
-      String? selectedItem,
-      Function(String?) onChanged, {
-        double width = 80,
-        double fontSize = 10,
-      }) {
+  Widget buildDropdown(String label, List<String> items, String? selectedItem, Function(String?) onChanged, {double width = 80, double fontSize = 10,}) {
     return Container(
       width: width,
       padding: EdgeInsets.symmetric(horizontal: 6, vertical: 1),
@@ -160,12 +189,7 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
   }
 
 // Modified version for single select with name shown on button + highlight selected card
-  Widget buildCodeNameSelector(
-      String label,
-      List<Map<String, String>> items,
-      String? selectedCode,
-      Function(String?) onSelected,
-      ) {
+  Widget buildCodeNameSelector(String label, List<Map<String, String>> items, String? selectedCode, Function(String?) onSelected,) {
     final isSelected = selectedCode != null && selectedCode.isNotEmpty;
     final selectedCount = isSelected ? 1 : 0;
 
@@ -175,8 +199,8 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
         border: Border.all(color: Colors.black, width: 1.5),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: TextButton(
-        onPressed: () {
+      child: InkWell(
+        onTap: () {
           showModalBottomSheet(
             context: context,
             builder: (context) {
@@ -186,10 +210,15 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
                   children: [
                     Padding(
                       padding: EdgeInsets.all(12),
-                      child: Text("Select $label", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      child: Text(
+                        "Select $label",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
                     ),
                     Expanded(
-                      child: ListView.builder(
+                      child: items.isEmpty
+                          ? ShimmerLoader()
+                          : ListView.builder(
                         itemCount: items.length,
                         itemBuilder: (context, index) {
                           final item = items[index];
@@ -201,10 +230,12 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
                             child: ListTile(
                               title: Text(item['name'] ?? ""),
                               subtitle: Text(item['code'] ?? ""),
-                              trailing: selected ? Icon(Icons.check_circle, color: Colors.blue) : null,
+                              trailing: selected
+                                  ? Icon(Icons.check_circle, color: Colors.blue)
+                                  : null,
                               onTap: () {
                                 if (selected) {
-                                  onSelected(null); // Deselect
+                                  onSelected(null);
                                 } else {
                                   onSelected(item['code']);
                                 }
@@ -225,27 +256,15 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              label,
+              "$label${selectedCount > 0 ? ' $selectedCount' : ''}",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
                 color: Colors.black,
               ),
             ),
-            if (selectedCount > 0) ...[
-              SizedBox(width: 6),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.blue,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '$selectedCount',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
+            SizedBox(width: 6),
+            Icon(Icons.arrow_drop_down, color: Colors.black),
           ],
         ),
       ),
@@ -254,30 +273,126 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
 
   Widget buildHeaderCell(String text, {double width = 100}) {
     return Container(
+      margin: EdgeInsets.all(2),
       width: width,
-      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.3),
+            blurRadius: 2,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
       alignment: Alignment.center,
-      child: Text(text, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis, // or .visible if you want full text
+        softWrap: false,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 13,
+          color: Colors.black87,
+        ),
+        textAlign: TextAlign.center,
+      ),
     );
   }
 
   Widget buildCardCell(String text, {Color? background, bool highlight = false}) {
     return Container(
-      width: 100,
-      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+      margin: EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: background ?? Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.15),
+            blurRadius: 2,
+            offset: Offset(0, 1),
+          )
+        ],
+      ),
       alignment: Alignment.center,
-      color: background ?? Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       child: Text(
         text,
         style: TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 12,
-          color: highlight ? Colors.white : Colors.black,
+          fontWeight: highlight ? FontWeight.bold : FontWeight.normal,
+          fontSize: 13,
+          color: highlight ? Colors.black : Colors.grey.shade800,
         ),
+        textAlign: TextAlign.center,
       ),
     );
   }
 
+// Handle selection change for each dropdown
+  void onSMDChanged(String? code) {
+    setState(() {
+      selectedSMD = code;
+      selectedASM = null;
+      selectedMDD = null;
+      selectedTSE = null;
+      selectedDealer = null;
+    });
+    loadHierarchyFilters(filters: code != null ? {'smd': code} : null);
+    fetchReport();
+  }
+
+  void onASMChanged(String? code) {
+    setState(() {
+      selectedASM = code;
+      selectedMDD = null;
+      selectedTSE = null;
+      selectedDealer = null;
+    });
+    loadHierarchyFilters(filters: code != null ? {'asm': code} : null);
+    fetchReport();
+  }
+
+  void onMDDChanged(String? code) {
+    setState(() {
+      selectedMDD = code;
+      selectedTSE = null;
+      selectedDealer = null;
+    });
+    loadHierarchyFilters(filters: code != null ? {'mdd': code} : null);
+    fetchReport();
+  }
+
+  void onTSEChanged(String? code) {
+    setState(() {
+      selectedTSE = code;
+      selectedDealer = null;
+    });
+    loadHierarchyFilters(filters: code != null ? {'tse': code} : null);
+    fetchReport();
+  }
+
+  void onDealerChanged(String? code) {
+    setState(() {
+      selectedDealer = code;
+    });
+    fetchReport();
+  }
+
+
+// Reset all filters
+  void resetFilters() {
+    setState(() {
+      selectedSMD = null;
+      selectedASM = null;
+      selectedMDD = null;
+      selectedTSE = null;
+      selectedDealer = null;
+    });
+    loadHierarchyFilters(); // Load full data
+    fetchReport();
+  }
   @override
   Widget build(BuildContext context) {
     double maxValue = 0;
@@ -359,19 +474,30 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      buildCodeNameSelector("SMD", smdList, selectedSMD, (val) => setState(() => selectedSMD = val)),
+                      buildCodeNameSelector("SMD", smdList, selectedSMD, onSMDChanged),
                       SizedBox(width: 10),
-                      buildCodeNameSelector("ASM", asmList, selectedASM, (val) => setState(() => selectedASM = val)),
+                      buildCodeNameSelector("ASM", asmList, selectedASM, onASMChanged),
                       SizedBox(width: 10),
-                      buildCodeNameSelector("MDD", mddList, selectedMDD, (val) => setState(() => selectedMDD = val)),
+                      buildCodeNameSelector("MDD", mddList, selectedMDD, onMDDChanged),
                       SizedBox(width: 10),
-                      buildCodeNameSelector("TSE", tseList, selectedTSE, (val) => setState(() => selectedTSE = val)),
+                      buildCodeNameSelector("TSE", tseList, selectedTSE, onTSEChanged),
                       SizedBox(width: 10),
-                      buildCodeNameSelector("Dealer", dealerList, selectedDealer, (val) => setState(() => selectedDealer = val)),
-
+                      buildCodeNameSelector("Dealer", dealerList, selectedDealer, onDealerChanged),
+                      SizedBox(width: 10),
+                      ElevatedButton.icon(
+                        onPressed: resetFilters,
+                        icon: Icon(Icons.refresh, size: 18),
+                        label: Text("Reset"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      ),
                     ],
                   ),
                 ),
+
               ],
             ),
 
@@ -389,10 +515,10 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
                   children: [
                     Table(
                       defaultColumnWidth: FixedColumnWidth(100),
-                      border: TableBorder.all(color: Colors.grey.shade300),
+                      // border: TableBorder.all(color: Colors.grey.shade300),
                       children: [
                         TableRow(
-                          decoration: BoxDecoration(color: Colors.blueGrey.shade100),
+                          // decoration: BoxDecoration(color: Colors.blueGrey.shade100),
                           children: [
                             buildHeaderCell("Price Band"),
                             ...brands.map((b) => buildHeaderCell(b)).toList(),
