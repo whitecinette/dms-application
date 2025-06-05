@@ -1,3 +1,4 @@
+import 'package:dms_app/services/auth_manager.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
@@ -19,9 +20,15 @@ class AuthGate extends StatelessWidget {
         }
 
         final token = tokenSnapshot.data;
+        print('Token in AuthGate: $token');
+
 
         if (token == null) {
           return LoginScreen(); // 🔐 No token, go to login
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            AuthManager.startTokenExpiryTimer(context, token);
+          });
         }
 
         // ✅ Try loading user from shared preferences first
@@ -41,11 +48,13 @@ class AuthGate extends StatelessWidget {
               return FutureBuilder<Map<String, dynamic>>(
                 future: ApiService.getUserProfile(),
                 builder: (context, profileSnapshot) {
-                  if (profileSnapshot.connectionState == ConnectionState.waiting) {
+                  if (profileSnapshot.connectionState ==
+                      ConnectionState.waiting) {
                     return Center(child: CircularProgressIndicator());
                   }
 
-                  if (!profileSnapshot.hasData || profileSnapshot.data == null) {
+                  if (!profileSnapshot.hasData ||
+                      profileSnapshot.data == null) {
                     return LoginScreen(); // ❌ Token invalid or API failed
                   }
 

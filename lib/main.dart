@@ -10,11 +10,13 @@ void main() {
     ),
   );
 }
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey, // ✅ Add this line
       debugShowCheckedModeBanner: false,
       title: 'Siddha Connect',
       theme: ThemeData(primarySwatch: Colors.blue),

@@ -1,5 +1,6 @@
 import 'package:dms_app/screens/humanResource/hr_dashboard.dart';
 import 'package:dms_app/screens/humanResource/hr_sidebar.dart';
+import 'package:dms_app/services/auth_manager.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'employee/employee_dashboard.dart';
@@ -8,6 +9,7 @@ import 'mdd/mdd_dashboard.dart';
 import 'admin/admin_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
@@ -35,6 +37,11 @@ class _LoginScreenState extends State<LoginScreen> {
         _codeController.text.trim(),
         _passwordController.text,
       );
+      // ✅ Start token expiry timer HERE using context
+      final token = responseData['token'];
+      if (token != null) {
+        AuthManager.startTokenExpiryTimer(context, token);
+      }
 
       String role = responseData['user']['role'];
 
