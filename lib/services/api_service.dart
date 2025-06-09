@@ -618,5 +618,38 @@ class ApiService {
     }
   }
 
+//   leave request api
+  static Future<Map<String, dynamic>> requestLeave(Map<String, dynamic> leaveData) async {
+    print("📤 Sending leave request...");
+    final url = Uri.parse("${Config.backendUrl}/request-leave");
+
+    final token = await AuthService.getToken(); // assumes you saved token via login
+    if (token == null) {
+      throw Exception("No token found. Please login again.");
+    }
+
+    final response = await http.post(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+      body: json.encode(leaveData),
+    );
+
+    print("📥 Leave response status: ${response.statusCode}");
+
+    if (response.statusCode == 200) {
+      final responseData = json.decode(response.body);
+      print("✅ Leave request successful: $responseData");
+      return responseData;
+    } else {
+      final error = json.decode(response.body);
+      print("❌ Leave request failed: $error");
+      throw Exception(error['message'] ?? error['error'] ?? "Leave request failed");
+    }
+  }
+
+
 }
 

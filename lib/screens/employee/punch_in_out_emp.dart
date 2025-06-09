@@ -5,6 +5,7 @@ import 'package:dms_app/services/api_service.dart';
 import 'package:dms_app/services/auth_service.dart';
 import 'package:dms_app/utils/custom_pop_up.dart';
 import 'package:dms_app/utils/dealer_selector_popup.dart';
+import 'package:dms_app/utils/leave_form.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -164,6 +165,54 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
     }
   }
 
+  Widget _buildCircleButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback? onTap,
+    bool isLoading = false,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(40),
+          child: Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              color: onTap != null ? color : Colors.grey.shade400,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 6,
+                  offset: Offset(2, 4),
+                ),
+              ],
+            ),
+            child: Center(
+              child: isLoading
+                  ? SizedBox(
+                height: 22,
+                width: 22,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+                  : Icon(icon, color: Colors.white, size: 25),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+
+
   Future<void> _submitPunchOut() async {
     if (_image == null) {
       await _captureImage(); // Automatically open camera if no image
@@ -203,21 +252,21 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
             type: MessageType.warning,
           );
         }
-          setState(() {
-            _hasPunchedIn = true;
-            _image = null;
-            _selectedDealerCode = null;
-          });
+        setState(() {
+          _hasPunchedIn = true;
+          _image = null;
+          _selectedDealerCode = null;
+        });
 
-          await _savePunchStatus(true);
-          ref.read(coordinatesProvider.notifier).state = "";
+        await _savePunchStatus(true);
+        ref.read(coordinatesProvider.notifier).state = "";
 
-          CustomPopup.showPopup(
-            context,
-            "Success",
-            response['message'] ?? "You have successfully punched out.",
-            isSuccess: true,
-          );
+        CustomPopup.showPopup(
+          context,
+          "Success",
+          response['message'] ?? "You have successfully punched out.",
+          isSuccess: true,
+        );
 
       } else {
         CustomPopup.showPopup(
@@ -280,6 +329,21 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
         _isSelectingDealerAndPunching = false;
       });
     }
+  }
+  void _openLeaveFormDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Request Leave'),
+          content: LeaveForm(
+            onSubmit: (formData) {
+              print('Leave requested: $formData');
+            },
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -354,6 +418,34 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
                         ],
                       ),
                     ),
+                    SizedBox(height: 12),
+
+// Location Box (moved here, with same height & style as date/time box)
+                    Container(
+                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.location_on, color: Colors.redAccent),
+                          SizedBox(width: 15),
+                          Expanded(
+                            child: isLoading
+                                ? Center(child: CircularProgressIndicator())
+                                : Text(
+                              location.isNotEmpty ? location : "Location not available",
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600), // font weight & size same as date/time text
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    SizedBox(height: 20),
+
                     if (_selectedDealerCode != null) ...[
                       SizedBox(height: 12),
                       Container(
@@ -425,137 +517,54 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
                 ),
               ),
             ),
+            SizedBox(height: 10),
+            // Punch Buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                // Punch In Button
+                _buildCircleButton(
+                  icon: Icons.fingerprint,
+                  label: "Check In",
+                  color: Colors.green,
+                  onTap: _isPunchingIn ? null : _submitPunchIn,
+                  isLoading: _isPunchingIn,
+                ),
 
-            // Bottom Content: Location + Buttons
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+                // Punch Out Button
+                _buildCircleButton(
+                  icon: Icons.login_rounded,
+                  label: "Check Out",
+                  color: Colors.red,
+                  onTap: _isPunchingOut
+                      ? null
+                      : () {
+                    if (_selectedDealerCode != null) {
+                      CustomPopup.showPopup(
+                        context,
+                        "Warning",
+                        "Please deselect the dealer before punching out.",
+                        type: MessageType.warning,
+                      );
+                    } else {
+                      _submitPunchOut();
+                    }
+                  },
+                  isLoading: _isPunchingOut,
+                ),
 
-                  // Location Box
-                  Container(
-                    padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.location_on, color: Colors.redAccent),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: isLoading
-                              ? Center(child: CircularProgressIndicator())
-                              : Text(
-                            location.isNotEmpty ? location : "Location not available",
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  SizedBox(height: 20),
-
-                  // Punch Buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _isPunchingIn ? null : _submitPunchIn,
-                          icon: Icon(Icons.login),
-                          label: _isPunchingIn
-                              ? SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          )
-                              : Text("Punch In"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            minimumSize: Size(double.infinity, 50),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 15),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _isPunchingOut
-                              ? null
-                              : () {
-                            if (_selectedDealerCode != null) {
-                              CustomPopup.showPopup(
-                                context,
-                                "Warning",
-                                "Please deselect the dealer before punching out.",
-                                type: MessageType.warning,
-                              );
-                            } else {
-                              _submitPunchOut();
-                            }
-                          },
-                          icon: Icon(Icons.logout),
-                          label: _isPunchingOut
-                              ? SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                              : Text("Punch Out"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            minimumSize: Size(double.infinity, 50),
-                          ),
-                        ),
-                      ),
-
-                    ],
-                  ),
-
-                  if (_userRole == 'delivery boy') ...[
-                    SizedBox(height: 15),
-                    ElevatedButton.icon(
-                      onPressed: _isPunchingIn || _isPunchingOut
-                          ? null
-                          : () {
-                        if (_image == null || location.isEmpty) {
-                          CustomPopup.showPopup(
-                            context,
-                            "Warning",
-                            "Please capture an image and fetch location first.",
-                            type: MessageType.warning,
-                          );
-                        } else {
-                          _showDealerSelectionDialog();
-                        }
-                      },
-                      icon: Icon(Icons.store),
-                      label: _isSelectingDealerAndPunching
-                          ? SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2.5,
-                        ),
-                      )
-                          : Text("Select Dealer & Punch"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        minimumSize: Size(double.infinity, 50),
-                      ),
-                    ),
-                  ],
-
-                  SizedBox(height: 20),
-                ],
-              ),
+                // Request Leave Button
+                _buildCircleButton(
+                  icon: Icons.work_off,
+                  label: "Request Leave",
+                  color: Colors.deepOrangeAccent,
+                  onTap: () {
+                    _openLeaveFormDialog(context);
+                  },
+                ),
+              ],
             ),
+            SizedBox(height: 80),
           ],
         ),
       ),
@@ -565,4 +574,5 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
 
 
 }
+
 
