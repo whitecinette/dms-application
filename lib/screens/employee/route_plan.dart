@@ -23,11 +23,13 @@ class _AddRouteModalState extends ConsumerState<AddRouteModal> {
     "district": [],
     "zone": [],
     "taluka": [],
+    "town" : [],
   };
 
   List<String> districtOptions = [];
   List<String> zoneOptions = [];
   List<String> talukaOptions = [];
+  List<String> townOptions = [];
 
   @override
   void initState() {
@@ -47,6 +49,7 @@ class _AddRouteModalState extends ConsumerState<AddRouteModal> {
         districtOptions = options['district'] ?? [];
         zoneOptions = options['zone'] ?? [];
         talukaOptions = options['taluka'] ?? [];
+        townOptions = options['town'] ?? [];
       });
     }
   }
@@ -176,6 +179,7 @@ class _AddRouteModalState extends ConsumerState<AddRouteModal> {
       ...itinerary['district']!.map((e) => {'type': 'district', 'value': e}),
       ...itinerary['zone']!.map((e) => {'type': 'zone', 'value': e}),
       ...itinerary['taluka']!.map((e) => {'type': 'taluka', 'value': e}),
+      ...itinerary['town']!.map((e) => {'type' : 'town', 'value': e}),
     ];
 
     return Wrap(
@@ -207,53 +211,55 @@ class _AddRouteModalState extends ConsumerState<AddRouteModal> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text("Add Route", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            SizedBox(height: 12),
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: () async {
-                    final picked = await showDateRangePicker(
-                      context: context,
-                      initialDateRange: selectedRange,
-                      firstDate: DateTime.now().subtract(Duration(days: 365)),
-                      lastDate: DateTime.now().add(Duration(days: 365)),
-                    );
-                    if (picked != null) {
-                      setState(() => selectedRange = picked);
-                    }
-                  },
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      "${formatter.format(selectedRange!.start)} to ${formatter.format(selectedRange!.end)}",
-                      style: TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ),
-                Spacer(),
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      itinerary['district'] = List.from(districtOptions);
-                      itinerary['zone'] = List.from(zoneOptions);
-                      itinerary['taluka'] = List.from(talukaOptions);
-                    });
-                  },
-                  child: Text("+ Add All", style: TextStyle(color: Colors.deepPurple)),
-                ),
-              ],
-            ),
-            SizedBox(height: 16),
+            // SizedBox(height: 12),
+            // Row(
+            //   children: [
+            //     GestureDetector(
+            //       onTap: () async {
+            //         final picked = await showDateRangePicker(
+            //           context: context,
+            //           initialDateRange: selectedRange,
+            //           firstDate: DateTime.now().subtract(Duration(days: 365)),
+            //           lastDate: DateTime.now().add(Duration(days: 365)),
+            //         );
+            //         if (picked != null) {
+            //           setState(() => selectedRange = picked);
+            //         }
+            //       },
+            //       child: Container(
+            //         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            //         decoration: BoxDecoration(
+            //           color: Colors.blue.shade50,
+            //           borderRadius: BorderRadius.circular(8),
+            //         ),
+            //         child: Text(
+            //           "${formatter.format(selectedRange!.start)} to ${formatter.format(selectedRange!.end)}",
+            //           style: TextStyle(fontWeight: FontWeight.w500),
+            //         ),
+            //       ),
+            //     ),
+            //     Spacer(),
+            //     TextButton(
+            //       onPressed: () {
+            //         setState(() {
+            //           itinerary['district'] = List.from(districtOptions);
+            //           itinerary['zone'] = List.from(zoneOptions);
+            //           itinerary['taluka'] = List.from(talukaOptions);
+            //           itinerary['town'] = List.from(townOptions);
+            //         });
+            //       },
+            //       child: Text("+ Add All", style: TextStyle(color: Colors.deepPurple)),
+            //     ),
+            //   ],
+            // ),
+            SizedBox(height: 36),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 // _buildDropdownButton('district', districtOptions),
                 // _buildDropdownButton('zone', zoneOptions),
-                _buildDropdownButton('taluka', talukaOptions),
+                // _buildDropdownButton('taluka', talukaOptions),
+                _buildDropdownButton('town', townOptions)
               ],
             ),
             SizedBox(height: 12),
@@ -447,8 +453,13 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
                       children: [
                         Text(route['itinerary'].join(', ')),
                         SizedBox(height: 4),
+                        // Text(
+                        //   '${DateFormat("dd MMM yyyy").format(DateTime.parse(route['startDate']))} to ${DateFormat("dd MMM yyyy").format(DateTime.parse(route['endDate']))}',
+                        //   style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                        // ),
+
                         Text(
-                          '${DateFormat("dd MMM yyyy").format(DateTime.parse(route['startDate']))} to ${DateFormat("dd MMM yyyy").format(DateTime.parse(route['endDate']))}',
+                          '${DateFormat("dd MMM yyyy").format(DateTime.parse(route['startDate']))} ',
                           style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                         ),
                       ],

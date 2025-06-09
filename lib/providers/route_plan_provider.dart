@@ -158,6 +158,7 @@ class RoutePlanNotifier extends StateNotifier<RoutePlanState> {
           "district": List<String>.from(jsonRes['district'] ?? []),
           "zone": List<String>.from(jsonRes['zone'] ?? []),
           "taluka": List<String>.from(jsonRes['taluka'] ?? []),
+          "town": List<String>.from(jsonRes['town'] ?? []),
         };
       } else {
         return null;

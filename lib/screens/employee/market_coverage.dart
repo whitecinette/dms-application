@@ -559,7 +559,8 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
                   children: [
                     _tag(d['zone']),
                     _tag(d['district']),
-                    _tag(d['taluka']),
+                    // _tag(d['taluka']),
+                    _tag(d['town']),
                     _tag(d['position']),
                     if (d['route'] != null) _tag(d['route']),
                   ],
