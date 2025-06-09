@@ -89,6 +89,7 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
         'district': [],
         'taluka': [],
         'dealer/mdd': [],
+        'routes': [],
       },
       dateRange: _getDefaultWeekRange(),
       total: 0,
@@ -96,6 +97,7 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
       pending: 0,
     ),
   );
+  List<Map<String, dynamic>> _lastFetchedRoutes = [];
 
   static DateTimeRange _getDefaultWeekRange() {
     final now = DateTime.now();
@@ -104,10 +106,11 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
     return DateTimeRange(start: start, end: end);
   }
 
-  void setDateRange(DateTimeRange range) {
+  void setDateRange(DateTimeRange range, {bool fetch = true}) {
     state = state.copyWith(dateRange: range);
-    fetchCoverageData();
+    if (fetch) fetchCoverageData();
   }
+
 
   void resetFilters() {
     state = state.copyWith(
@@ -124,37 +127,27 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
     fetchCoverageData();
   }
 
-  void toggleRoute(String routeName) {
-    final current = List<String>.from(state.selectedFilters['routes'] ?? []);
+  Future<void> toggleRoute(String routeName) async {
+    // 1. Get all available routes
+    final allRoutes = _lastFetchedRoutes;
 
-    // 1. Toggle route name
-    if (current.contains(routeName)) {
-      current.remove(routeName);
+    // 2. Get current selected route names
+    final currentSelected = List<String>.from(state.selectedFilters['routes'] ?? []);
+
+    // 3. Toggle the selected route
+    if (currentSelected.contains(routeName)) {
+      currentSelected.remove(routeName);
     } else {
-      current.add(routeName);
+      currentSelected.add(routeName);
     }
 
-    // 2. Get selected routes
-    final selectedRoutes = state.routes.where((r) => current.contains(r['name'])).toList();
+    // 4. Get the full route objects from allRoutes based on updated selection
+    final selectedRoutes = allRoutes.where((r) => currentSelected.contains(r['name'])).toList();
 
-    // 3. Merge itinerary zones/districts/talukas
-    final Set<String> itineraryZones = {};
-    final Set<String> itineraryDistricts = {};
-    final Set<String> itineraryTalukas = {};
-
+    // 5. Calculate combined start and end date range
     DateTime? minStart;
     DateTime? maxEnd;
-
     for (final route in selectedRoutes) {
-      final itinerary = List<String>.from(route['itinerary'] ?? []);
-
-      // Simple assumption: we match all in any field
-      for (final item in itinerary) {
-        itineraryZones.add(item);
-        itineraryDistricts.add(item);
-        itineraryTalukas.add(item);
-      }
-
       final start = DateTime.tryParse(route['startDate'] ?? '');
       final end = DateTime.tryParse(route['endDate'] ?? '');
       if (start != null && (minStart == null || start.isBefore(minStart))) {
@@ -165,25 +158,19 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
       }
     }
 
-    // 4. Filter all dealers
-    final filtered = state.allDealers.where((dealer) {
-      return itineraryZones.contains(dealer['zone']) ||
-          itineraryDistricts.contains(dealer['district']) ||
-          itineraryTalukas.contains(dealer['taluka']);
-    }).toList();
-
-    // 5. Set state
+    // 6. Update state properly
     state = state.copyWith(
+      routes: selectedRoutes, // for UI info
       selectedFilters: {
         ...state.selectedFilters,
-        'routes': current,
+        'routes': currentSelected, // ✅ This line is the key!
       },
-      filteredDealers: filtered,
       dateRange: (minStart != null && maxEnd != null)
           ? DateTimeRange(start: minStart, end: maxEnd)
           : state.dateRange,
     );
   }
+
 
 
 
@@ -211,7 +198,7 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
     return state.dropdownValues[key] ?? [];
   }
 
-  Future<void> initialize() async {
+  Future<void> initialize({bool skipFetch = false}) async {
     final token = await AuthService.getToken();
     if (token == null) {
       print("❌ No token found");
@@ -244,7 +231,9 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
     }
 
     await fetchRoutePlans();
-    fetchCoverageData();
+    if (!skipFetch) {
+      await fetchCoverageData();
+    }
   }
 
   Future<void> fetchCoverageData({Position? currentLocation}) async {
@@ -315,7 +304,8 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
           }
 
           // Step 2: Get route itinerary list
-          final selectedRouteNames = state.selectedFilters['routes'] ?? [];
+          final selectedRouteNames = state.routes.map((r) => r['name']).toList();
+
           final itinerarySet = <String>{};
           for (final r in state.routes) {
             if (selectedRouteNames.contains(r['name'])) {
@@ -417,6 +407,8 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
         final res = json.decode(response.body);
         final List<Map<String, dynamic>> routeObjects = List<Map<String, dynamic>>.from(res['data']);
 
+        _lastFetchedRoutes = routeObjects;
+
         state = state.copyWith(
           routes: routeObjects,
           isRouteLoading: false, // ✅ Stop loading on success
@@ -430,7 +422,7 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
     }
   }
 
-  void updateDateRangeBasedOnRoutes() {
+  Future<void> updateDateRangeBasedOnRoutes() async {
     final selectedRouteNames = state.selectedFilters['routes'] ?? [];
     final selectedRoutes = state.routes.where((r) => selectedRouteNames.contains(r['name'])).toList();
 
@@ -449,12 +441,17 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
   }
 
   void updateFilter(String key, List<String> updatedList) {
+    print("🔄 Updating filter: $key => $updatedList"); // 👈 Log the change
+
     state = state.copyWith(selectedFilters: {
       ...state.selectedFilters,
       key: updatedList,
     });
+
+    print("✅ Current selectedFilters: ${state.selectedFilters}"); // 👈 See full state
     fetchCoverageData();
   }
+
 
 
 

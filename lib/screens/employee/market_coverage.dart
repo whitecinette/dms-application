@@ -8,7 +8,17 @@ import '../../utils/custom_pop_up.dart';
 
 class MarketCoverageScreen extends ConsumerStatefulWidget {
   final String? initialRouteName;
-  const MarketCoverageScreen({this.initialRouteName, super.key});
+  final DateTime? initialStartDate;
+  final DateTime? initialEndDate;
+  final List<String>? initialItinerary;
+
+  const MarketCoverageScreen({
+    this.initialRouteName,
+    this.initialStartDate,
+    this.initialEndDate,
+    this.initialItinerary,
+    super.key,
+});
 
   @override
   ConsumerState<MarketCoverageScreen> createState() => _MarketCoverageScreenState();
@@ -31,28 +41,42 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
 
   Future<void> _initData() async {
     final controller = ref.read(marketCoverageProvider.notifier);
+
     final permission = await Geolocator.requestPermission();
     if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
       CustomPopup.showPopup(context, "Permission Denied", "Location permission is required.", isSuccess: false);
       return;
     }
-    currentLocation = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-    controller.state = controller.state.copyWith(isLoading: true); // ✅ Immediate loading
 
-    await controller.initialize();
+    currentLocation = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+
+    controller.state = controller.state.copyWith(isLoading: true);
+
+    // ⛔ Don't pre-fetch if we're opening via RoutePlan
+    final shouldSkipInitFetch = widget.initialRouteName != null;
+
+    await controller.initialize(skipFetch: shouldSkipInitFetch); // <== You add skipFetch param
 
     if (widget.initialRouteName != null) {
-      controller.toggleRoute(widget.initialRouteName!);
-      controller.updateDateRangeBasedOnRoutes();
-      controller.fetchCoverageData(currentLocation: currentLocation);
-      setState(() {
-        showRoutes = false;
-      });
+      controller.updateFilter('routes', [widget.initialRouteName!]);
+
+
+      if (widget.initialStartDate != null && widget.initialEndDate != null) {
+        controller.setDateRange(
+          DateTimeRange(
+            start: widget.initialStartDate!,
+            end: widget.initialEndDate!,
+          ),
+          fetch: false,
+        );
+      }
+
+      await controller.fetchCoverageData(currentLocation: currentLocation);
+
+      setState(() => showRoutes = false);
     } else {
-      controller.fetchCoverageData(currentLocation: currentLocation);
+      await controller.fetchCoverageData(currentLocation: currentLocation);
     }
-
-
   }
 
 
@@ -288,10 +312,11 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
                 final isSelected = provider.selectedFilters['routes']?.contains(r['name']) ?? false;
 
                 return InkWell(
-                  onTap: () {
+                  onTap: () async {
                     final notifier = ref.read(marketCoverageProvider.notifier);
                     notifier.toggleRoute(r['name'] ?? '');
-                    notifier.updateDateRangeBasedOnRoutes(); // 👈 You need to define this method in the provider
+                    notifier.updateDateRangeBasedOnRoutes();
+                    await notifier.fetchCoverageData(currentLocation: currentLocation);// 👈 You need to define this method in the provider
                   },
 
                   child: Container(
@@ -355,6 +380,34 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
             runSpacing: 8,
             children: provider.dropdownValues.keys.map((filter) {
               final selectedValues = provider.selectedFilters[filter] ?? [];
+
+              // 👇 Get dropdown items safely using null-aware operator
+              final dropdownItems = provider.dropdownValues[filter]
+                  ?.map((e) => DropdownMenuItem<String>(
+                value: e,
+                child: Text(e),
+              ))
+                  .toList();
+
+              // 👇 Show loader if items not fetched yet
+              if (dropdownItems == null) {
+                return Container(
+                  width: 120,
+                  height: 40,
+                  alignment: Alignment.center,
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                );
+              }
+
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -368,12 +421,7 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
                       underline: SizedBox(),
                       hint: Text(filter),
                       value: null,
-                      items: provider.dropdownValues[filter]!
-                          .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e),
-                      ))
-                          .toList(),
+                      items: dropdownItems,
                       onChanged: (val) => controller.applyFilter(filter, val),
                     ),
                   ),

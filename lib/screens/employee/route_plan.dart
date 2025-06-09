@@ -424,18 +424,22 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
                   margin: EdgeInsets.all(10),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: ListTile(
-                    onTap: () {
-                      final provider = ref.read(marketCoverageProvider.notifier);
-                      provider.resetFilters(); // ✅ Clear all filters including routes
+                      onTap: () {
+                        final provider = ref.read(marketCoverageProvider.notifier);
+                        provider.resetFilters(); // ✅ Clear filters
 
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => MarketCoverageScreen(initialRouteName: route['name']),
-                        ),
-                      );
-                    },
-
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MarketCoverageScreen(
+                              initialRouteName: route['name'],
+                              initialStartDate: DateTime.parse(route['startDate']),
+                              initialEndDate: DateTime.parse(route['endDate']),
+                              initialItinerary: List<String>.from(route['itinerary']),
+                            ),
+                          ),
+                        );
+                      },
                     leading: Icon(Icons.near_me_outlined),
                     title: Text(route['name'], style: TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Column(
