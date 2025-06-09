@@ -64,7 +64,7 @@ class EmployeeSidebar extends StatelessWidget {
             leading: Icon(Icons.people),
             title: Text("Human Resources"),
             children: [
-              _buildDrawerItem(Icons.event, "Attendance", context, AttendanceScreen()),
+              _buildDrawerItem(Icons.event, "Attendance & Leave", context, AttendanceScreen()),
               _buildDrawerItem(Icons.receipt, "Payslip", context, PayslipScreen()),
               _buildDrawerItem(Icons.card_giftcard, "Vouchers", context, VouchersScreen()),
             ],

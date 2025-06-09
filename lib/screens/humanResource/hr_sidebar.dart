@@ -1,5 +1,6 @@
 // lib/screens/humanResource/HumanResourceSidebar.dart
 
+import 'package:dms_app/screens/employee/punch_in_out_emp.dart';
 import 'package:dms_app/screens/humanResource/actor_code.dart';
 import 'package:dms_app/screens/humanResource/attendance.dart';
 import 'package:dms_app/screens/humanResource/Hr_beat_mapping.dart';
@@ -72,7 +73,7 @@ class HumanResourceSidebar extends StatelessWidget {
               _buildDrawerItem(Icons.person_outline, "User Profile", context, UserProfileScreen()),
             ],
           ),
-          _buildDrawerItem(Icons.fingerprint, "Punch In/Out", context, PunchInOut()),
+          _buildDrawerItem(Icons.fingerprint, "Punch In/Out", context, PunchInOutEmp()),
           _buildDrawerItem(Icons.account_circle, "Profile", context, ProfileScreen()),
           Divider(),
           _buildDrawerItem(Icons.exit_to_app, "Logout", context, LoginScreen(), isLogout: true),

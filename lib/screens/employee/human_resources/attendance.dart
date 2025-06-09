@@ -12,24 +12,30 @@ class AttendanceScreen extends StatefulWidget {
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
-  bool showPunchIn = true;
   String? selectedStatus;
-  DateTime? startDate;
-  DateTime? endDate;
+  DateTimeRange? selectedDateRange;
   int page = 1;
   bool isLoadingMore = false;
   bool hasMore = true;
+  bool showAttendance = true;
+
+  // Leave filters:
+  String? leaveSelectedStatus;
+  DateTimeRange? leaveSelectedDateRange;
 
   List<Map<String, dynamic>> attendanceData = [];
+  List<Map<String, dynamic>> leaveData = [];
+  bool isLeaveLoading = false;
+
   final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _fetchAttendanceData(reset: true);
-
     _scrollController.addListener(() {
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 100 &&
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 100 &&
           !isLoadingMore &&
           hasMore) {
         _fetchAttendanceData();
@@ -38,6 +44,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Future<void> _fetchAttendanceData({bool reset = false}) async {
+    if (!showAttendance) return;
+
     if (reset) {
       setState(() {
         page = 1;
@@ -50,22 +58,67 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       isLoadingMore = true;
     });
 
-    final newData = await ApiService.getEmployeeAttendance(
-      status: selectedStatus != null && selectedStatus != "All" ? selectedStatus : null,
-      startDate: startDate,
-      endDate: endDate,
-      page: page,
-    );
+    try {
+      final newData = await ApiService.getEmployeeAttendance(
+        status: selectedStatus != null && selectedStatus != "All"
+            ? selectedStatus
+            : null,
+        startDate: selectedDateRange?.start,
+        endDate: selectedDateRange?.end,
+        page: page,
+      );
+
+      setState(() {
+        if (newData.isEmpty) {
+          hasMore = false;
+        } else {
+          attendanceData.addAll(newData);
+          page++;
+        }
+      });
+    } catch (e) {
+      // Handle error
+    } finally {
+      setState(() {
+        isLoadingMore = false;
+      });
+    }
+  }
+
+  Future<void> _fetchLeaveData({bool reset = false}) async {
+    if (showAttendance) return;
+
+    if (reset) {
+      setState(() {
+        leaveData.clear();
+      });
+    }
 
     setState(() {
-      if (newData.isEmpty) {
-        hasMore = false;
-      } else {
-        attendanceData.addAll(newData);
-        page++;
-      }
-      isLoadingMore = false;
+      isLeaveLoading = true;
     });
+    try {
+      final data = await ApiService.getRequestedLeaves(
+        fromDate: leaveSelectedDateRange != null
+            ? leaveSelectedDateRange!.start.toIso8601String()
+            : null,
+        toDate: leaveSelectedDateRange != null
+            ? leaveSelectedDateRange!.end.toIso8601String()
+            : null,
+        status: leaveSelectedStatus != null && leaveSelectedStatus != "All"
+            ? leaveSelectedStatus
+            : null,
+      );
+      setState(() {
+        leaveData = data;
+      });
+    } catch (e) {
+      print('Error fetching leave data: $e');
+    } finally {
+      setState(() {
+        isLeaveLoading = false;
+      });
+    }
   }
 
   void _filterByStatus(String? status) {
@@ -75,13 +128,66 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     _fetchAttendanceData(reset: true);
   }
 
-  String formatDate(String date) =>
-      DateFormat('dd MMM yyyy').format(DateTime.parse(date).toLocal());
+  void _filterLeaveByStatus(String? status) {
+    setState(() {
+      leaveSelectedStatus = status;
+    });
+    _fetchLeaveData(reset: true);
+  }
 
+  void _pickDateRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: now,
+      initialDateRange: selectedDateRange ??
+          DateTimeRange(start: now.subtract(const Duration(days: 7)), end: now),
+    );
+    if (picked != null) {
+      setState(() => selectedDateRange = picked);
+      _fetchAttendanceData(reset: true);
+    }
+  }
+
+  void _pickLeaveDateRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: now,
+      initialDateRange: leaveSelectedDateRange ??
+          DateTimeRange(start: now.subtract(const Duration(days: 7)), end: now),
+    );
+    if (picked != null) {
+      setState(() => leaveSelectedDateRange = picked);
+      _fetchLeaveData(reset: true);
+    }
+  }
+
+  void _clearFilters() {
+    setState(() {
+      selectedDateRange = null;
+      selectedStatus = null;
+    });
+    _fetchAttendanceData(reset: true);
+  }
+
+  void _clearLeaveFilters() {
+    setState(() {
+      leaveSelectedDateRange = null;
+      leaveSelectedStatus = null;
+    });
+    _fetchLeaveData(reset: true);
+  }
+
+  String formatDate(DateTime date) => DateFormat('dd MMM yyyy').format(date);
+  String formatDateString(String date) =>
+      DateFormat('dd MMM yyyy').format(DateTime.parse(date).toLocal());
   String formatTime(String time) =>
       DateFormat('hh:mm a').format(DateTime.parse(time).toLocal());
 
-  Color _getStatusColor(String status) {
+  Color _getStatusColor(String? status) {
     switch (status) {
       case "Pending":
         return Colors.orange;
@@ -98,6 +204,111 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
+  Widget _buildLeaveFilterUI() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: _pickLeaveDateRange,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today_outlined, size: 20, color: Colors.blue),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            leaveSelectedDateRange == null
+                                ? "Select Date Range"
+                                : "${formatDate(leaveSelectedDateRange!.start)} - ${formatDate(leaveSelectedDateRange!.end)}",
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: leaveSelectedDateRange == null ? Colors.grey.shade600 : Colors.black87,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              if (leaveSelectedDateRange != null)
+                IconButton(
+                  icon: const Icon(Icons.clear, color: Colors.redAccent),
+                  onPressed: () {
+                    setState(() => leaveSelectedDateRange = null);
+                    _fetchLeaveData(reset: true);
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: leaveSelectedStatus ?? "All",
+                  decoration: InputDecoration(
+                    labelText: "Status",
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                  ),
+                  items: ["All", "pending", "approved", "rejected"]
+                      .map((status) => DropdownMenuItem(
+                    value: status,
+                    child: Text(status),
+                  ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == "All") value = null;
+                    _filterLeaveByStatus(value);
+                  },
+                ),
+              ),
+              if (leaveSelectedStatus != null || leaveSelectedDateRange != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 12),
+                  child: ElevatedButton.icon(
+                    onPressed: _clearLeaveFilters,
+                    icon: const Icon(Icons.clear),
+                    label: const Text("Clear Filters"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLeaveList() {
+    if (isLeaveLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (leaveData.isEmpty) {
+      return const Center(child: Text("No leave requests found."));
+    }
+    return ListView.builder(
+      itemCount: leaveData.length,
+      itemBuilder: (context, index) => LeaveCard(leave: leaveData[index]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -106,186 +317,185 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => _fetchAttendanceData(reset: true),
+            tooltip: "Refresh Data",
+            onPressed: () {
+              if (showAttendance) {
+                _fetchAttendanceData(reset: true);
+              } else {
+                _fetchLeaveData(reset: true);
+              }
+            },
           ),
         ],
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.only(top: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // 🔁 Toggle Buttons for Punch In / Punch Out
-                Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () =>
-                              setState(() => showPunchIn = true),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: showPunchIn
-                                ? Colors.blue
-                                : Colors.grey[300],
-                          ),
-                          child: Text(
-                            "Punch In",
-                            style: TextStyle(
-                              color:
-                              showPunchIn ? Colors.white : Colors.black,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                GestureDetector(
+                  onTap: () {
+                    if (!showAttendance) {
+                      setState(() => showAttendance = true);
+                      _fetchAttendanceData(reset: true);
+                    }
+                  },
+                  child: Container(
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: showAttendance
+                          ? Colors.blue.shade100
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Attendance',
+                      style: TextStyle(
+                        color: showAttendance ? Colors.blue : Colors.black87,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () =>
-                              setState(() => showPunchIn = false),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: !showPunchIn
-                                ? Colors.blue
-                                : Colors.grey[300],
-                          ),
-                          child: Text(
-                            "Punch Out",
-                            style: TextStyle(
-                              color: !showPunchIn
-                                  ? Colors.white
-                                  : Colors.black,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 16),
-
-                // 🔍 Status Dropdown Filter
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: selectedStatus ?? "All",
-                        decoration: const InputDecoration(
-                          labelText: "Status",
-                          border: OutlineInputBorder(),
-                        ),
-                        items: ["All", "Present", "Absent", "Half Day",
-                          "Pending"]
-                            .map((status) => DropdownMenuItem(
-                          value: status,
-                          child: Text(status),
-                        ))
-                            .toList(),
-                        onChanged: _filterByStatus,
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: () {
+                    if (showAttendance) {
+                      setState(() => showAttendance = false);
+                      _fetchLeaveData(reset: true);
+                    }
+                  },
+                  child: Container(
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: !showAttendance
+                          ? Colors.blue.shade100
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Leave',
+                      style: TextStyle(
+                        color: !showAttendance ? Colors.blue : Colors.black87,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        setState(() => selectedStatus = null);
-                        _fetchAttendanceData(reset: true);
-                      },
-                    )
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                // 📆 Date Pickers Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: startDate ?? DateTime.now(),
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime.now(),
-                          );
-                          if (picked != null) {
-                            setState(() => startDate = picked);
-                          }
-                        },
-                        child: InputDecorator(
-                          decoration: const InputDecoration(
-                            labelText: "Start Date",
-                            border: OutlineInputBorder(),
-                          ),
-                          child: Text(
-                            startDate != null ? DateFormat('dd MMM yyyy').format(startDate!) : "Select",
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: endDate ?? DateTime.now(),
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime.now(),
-                          );
-                          if (picked != null) {
-                            setState(() => endDate = picked);
-                          }
-                        },
-                        child: InputDecorator(
-                          decoration: const InputDecoration(
-                            labelText: "End Date",
-                            border: OutlineInputBorder(),
-                          ),
-                          child: Text(
-                            endDate != null ? DateFormat('dd MMM yyyy').format(endDate!) : "Select",
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        setState(() {
-                          startDate = null;
-                          endDate = null;
-                        });
-                        _fetchAttendanceData(reset: true);
-                      },
-                    )
-                  ],
-                ),
-
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: ElevatedButton(
-                    onPressed: () => _fetchAttendanceData(reset: true),
-                    child: const Text("Apply Filters"),
                   ),
                 ),
               ],
             ),
           ),
 
+          if (showAttendance)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Attendance Date filter
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: _pickDateRange,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 14, horizontal: 12),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade400),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today_outlined,
+                                    size: 20, color: Colors.blue),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    selectedDateRange == null
+                                        ? "Select Date Range"
+                                        : "${formatDate(selectedDateRange!.start)} - ${formatDate(selectedDateRange!.end)}",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: selectedDateRange == null
+                                          ? Colors.grey.shade600
+                                          : Colors.black87,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (selectedDateRange != null)
+                        IconButton(
+                          icon: const Icon(Icons.clear, color: Colors.redAccent),
+                          onPressed: () {
+                            setState(() => selectedDateRange = null);
+                            _fetchAttendanceData(reset: true);
+                          },
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Attendance Status filter
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: selectedStatus ?? "All",
+                          decoration: InputDecoration(
+                            labelText: "Status",
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                            contentPadding: const EdgeInsets.symmetric(
+                                vertical: 14, horizontal: 12),
+                          ),
+                          items: ["All", "Present", "Absent", "Half Day", "Pending"]
+                              .map((status) => DropdownMenuItem(
+                            value: status,
+                            child: Text(status),
+                          ))
+                              .toList(),
+                          onChanged: (value) {
+                            if (value == "All") value = null;
+                            _filterByStatus(value);
+                          },
+                        ),
+                      ),
+                      if (selectedStatus != null || selectedDateRange != null)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 12),
+                          child: ElevatedButton.icon(
+                            onPressed: _clearFilters,
+                            icon: const Icon(Icons.clear),
+                            label: const Text("Clear Filters"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.redAccent,
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 14, horizontal: 12),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            )
+          else
+            _buildLeaveFilterUI(),
 
           Expanded(
-            child: attendanceData.isEmpty && isLoadingMore
+            child: showAttendance
                 ? ListView.builder(
-              itemCount: 5,
-              itemBuilder: (_, __) => ShimmerPlaceholder(),
-            )
-                : ListView.builder(
               controller: _scrollController,
               itemCount: attendanceData.length + (isLoadingMore ? 1 : 0),
               itemBuilder: (context, index) {
@@ -295,18 +505,25 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     child: Center(child: CircularProgressIndicator()),
                   );
                 }
-
                 final item = attendanceData[index];
-
-                return AttendanceCard(
-                  item: item,
-                  showPunchIn: showPunchIn,
-                  formatDate: formatDate,
-                  formatTime: formatTime,
-                  getStatusColor: _getStatusColor,
+                return Column(
+                  children: [
+                    PunchInCard(
+                      item: item,
+                      formatDate: formatDateString,
+                      formatTime: formatTime,
+                      getStatusColor: _getStatusColor,
+                    ),
+                    PunchOutCard(
+                      item: item,
+                      formatDate: formatDateString,
+                      formatTime: formatTime,
+                    ),
+                  ],
                 );
               },
-            ),
+            )
+                : _buildLeaveList(),
           ),
         ],
       ),
@@ -314,7 +531,79 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 }
 
-// COMPONENT: Shimmer placeholder
+class LeaveCard extends StatelessWidget {
+  final Map<String, dynamic> leave;
+  const LeaveCard({super.key, required this.leave});
+
+  String formatDate(String date) =>
+      DateFormat('dd MMM yyyy').format(DateTime.parse(date).toLocal());
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange;
+      case 'approved':
+        return Colors.green;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Type: ${leave['leaveType']?.toString().toUpperCase() ?? 'LEAVE'}",
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text("From: ${formatDate(leave['fromDate'])}"),
+            Text("To: ${formatDate(leave['toDate'])}"),
+            // const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    "Reason: ${leave['reason'] ?? 'N/A'}",
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(leave['status'] ?? ''),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  leave['status'] ?? '',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _getStatusColor(leave['status'] ?? ''),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class ShimmerPlaceholder extends StatelessWidget {
   const ShimmerPlaceholder({super.key});
 
@@ -331,17 +620,14 @@ class ShimmerPlaceholder extends StatelessWidget {
   }
 }
 
-// COMPONENT: Attendance Card
-class AttendanceCard extends StatelessWidget {
+class PunchInCard extends StatelessWidget {
   final Map<String, dynamic> item;
-  final bool showPunchIn;
   final String Function(String) formatDate;
   final String Function(String) formatTime;
-  final Color Function(String) getStatusColor;
+  final Color Function(String?) getStatusColor;
 
-  const AttendanceCard({
+  const PunchInCard({
     required this.item,
-    required this.showPunchIn,
     required this.formatDate,
     required this.formatTime,
     required this.getStatusColor,
@@ -351,58 +637,62 @@ class AttendanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      elevation: 4,
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(formatDate(item['date']),
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: getStatusColor(item['status']).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(item['status'],
-                      style: TextStyle(
-                          color: getStatusColor(item['status']),
-                          fontWeight: FontWeight.w600)),
-                ),
-              ],
+            Text(
+              formatDate(item['date']),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
-            if (showPunchIn)
-              _buildPunchRow(
-                imageUrl: item['punchInImage'],
-                label: 'Punch In',
-                time: item['punchIn'],
-                code: item['punchInCode'],
-                location: item['punchInName'],
-                formatTime: formatTime,
-              )
-            else
-              _buildPunchRow(
-                imageUrl: item['punchOutImage'],
-                label: 'Punch Out',
-                time: item['punchOut'],
-                code: item['punchOutCode'],
-                location: item['punchOutName'],
-                formatTime: formatTime,
-              ),
-            const SizedBox(height: 10),
             Row(
               children: [
-                Icon(Icons.access_time, size: 20, color: Colors.grey[600]),
-                const SizedBox(width: 6),
-                Text("Hours Worked: ${item['hoursWorked'] ?? 'N/A'}"),
+                CircleAvatar(
+                  radius: 30,
+                  backgroundImage: item['punchInImage'] != null
+                      ? NetworkImage(item['punchInImage'])
+                      : const AssetImage("assets/images/placeholder.png")
+                  as ImageProvider,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Time: ${item['punchIn'] != null ? formatTime(item['punchIn']) : 'N/A'}",
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(item['punchInCode'] ?? 'N/A'),
+                      Text(item['punchInName'] ?? 'N/A'),
+                    ],
+                  ),
+                ),
+                Row(
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: getStatusColor(item['status']),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      item['status'] ?? '',
+                      style: TextStyle(
+                        color: getStatusColor(item['status']),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ],
@@ -410,36 +700,65 @@ class AttendanceCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildPunchRow({
-    required String? imageUrl,
-    required String label,
-    required String? time,
-    required String? code,
-    required String? location,
-    required String Function(String) formatTime,
-  }) {
-    return Row(
-      children: [
-        CircleAvatar(
-          radius: 30,
-          backgroundImage: imageUrl != null
-              ? NetworkImage(imageUrl)
-              : const AssetImage("assets/images/placeholder.png") as ImageProvider,
+class PunchOutCard extends StatelessWidget {
+  final Map<String, dynamic> item;
+  final String Function(String) formatDate;
+  final String Function(String) formatTime;
+
+  const PunchOutCard({
+    required this.item,
+    required this.formatDate,
+    required this.formatTime,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              formatDate(item['date']),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundImage: item['punchOutImage'] != null
+                      ? NetworkImage(item['punchOutImage'])
+                      : const AssetImage("assets/images/placeholder.png")
+                  as ImageProvider,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Time: ${item['punchOut'] != null ? formatTime(item['punchOut']) : 'N/A'}",
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(item['punchOutCode'] ?? 'N/A'),
+                      Text(item['punchOutName'] ?? 'N/A'),
+                      Text("Hours Worked: ${item['hoursWorked'] ?? 'N/A'}"),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("$label: ${time != null ? formatTime(time) : 'N/A'}",
-                  style: const TextStyle(fontWeight: FontWeight.w500)),
-              Text("Code: ${code ?? 'N/A'}"),
-              Text("Location: ${location ?? 'N/A'}"),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

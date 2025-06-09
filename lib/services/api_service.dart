@@ -650,6 +650,48 @@ class ApiService {
     }
   }
 
+  static Future<List<Map<String, dynamic>>> getRequestedLeaves({
+    String? fromDate,
+    String? toDate,
+    String? status,
+  }) async {
+    print("Fetching leave requests for logged-in employee");
+
+    // Build query parameters map
+    final queryParams = <String, String>{};
+    if (fromDate != null) queryParams['fromDate'] = fromDate;
+    if (toDate != null) queryParams['toDate'] = toDate;
+    if (status != null) queryParams['status'] = status;
+
+    // Build URI with query parameters
+    final uri = Uri.parse('${Config.backendUrl}/get-requested-leave-emp').replace(queryParameters: queryParams);
+
+    String? token = await AuthService.getToken();
+    if (token == null) throw Exception("User not authenticated");
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    print("Leave requests API response: ${response.statusCode}");
+    print("Body: ${response.body}");
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> jsonResponse = json.decode(response.body);
+
+      if (jsonResponse['success'] == true) {
+        return List<Map<String, dynamic>>.from(jsonResponse['leaves']);
+      } else {
+        throw Exception('API returned success false');
+      }
+    } else {
+      throw Exception('Failed to load leave requests: ${response.statusCode}');
+    }
+  }
 
 }
 
