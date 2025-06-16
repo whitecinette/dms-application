@@ -9,6 +9,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
+import 'package:url_launcher/url_launcher.dart';
+
 class BillUploadScreen extends StatefulWidget {
   @override
   _BillUploadScreenState createState() => _BillUploadScreenState();
@@ -72,7 +74,7 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
       request.headers['Authorization'] = 'Bearer $token';
 
       request.fields['billType'] = billType!;
-      request.fields['remarks'] = remarks ?? '';
+      request.fields['remarks'] = (remarks == null || remarks!.trim().isEmpty) ? 'No remarks' : remarks!;
       request.fields['amount'] = amount ?? '0';
       request.fields['isGenerated'] = 'false';
 
@@ -118,6 +120,7 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
   }
 
   Future<void> fetchBills() async {
+    print("fetching bill");
     setState(() {
       isBillsLoading = true;
       billsError = null;
@@ -127,11 +130,15 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
 
-      final queryParams = {
-        if (selectedStatus != null) 'status': selectedStatus!,
-        if (selectedStartDate != null)
-          'startDate': selectedStartDate!.toIso8601String().split('T')[0],
-      };
+      // Build query parameters
+      final queryParams = <String, String>{};
+      if (selectedStatus != null) {
+        queryParams['status'] = selectedStatus!;
+      }
+      if (selectedStartDate != null) {
+        final formattedDate = selectedStartDate!.toIso8601String().split('T')[0];
+        queryParams['startDate'] = formattedDate;
+      }
 
       final uri = Uri.parse("${Config.backendUrl}/get-bills-for-emp")
           .replace(queryParameters: queryParams);
@@ -141,14 +148,16 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
         'Content-Type': 'application/json',
       });
 
-      final data = json.decode(response.body);
-
       if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print(data); // or print(data); to inspect the full response
+        print(data['bills'][0]['billsUpload']); // Check if image array exists
         setState(() {
           allBills = List<Map<String, dynamic>>.from(data['bills']);
           isBillsLoading = false;
         });
       } else {
+        final data = json.decode(response.body);
         setState(() {
           billsError = data['message'] ?? 'Failed to load bills.';
           isBillsLoading = false;
@@ -160,6 +169,67 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
         isBillsLoading = false;
       });
     }
+  }
+
+  void _showBillImagesPopup(List<dynamic> images) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text("Bills"),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: images.isEmpty
+              ? Text("No images available.")
+              : ListView.builder(
+            shrinkWrap: true,
+            itemCount: images.length,
+            itemBuilder: (context, index) {
+              final imageUrl = images[index];
+              final isImage = imageUrl.endsWith('.jpg') ||
+                  imageUrl.endsWith('.jpeg') ||
+                  imageUrl.endsWith('.png');
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: isImage
+                    ? ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(imageUrl, height: 150),
+                )
+                    : InkWell(
+                  onTap: () async {
+                    // You can use url_launcher to open the PDF externally
+                    if (await canLaunchUrl(Uri.parse(imageUrl))) {
+                      launchUrl(Uri.parse(imageUrl));
+                    }
+                  },
+                  child: Row(
+                    children: [
+                      Icon(Icons.picture_as_pdf, color: Colors.red),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "Open PDF ${index + 1}",
+                          style: TextStyle(
+                              decoration: TextDecoration.underline,
+                              color: Colors.blue),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text("Close"),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _pickPdf() async {
@@ -413,7 +483,6 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
                 ),
               ),
               onChanged: (val) => remarks = val,
-              validator: (val) => val!.trim().isEmpty ? 'Required' : null,
             ),
           ),
           SizedBox(height: 16),
@@ -665,11 +734,20 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
                   final rawStatus = (bill['status'] ?? 'pending').toString().trim().toLowerCase();
                   final displayStatus = rawStatus[0].toUpperCase() + rawStatus.substring(1);
 
-                  final statusColor = rawStatus == 'pending'
-                      ? Colors.orange
-                      : rawStatus == 'paid'
-                      ? Colors.green
-                      : Colors.grey;
+                  final statusColor = () {
+                    switch (rawStatus) {
+                      case 'rejected':
+                        return Colors.red;
+                      case 'approved':
+                        return Colors.orange;
+                      case 'paid':
+                        return Colors.green;
+                      case 'pending':
+                        return Colors.amber;
+                      default:
+                        return Colors.grey;
+                    }
+                  }();
 
                   return Container(
                     margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -693,62 +771,116 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text("Date - ${bill['createdAt']?.toString().split('T')[0] ?? 'N/A'}"),
-                              Text("Amount - ${bill['amount'] ?? '0'}"),
-                              Text("Type - ${bill['billType'] ?? ''}"),
-                              Text("Remark - ${bill['remarks'] ?? ''}"),
+                              Row(
+                                children: [
+                                  Icon(Icons.calendar_today, size: 16, color: Colors.indigo),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    bill['createdAt']?.toString().split('T')[0] ?? 'N/A',
+                                    style: TextStyle(color: Colors.black87),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Icon(Icons.currency_rupee, size: 16, color: Colors.green),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    bill['amount']?.toString() ?? '0',
+                                    style: TextStyle(color: Colors.black87),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Icon(Icons.receipt_long, size: 16, color: Colors.deepOrange),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    bill['billType'] ?? '',
+                                    style: TextStyle(color: Colors.black87),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 6),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(Icons.comment, size: 16, color: Colors.purple),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      bill['remarks'] ?? '',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(color: Colors.black87),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+
+
+
+                        ),
+                        Container(
+                          height: 80,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 10,
+                                    height: 10,
+                                    margin: EdgeInsets.only(right: 6),
+                                    decoration: BoxDecoration(
+                                      color: statusColor,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  Text(
+                                    displayStatus,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: statusColor,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Align(
+                                alignment: Alignment.bottomRight,
+                                child: TextButton(
+                                  onPressed: () {
+                                    final billImages = bill['billImages'] ?? [];
+                                    _showBillImagesPopup(billImages);
+                                  },
+                                  child: Text(
+                                    "View Bills",
+                                    style: TextStyle(
+                                      decoration: TextDecoration.underline,
+                                      fontSize: 13,
+                                      color: Colors.blue,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: Size(0, 0),
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                ),
+
+                              ),
                             ],
                           ),
                         ),
 
-                        // 🟢 Right: status as dot + label, and button
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  width: 10,
-                                  height: 10,
-                                  margin: EdgeInsets.only(right: 6),
-                                  decoration: BoxDecoration(
-                                    color: statusColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                Text(
-                                  displayStatus,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: statusColor,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 12),
-                            TextButton(
-                              onPressed: () {
-                                // Handle view bills
-                              },
-                              child: Text(
-                                "View Bills",
-                                style: TextStyle(
-                                  decoration: TextDecoration.underline,
-                                  fontSize: 13,
-                                  color: Colors.blue, // You can change this to match your theme
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                            ),
-
-                          ],
-                        ),
                       ],
                     ),
                   );
