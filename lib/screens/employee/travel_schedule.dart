@@ -909,19 +909,31 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
               padding: const EdgeInsets.only(right: 18.0), // shift it left by 12 pixels
               child: TextButton(
                 onPressed: () {
-                  setState(() {
-                    billType = null;
-                    remarks = null;
-                    selectedImages.clear();
-                  });
-                  _formKey.currentState?.reset();
-                  CustomPopup.showPopup(
-                    context,
-                    "Form Reset",
-                    "Form cleared successfully!",
-                    isSuccess: true,
-                  );
+                  if (selectedTab == 0) {
+                    // Upload Bills tab reset
+                    setState(() {
+                      billType = null;
+                      remarks = null;
+                      selectedImages.clear();
+                    });
+                    _formKey.currentState?.reset();
+                    CustomPopup.showPopup(
+                      context,
+                      "Form Reset",
+                      "Form cleared successfully!",
+                      isSuccess: true,
+                    );
+                  } else {
+                    // All Bills tab reset
+                    setState(() {
+                      selectedStartDate = null;
+                      selectedStatus = null;
+                    });
+                    fetchBills(); // Refresh the bills
+                    // ❌ No popup here
+                  }
                 },
+
                 style: TextButton.styleFrom(
                   backgroundColor: Color(0xFFB6CAED),
                   side: BorderSide(color: Color(0xFF1A4AA4), width: 1),
