@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
@@ -139,6 +140,7 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
         final formattedDate = selectedStartDate!.toIso8601String().split('T')[0];
         queryParams['startDate'] = formattedDate;
       }
+
 
       final uri = Uri.parse("${Config.backendUrl}/get-bills-for-emp")
           .replace(queryParameters: queryParams);
@@ -773,10 +775,12 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.calendar_today, size: 16, color: Colors.indigo),
+                                  Icon(Icons.calendar_month_rounded, size: 20, color: Colors.indigo.shade400),
                                   SizedBox(width: 8),
                                   Text(
-                                    bill['createdAt']?.toString().split('T')[0] ?? 'N/A',
+                                    bill['createdAt'] != null
+                                        ? DateFormat('d-MMM-y').format(DateTime.parse(bill['createdAt']))
+                                        : 'N/A',
                                     style: TextStyle(color: Colors.black87),
                                   ),
                                 ],
@@ -784,10 +788,10 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
                               SizedBox(height: 6),
                               Row(
                                 children: [
-                                  Icon(Icons.currency_rupee, size: 16, color: Colors.green),
+                                  Icon(Icons.currency_rupee, size: 20, color: Colors.green.shade300),
                                   SizedBox(width: 8),
                                   Text(
-                                    bill['amount']?.toString() ?? '0',
+                                    NumberFormat.decimalPattern('en_IN').format(num.tryParse(bill['amount']?.toString() ?? '0') ?? 0),
                                     style: TextStyle(color: Colors.black87),
                                   ),
                                 ],
@@ -795,7 +799,7 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
                               SizedBox(height: 6),
                               Row(
                                 children: [
-                                  Icon(Icons.receipt_long, size: 16, color: Colors.deepOrange),
+                                  Icon(Icons.receipt_long_rounded, size: 20, color: Colors.orangeAccent.shade200),
                                   SizedBox(width: 8),
                                   Text(
                                     bill['billType'] ?? '',
@@ -807,7 +811,7 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Icon(Icons.comment, size: 16, color: Colors.purple),
+                                  Icon(Icons.comment_rounded, size: 20, color: Colors.blueGrey),
                                   SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
