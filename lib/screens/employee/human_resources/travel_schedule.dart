@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:dms_app/config.dart';
+import 'package:dms_app/services/auth_service.dart';
 import 'package:dms_app/utils/custom_pop_up.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:file_picker/file_picker.dart';
@@ -67,20 +68,20 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
     });
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("token");
-
-      var uri = Uri.parse("${Config.backendUrl}/upload-bills");
+      final uri = Uri.parse("${Config.backendUrl}/upload-bills");
+      final token = await AuthService.getToken(); // assumes you saved token via login
+      if (token == null) {
+        throw Exception("No token found. Please login again.");
+      }
       var request = http.MultipartRequest('POST', uri);
       request.headers['Authorization'] = 'Bearer $token';
-
       request.fields['billType'] = billType!;
       request.fields['remarks'] = (remarks == null || remarks!.trim().isEmpty) ? 'No remarks' : remarks!;
       request.fields['amount'] = amount ?? '0';
       request.fields['isGenerated'] = 'false';
 
       for (var img in selectedImages) {
-        var file = await http.MultipartFile.fromPath("billsUpload", img.path);
+        var file = await http.MultipartFile.fromPath("billsUpload", img.path); // must match multer
         request.files.add(file);
       }
 
@@ -765,128 +766,157 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
                         ),
                       ],
                     ),
-                    child: Row(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 📄 Left info section
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        // 🏷️ Bill Number Tag Heading
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          margin: EdgeInsets.only(bottom: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.deepPurple.shade50,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.deepPurple.shade100),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.calendar_month_rounded, size: 20, color: Colors.indigo.shade400),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    bill['createdAt'] != null
-                                        ? DateFormat('d-MMM-y').format(DateTime.parse(bill['createdAt']))
-                                        : 'N/A',
-                                    style: TextStyle(color: Colors.black87),
-                                  ),
-                                ],
+                              Icon(Icons.confirmation_number_outlined, size: 16, color: Colors.deepPurple),
+                              SizedBox(width: 6),
+                              Text(
+                                bill['billNumber'] ?? 'Unknown',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.deepPurple,
+                                ),
                               ),
-                              SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  Icon(Icons.currency_rupee, size: 20, color: Colors.green.shade300),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    NumberFormat.decimalPattern('en_IN').format(num.tryParse(bill['amount']?.toString() ?? '0') ?? 0),
-                                    style: TextStyle(color: Colors.black87),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  Icon(Icons.receipt_long_rounded, size: 20, color: Colors.orangeAccent.shade200),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    bill['billType'] ?? '',
-                                    style: TextStyle(color: Colors.black87),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 6),
-                              Row(
+                            ],
+                          ),
+                        ),
+
+                        // 👇 Existing row layout
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 📄 Left info section
+                            Expanded(
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Icon(Icons.comment_rounded, size: 20, color: Colors.blueGrey),
-                                  SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      bill['remarks'] ?? '',
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(color: Colors.black87),
-                                    ),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.calendar_month_rounded, size: 20, color: Colors.indigo.shade400),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        bill['createdAt'] != null
+                                            ? DateFormat('d-MMM-y').format(DateTime.parse(bill['createdAt']))
+                                            : 'N/A',
+                                        style: TextStyle(color: Colors.black87),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.currency_rupee, size: 20, color: Colors.green.shade300),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        NumberFormat.decimalPattern('en_IN').format(num.tryParse(bill['amount']?.toString() ?? '0') ?? 0),
+                                        style: TextStyle(color: Colors.black87),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.receipt_long_rounded, size: 20, color: Colors.orangeAccent.shade200),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        bill['billType'] ?? '',
+                                        style: TextStyle(color: Colors.black87),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 6),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(Icons.comment_rounded, size: 20, color: Colors.blueGrey),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          bill['remarks'] ?? '',
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(color: Colors.black87),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                            ],
-                          ),
-
-
-
-                        ),
-                        Container(
-                          height: 80,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
+                            ),
+                            Container(
+                              height: 80,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  Container(
-                                    width: 10,
-                                    height: 10,
-                                    margin: EdgeInsets.only(right: 6),
-                                    decoration: BoxDecoration(
-                                      color: statusColor,
-                                      shape: BoxShape.circle,
-                                    ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 10,
+                                        height: 10,
+                                        margin: EdgeInsets.only(right: 6),
+                                        decoration: BoxDecoration(
+                                          color: statusColor,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      Text(
+                                        displayStatus,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: statusColor,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  Text(
-                                    displayStatus,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: statusColor,
-                                      fontSize: 13,
+                                  Align(
+                                    alignment: Alignment.bottomRight,
+                                    child: TextButton(
+                                      onPressed: () {
+                                        final billImages = bill['billImages'] ?? [];
+                                        _showBillImagesPopup(billImages);
+                                      },
+                                      child: Text(
+                                        "View Bills",
+                                        style: TextStyle(
+                                          decoration: TextDecoration.underline,
+                                          fontSize: 13,
+                                          color: Colors.blue,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.zero,
+                                        minimumSize: Size(0, 0),
+                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                              Align(
-                                alignment: Alignment.bottomRight,
-                                child: TextButton(
-                                  onPressed: () {
-                                    final billImages = bill['billImages'] ?? [];
-                                    _showBillImagesPopup(billImages);
-                                  },
-                                  child: Text(
-                                    "View Bills",
-                                    style: TextStyle(
-                                      decoration: TextDecoration.underline,
-                                      fontSize: 13,
-                                      color: Colors.blue,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  style: TextButton.styleFrom(
-                                    padding: EdgeInsets.zero,
-                                    minimumSize: Size(0, 0),
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                ),
-
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-
                       ],
                     ),
+
+
                   );
                 },
               ),
