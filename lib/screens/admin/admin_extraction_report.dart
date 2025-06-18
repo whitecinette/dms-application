@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
 class ExtractionReportPage extends StatefulWidget {
   @override
@@ -6,30 +9,35 @@ class ExtractionReportPage extends StatefulWidget {
 }
 
 class _ExtractionReportPageState extends State<ExtractionReportPage> {
-  final List<Map<String, String>> data = [
-    {'band': '6-10k', 'Samsung': '2,00,089', 'Vivo': '12,889', 'Oppo': '0'},
-    {'band': '10-15k', 'Samsung': '10,089', 'Vivo': '30,00,987', 'Oppo': '10,000'},
-    {'band': '15-20k', 'Samsung': '2,00,089', 'Vivo': '12,889', 'Oppo': '0'},
-    {'band': '20-30k', 'Samsung': '10,089', 'Vivo': '30,00,987', 'Oppo': '10,000'},
-    {'band': '30-40k', 'Samsung': '10,089', 'Vivo': '30,00,987', 'Oppo': '10,000'},
-    {'band': '40-70k', 'Samsung': '2,00,089', 'Vivo': '12,889', 'Oppo': '0'},
-    {'band': '70-100k', 'Samsung': '10,089', 'Vivo': '30,00,987', 'Oppo': '10,000'},
-  ];
+  List<bool> valueVolumeToggle = [true, false];
+  List<bool> shareDefaultToggle = [false, true];
 
-  List<bool> valueVolumeToggle = [true, false]; // "Value" selected by default
-  List<bool> shareDefaultToggle = [false, true]; // "Default" selected by default
-
-  int selectedMetric = 0; // 0 = Value, 1 = Volume
-  int selectedView = 1;   // 0 = Share, 1 = Default
+  int selectedMetric = 0;
+  int selectedView = 1;
 
   List<Map<String, dynamic>> tableData = [];
   List<String> tableHeaders = [];
   bool loading = false;
 
+  DateTimeRange? selectedDateRange;
+  String? selectedSMD;
+  String? selectedASM;
+  String? selectedMDD;
+  String? selectedTSE;
+  String? selectedDealer;
 
+  final List<Map<String, String>> fallbackData = [
+    {'Price Class': '6-10k', 'Samsung': '2,00,089', 'Vivo': '12,889', 'Oppo': '0'},
+    {'Price Class': '10-15k', 'Samsung': '10,089', 'Vivo': '30,00,987', 'Oppo': '10,000'},
+    {'Price Class': '15-20k', 'Samsung': '2,00,089', 'Vivo': '12,889', 'Oppo': '0'},
+    {'Price Class': '20-30k', 'Samsung': '10,089', 'Vivo': '30,00,987', 'Oppo': '10,000'},
+    {'Price Class': '30-40k', 'Samsung': '10,089', 'Vivo': '30,00,987', 'Oppo': '10,000'},
+    {'Price Class': '40-70k', 'Samsung': '2,00,089', 'Vivo': '12,889', 'Oppo': '0'},
+    {'Price Class': '70-100k', 'Samsung': '10,089', 'Vivo': '30,00,987', 'Oppo': '10,000'},
+  ];
 
   final Map<String, String> totalRow = {
-    'band': 'Total',
+    'Price Class': 'Total',
     'Samsung': '10,089',
     'Vivo': '30,00,987',
     'Oppo': '10,000',
@@ -43,7 +51,7 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
     final endDate = selectedDateRange?.end;
 
     Map<String, String> queryParams = {
-      "metric": selectedMetric == 0 ? "value" : "volume", // Assuming 0 = value
+      "metric": selectedMetric == 0 ? "value" : "volume",
     };
 
     if (startDate != null) queryParams["startDate"] = dateFormat.format(startDate);
@@ -54,7 +62,7 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
     if (selectedTSE != null) queryParams["tse"] = selectedTSE!;
     if (selectedDealer != null) queryParams["dealer"] = selectedDealer!;
 
-    final uri = Uri.parse("${Config.backendUrl}/get-extraction-report-for-admin")
+    final uri = Uri.parse("https://your-api.com/get-extraction-report-for-admin")
         .replace(queryParameters: queryParams);
 
     try {
@@ -84,7 +92,6 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
     setState(() => loading = false);
   }
 
-
   Widget _dropdown(String label) {
     return SizedBox(
       width: 100,
@@ -105,7 +112,6 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
     );
   }
 
-
   Widget _buildSegmentedToggle({
     required List<String> options,
     required int selectedIndex,
@@ -118,7 +124,7 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
         color: backgroundColor,
         borderRadius: BorderRadius.circular(32),
       ),
-      padding: const EdgeInsets.all(2), // Reduced
+      padding: const EdgeInsets.all(2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: List.generate(options.length, (index) {
@@ -126,7 +132,7 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
           return GestureDetector(
             onTap: () => onTap(index),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), // Reduced
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: isSelected ? selectedColor : Colors.transparent,
                 borderRadius: BorderRadius.circular(32),
@@ -134,7 +140,7 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
               child: Text(
                 options[index],
                 style: const TextStyle(
-                  fontSize: 12, // Reduced from 14–16
+                  fontSize: 12,
                   fontWeight: FontWeight.w500,
                   color: Colors.black,
                 ),
@@ -145,9 +151,6 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
       ),
     );
   }
-
-
-
 
   void _showFilterPopup(BuildContext context) {
     showDialog(
@@ -200,16 +203,14 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
+    final List<Map<String, dynamic>> dataToShow =
+    tableData.isNotEmpty ? tableData : fallbackData;
 
-    String metricLabel = selectedMetric == 0 ? "Value" : "Volume";
-    String viewLabel = selectedView == 0 ? "Share" : "Default";
-
-
-
-
+    final List<String> headersToShow = tableHeaders.isNotEmpty
+        ? tableHeaders
+        : fallbackData.first.keys.where((k) => k != 'Price Class').toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -237,7 +238,6 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
             const SizedBox(height: 10),
             Row(
               children: [
-                // 🔹 Left side: Show Filters button
                 ElevatedButton(
                   onPressed: () => _showFilterPopup(context),
                   style: ElevatedButton.styleFrom(
@@ -246,19 +246,14 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(40), // pill shape
-                      side: const BorderSide(color: Colors.grey, width: 1), // subtle border
+                      borderRadius: BorderRadius.circular(40),
+                      side: const BorderSide(color: Colors.grey, width: 1),
                     ),
-                    elevation: 0, // flat like toggles
+                    elevation: 0,
                   ),
                   child: const Text("Show Filters"),
                 ),
-
-
-                // 🔸 Spacer to push next buttons to the right
                 const Spacer(),
-
-                // 🔸 Right side: Value/Volume + Share/Default
                 _buildSegmentedToggle(
                   options: ['Value', 'Volume'],
                   selectedIndex: selectedMetric,
@@ -266,9 +261,7 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
                   backgroundColor: Colors.orange.shade300,
                   selectedColor: Colors.orange.shade100,
                 ),
-
                 const SizedBox(width: 12),
-
                 _buildSegmentedToggle(
                   options: ['Share', 'Default'],
                   selectedIndex: selectedView,
@@ -278,22 +271,27 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
                 ),
               ],
             ),
-
-
-
-
-
-
             const SizedBox(height: 16),
-            _tableHeader(),
-            Expanded(
-              child: ListView.builder(
-                itemCount: data.length,
-                itemBuilder: (_, index) => _dataRow(data[index]),
-              ),
+            Row(
+              children: [
+                _headerCell("Price band"),
+                for (final header in headersToShow) _headerCell(header),
+              ],
             ),
-            const Divider(),
-            _dataRow(totalRow, isTotal: true),
+            if (loading)
+              const Expanded(child: Center(child: CircularProgressIndicator())),
+            if (!loading)
+              Expanded(
+                child: ListView.builder(
+                  itemCount: dataToShow.length + 1,
+                  itemBuilder: (_, index) {
+                    if (index == dataToShow.length) {
+                      return _dataRow(totalRow, isTotal: true);
+                    }
+                    return _dataRow(dataToShow[index]);
+                  },
+                ),
+              ),
           ],
         ),
       ),
@@ -307,17 +305,15 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
       style: ElevatedButton.styleFrom(
         backgroundColor: Color(0xFFE3F2FD),
         foregroundColor: Colors.black,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), // 🔹 Reduced padding
-        textStyle: const TextStyle(fontSize: 12), // 🔹 Smaller font
-        minimumSize: const Size(10, 32), // Optional: fix height
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        textStyle: const TextStyle(fontSize: 12),
+        minimumSize: const Size(10, 32),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(5), // 👈 Rounded corners
-          // side: BorderSide(color: Colors.blueAccent, width: 1.2), // 👈 Border
+          borderRadius: BorderRadius.circular(5),
         ),
       ),
     );
   }
-
 
   Widget _resetButton() {
     return ElevatedButton(
@@ -326,47 +322,16 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.orange.shade100,
         foregroundColor: Colors.black,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), // 🔹 Reduced padding
-        textStyle: const TextStyle(fontSize: 12), // 🔹 Smaller font
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        textStyle: const TextStyle(fontSize: 12),
         minimumSize: const Size(10, 32),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(7), // 👈 Rounded corners
-          side: BorderSide(color: Colors.orangeAccent, width: 1.2), // 👈 Border
+          borderRadius: BorderRadius.circular(7),
+          side: BorderSide(color: Colors.orangeAccent, width: 1.2),
         ),
       ),
     );
   }
-
-
-  Widget _toggleButton(String label, Color bgColor) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-      child: ElevatedButton(
-        onPressed: () {},
-        child: Text(label),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: bgColor,
-          foregroundColor: Colors.black,
-          minimumSize: const Size(60, 36),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-        ),
-      ),
-    );
-  }
-
-  Widget _tableHeader() {
-    return Row(
-      children: [
-        _headerCell("Price band"),
-        _headerCell("Samsung"),
-        _headerCell("Vivo"),
-        _headerCell("Oppo"),
-      ],
-    );
-  }
-
-
-  static const cellPadding = EdgeInsets.symmetric(vertical: 8.0, horizontal: 10.0);
 
   Widget _headerCell(String label) {
     return Expanded(
@@ -383,30 +348,26 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
     );
   }
 
-
-  Widget _dataRow(Map<String, String> row, {bool isTotal = false}) {
-    Color getCellColor(String key) {
-      if (isTotal) return Colors.orange.shade200;
-      switch (key) {
-        case 'Samsung':
-          return row[key] == '2,00,089' ? Colors.deepOrange : Colors.orange.shade100;
-        case 'Vivo':
-          return row[key] == '30,00,987' ? Colors.deepOrange : Colors.yellow.shade200;
-        case 'Oppo':
-          return row[key] == '0' ? Colors.white : Colors.orange.shade200;
-        default:
-          return Colors.white;
-      }
-    }
-
+  Widget _dataRow(Map<String, dynamic> row, {bool isTotal = false}) {
+    final keys = row.keys.where((k) => k != 'Price Class');
     return Row(
       children: [
-        _dataCell(row['band']!, Colors.orange.shade50),
-        _dataCell(row['Samsung']!, getCellColor('Samsung')),
-        _dataCell(row['Vivo']!, getCellColor('Vivo')),
-        _dataCell(row['Oppo']!, getCellColor('Oppo')),
+        _dataCell(row['Price Class']?.toString() ?? '-', Colors.orange.shade50),
+        for (final key in keys)
+          _dataCell(
+            row[key]?.toString() ?? '-',
+            _getCellColor(key, row[key], isTotal),
+          ),
       ],
     );
+  }
+
+  Color _getCellColor(String key, dynamic value, bool isTotal) {
+    if (isTotal) return Colors.orange.shade200;
+    if (value == 0 || value == null || value == '0') return Colors.white;
+    if ((value is int && value > 100000) || (value is String && value.contains('30,00,987')))
+      return Colors.deepOrange;
+    return Colors.orange.shade100;
   }
 
   Widget _dataCell(String value, Color color) {
@@ -423,4 +384,6 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
       ),
     );
   }
+
+  static const cellPadding = EdgeInsets.symmetric(vertical: 8.0, horizontal: 10.0);
 }
