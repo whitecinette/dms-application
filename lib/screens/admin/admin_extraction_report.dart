@@ -1,61 +1,39 @@
-import 'dart:convert';
-import 'package:dms_app/services/api_service.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import '../../widgets/shimmer_loader.dart';
-import 'package:intl/intl.dart';
-import '../../config.dart';
 
-class ExtractionReportScreen extends StatefulWidget {
+class ExtractionReportPage extends StatefulWidget {
   @override
-  _ExtractionReportScreenState createState() => _ExtractionReportScreenState();
+  _ExtractionReportPageState createState() => _ExtractionReportPageState();
 }
 
-class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
-  bool isValueSelected = true;
-  String? selectedRegion;
-  String? selectedSMD;
-  String? selectedASM;
-  String? selectedMDD;
-  String? selectedTSE;
-  String? selectedDealer;
-  String? selectedDistrict;
-  String? selectedTaluka;
-  String? selectedZone;
-  bool isLoading = true;
-
-  Map<String, List<Map<String, String>>> hierarchyData = {};
-
-  List<Map<String, String>> smdList = [];
-  List<Map<String, String>> asmList = [];
-  List<Map<String, String>> mddList = [];
-  List<Map<String, String>> tseList = [];
-  List<Map<String, String>> dealerList = [];
-
-  final List<String> districts = ['District A', 'District B', 'District C'];
-  final List<String> talukas = ['Taluka 1', 'Taluka 2', 'Taluka 3'];
-  final List<String> zones = ['Zone X', 'Zone Y', 'Zone Z'];
-  final List<String> brands = [
-    "Samsung", "Vivo", "Oppo", "Xiaomi", "Apple",
-    "OnePlus", "Realme", "Motorola", "Others",
+class _ExtractionReportPageState extends State<ExtractionReportPage> {
+  final List<Map<String, String>> data = [
+    {'band': '6-10k', 'Samsung': '2,00,089', 'Vivo': '12,889', 'Oppo': '0'},
+    {'band': '10-15k', 'Samsung': '10,089', 'Vivo': '30,00,987', 'Oppo': '10,000'},
+    {'band': '15-20k', 'Samsung': '2,00,089', 'Vivo': '12,889', 'Oppo': '0'},
+    {'band': '20-30k', 'Samsung': '10,089', 'Vivo': '30,00,987', 'Oppo': '10,000'},
+    {'band': '30-40k', 'Samsung': '10,089', 'Vivo': '30,00,987', 'Oppo': '10,000'},
+    {'band': '40-70k', 'Samsung': '2,00,089', 'Vivo': '12,889', 'Oppo': '0'},
+    {'band': '70-100k', 'Samsung': '10,089', 'Vivo': '30,00,987', 'Oppo': '10,000'},
   ];
 
+  List<bool> valueVolumeToggle = [true, false]; // "Value" selected by default
+  List<bool> shareDefaultToggle = [false, true]; // "Default" selected by default
 
-  DateTimeRange? selectedDateRange;
+  int selectedMetric = 0; // 0 = Value, 1 = Volume
+  int selectedView = 1;   // 0 = Share, 1 = Default
+
   List<Map<String, dynamic>> tableData = [];
+  List<String> tableHeaders = [];
   bool loading = false;
 
-  @override
-  void initState() {
-    super.initState();
-    final now = DateTime.now();
-    selectedDateRange = DateTimeRange(
-      start: DateTime(now.year, now.month, 1),
-      end: DateTime(now.year, now.month + 1, 0),
-    );
-    loadHierarchyFilters();
-    fetchReport();
-  }
+
+
+  final Map<String, String> totalRow = {
+    'band': 'Total',
+    'Samsung': '10,089',
+    'Vivo': '30,00,987',
+    'Oppo': '10,000',
+  };
 
   Future<void> fetchReport() async {
     setState(() => loading = true);
@@ -65,7 +43,7 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
     final endDate = selectedDateRange?.end;
 
     Map<String, String> queryParams = {
-      "metric": isValueSelected ? "value" : "volume",
+      "metric": selectedMetric == 0 ? "value" : "volume", // Assuming 0 = value
     };
 
     if (startDate != null) queryParams["startDate"] = dateFormat.format(startDate);
@@ -84,474 +62,364 @@ class _ExtractionReportScreenState extends State<ExtractionReportScreen> {
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         final data = jsonResponse['data'] as List<dynamic>? ?? [];
+
         tableData = data.map((e) => Map<String, dynamic>.from(e)).toList();
+
+        if (tableData.isNotEmpty) {
+          final firstRow = tableData.first;
+          tableHeaders = firstRow.keys
+              .where((key) => key != "Price Class" && key != "Rank of Samsung")
+              .toList();
+        }
       } else {
         tableData = [];
+        tableHeaders = [];
       }
     } catch (e) {
+      print("Error fetching report: $e");
       tableData = [];
+      tableHeaders = [];
     }
 
     setState(() => loading = false);
   }
 
-  Future<void> loadHierarchyFilters({Map<String, String>? filters}) async {
-    try {
-      final data = await ApiService.getHierarchyFilters(query: filters);
-      print("Hierarchy filter data fetched: $data");
 
-      setState(() {
-        smdList = List<Map<String, String>>.from((data['smd'] ?? []).map((e) => {
-          'code': e['code'].toString(),
-          'name': e['name'].toString(),
-        }));
-
-        asmList = List<Map<String, String>>.from((data['asm'] ?? []).map((e) => {
-          'code': e['code'].toString(),
-          'name': e['name'].toString(),
-        }));
-
-        mddList = List<Map<String, String>>.from((data['mdd'] ?? []).map((e) => {
-          'code': e['code'].toString(),
-          'name': e['name'].toString(),
-        }));
-
-        tseList = List<Map<String, String>>.from((data['tse'] ?? []).map((e) => {
-          'code': e['code'].toString(),
-          'name': e['name'].toString(),
-        }));
-
-        dealerList = List<Map<String, String>>.from((data['dealer'] ?? []).map((e) => {
-          'code': e['code'].toString(),
-          'name': e['name'].toString(),
-        }));
-      });
-    } catch (e) {
-      print('Failed to load hierarchy filters: $e');
-    }
-  }
-
-
-  Future<void> pickDateRange() async {
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-      initialDateRange: selectedDateRange,
-    );
-
-    if (picked != null) {
-      setState(() => selectedDateRange = picked);
-      fetchReport();
-    }
-  }
-
-  String getDateRangeText() {
-    if (selectedDateRange == null) return "Select Date Range";
-    final start = selectedDateRange!.start;
-    final end = selectedDateRange!.end;
-    return "${start.day}/${start.month}/${start.year} - ${end.day}/${end.month}/${end.year}";
-  }
-
-  Color heatMapColor(double value, double maxValue) {
-    if (maxValue == 0) return Colors.white;
-    final normalized = (value / maxValue).clamp(0.0, 1.0);
-    return Color.lerp(Colors.white, Colors.deepOrange.shade700, normalized)!;
-  }
-
-  // Modified buildDropdown for normal string list
-  Widget buildDropdown(String label, List<String> items, String? selectedItem, Function(String?) onChanged, {double width = 80, double fontSize = 10,}) {
-    return Container(
-      width: width,
-      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.black, width: 1.5),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          isExpanded: true,
-          value: selectedItem,
-          hint: Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize)),
-          items: items.map((String value) {
-            return DropdownMenuItem<String>(
-              value: value,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize)),
-              ),
-            );
-          }).toList(),
-          onChanged: onChanged,
-        ),
-      ),
-    );
-  }
-
-// Modified version for single select with name shown on button + highlight selected card
-  Widget buildCodeNameSelector(String label, List<Map<String, String>> items, String? selectedCode, Function(String?) onSelected,) {
-    final isSelected = selectedCode != null && selectedCode.isNotEmpty;
-    final selectedCount = isSelected ? 1 : 0;
-
-    return Container(
+  Widget _dropdown(String label) {
+    return SizedBox(
       width: 100,
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.black, width: 1.5),
-        borderRadius: BorderRadius.circular(6),
+      height: 36,
+      child: DropdownButtonFormField<String>(
+        decoration: InputDecoration(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          filled: true,
+          fillColor: Colors.blue.shade50,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+        ),
+        hint: Text(label, style: const TextStyle(fontSize: 12)),
+        items: ['Option 1', 'Option 2', 'Option 3']
+            .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 12))))
+            .toList(),
+        onChanged: (value) {},
       ),
-      child: InkWell(
-        onTap: () {
-          showModalBottomSheet(
-            context: context,
-            builder: (context) {
-              return Container(
-                height: 350,
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.all(12),
-                      child: Text(
-                        "Select $label",
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                    ),
-                    Expanded(
-                      child: items.isEmpty
-                          ? ShimmerLoader()
-                          : ListView.builder(
-                        itemCount: items.length,
-                        itemBuilder: (context, index) {
-                          final item = items[index];
-                          final selected = item['code'] == selectedCode;
+    );
+  }
 
-                          return Card(
-                            color: selected ? Colors.blue.shade100 : Colors.white,
-                            margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            child: ListTile(
-                              title: Text(item['name'] ?? ""),
-                              subtitle: Text(item['code'] ?? ""),
-                              trailing: selected
-                                  ? Icon(Icons.check_circle, color: Colors.blue)
-                                  : null,
-                              onTap: () {
-                                if (selected) {
-                                  onSelected(null);
-                                } else {
-                                  onSelected(item['code']);
-                                }
-                                Navigator.pop(context);
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+
+  Widget _buildSegmentedToggle({
+    required List<String> options,
+    required int selectedIndex,
+    required Function(int) onTap,
+    required Color backgroundColor,
+    required Color selectedColor,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(32),
+      ),
+      padding: const EdgeInsets.all(2), // Reduced
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(options.length, (index) {
+          final isSelected = index == selectedIndex;
+          return GestureDetector(
+            onTap: () => onTap(index),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), // Reduced
+              decoration: BoxDecoration(
+                color: isSelected ? selectedColor : Colors.transparent,
+                borderRadius: BorderRadius.circular(32),
+              ),
+              child: Text(
+                options[index],
+                style: const TextStyle(
+                  fontSize: 12, // Reduced from 14–16
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black,
                 ),
-              );
-            },
-          );
-        },
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              "$label${selectedCount > 0 ? ' $selectedCount' : ''}",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: Colors.black,
               ),
             ),
-            SizedBox(width: 6),
-            Icon(Icons.arrow_drop_down, color: Colors.black),
+          );
+        }),
+      ),
+    );
+  }
+
+
+
+
+  void _showFilterPopup(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Filters", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      ElevatedButton(
+                        onPressed: () {},
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange.shade100,
+                          foregroundColor: Colors.black,
+                        ),
+                        child: const Text("Reset Filters"),
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      _dropdown("state"),
+                      _dropdown("district"),
+                      _dropdown("town"),
+                      _dropdown("smd"),
+                      _dropdown("asm"),
+                      _dropdown("mdd"),
+                      _dropdown("tse"),
+                      _dropdown("dealer"),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+
+  @override
+  Widget build(BuildContext context) {
+
+    String metricLabel = selectedMetric == 0 ? "Value" : "Volume";
+    String viewLabel = selectedView == 0 ? "Share" : "Default";
+
+
+
+
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: BackButton(),
+        title: const Text('Extraction Report'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                _dateButton("Start date"),
+                const SizedBox(width: 8),
+                const Text("to"),
+                const SizedBox(width: 8),
+                _dateButton("End date"),
+                const Spacer(),
+                _resetButton()
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                // 🔹 Left side: Show Filters button
+                ElevatedButton(
+                  onPressed: () => _showFilterPopup(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey.shade200,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(40), // pill shape
+                      side: const BorderSide(color: Colors.grey, width: 1), // subtle border
+                    ),
+                    elevation: 0, // flat like toggles
+                  ),
+                  child: const Text("Show Filters"),
+                ),
+
+
+                // 🔸 Spacer to push next buttons to the right
+                const Spacer(),
+
+                // 🔸 Right side: Value/Volume + Share/Default
+                _buildSegmentedToggle(
+                  options: ['Value', 'Volume'],
+                  selectedIndex: selectedMetric,
+                  onTap: (index) => setState(() => selectedMetric = index),
+                  backgroundColor: Colors.orange.shade300,
+                  selectedColor: Colors.orange.shade100,
+                ),
+
+                const SizedBox(width: 12),
+
+                _buildSegmentedToggle(
+                  options: ['Share', 'Default'],
+                  selectedIndex: selectedView,
+                  onTap: (index) => setState(() => selectedView = index),
+                  backgroundColor: Colors.blue.shade300,
+                  selectedColor: Colors.blue.shade100,
+                ),
+              ],
+            ),
+
+
+
+
+
+
+            const SizedBox(height: 16),
+            _tableHeader(),
+            Expanded(
+              child: ListView.builder(
+                itemCount: data.length,
+                itemBuilder: (_, index) => _dataRow(data[index]),
+              ),
+            ),
+            const Divider(),
+            _dataRow(totalRow, isTotal: true),
           ],
         ),
       ),
     );
   }
 
-  Widget buildHeaderCell(String text, {double width = 100}) {
-    return Container(
-      margin: EdgeInsets.all(2),
-      width: width,
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.3),
-            blurRadius: 2,
-            offset: Offset(0, 1),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-      alignment: Alignment.center,
-      child: Text(
-        text,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis, // or .visible if you want full text
-        softWrap: false,
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 13,
-          color: Colors.black87,
+  Widget _dateButton(String label) {
+    return ElevatedButton(
+      onPressed: () {},
+      child: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Color(0xFFE3F2FD),
+        foregroundColor: Colors.black,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), // 🔹 Reduced padding
+        textStyle: const TextStyle(fontSize: 12), // 🔹 Smaller font
+        minimumSize: const Size(10, 32), // Optional: fix height
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(5), // 👈 Rounded corners
+          // side: BorderSide(color: Colors.blueAccent, width: 1.2), // 👈 Border
         ),
-        textAlign: TextAlign.center,
       ),
     );
   }
 
-  Widget buildCardCell(String text, {Color? background, bool highlight = false}) {
-    return Container(
-      margin: EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: background ?? Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
-            blurRadius: 2,
-            offset: Offset(0, 1),
-          )
-        ],
-      ),
-      alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontWeight: highlight ? FontWeight.bold : FontWeight.normal,
-          fontSize: 13,
-          color: highlight ? Colors.black : Colors.grey.shade800,
+
+  Widget _resetButton() {
+    return ElevatedButton(
+      onPressed: () {},
+      child: const Text("Reset Filters"),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.orange.shade100,
+        foregroundColor: Colors.black,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), // 🔹 Reduced padding
+        textStyle: const TextStyle(fontSize: 12), // 🔹 Smaller font
+        minimumSize: const Size(10, 32),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(7), // 👈 Rounded corners
+          side: BorderSide(color: Colors.orangeAccent, width: 1.2), // 👈 Border
         ),
-        textAlign: TextAlign.center,
       ),
     );
   }
 
-// Handle selection change for each dropdown
-  void onSMDChanged(String? code) {
-    setState(() {
-      selectedSMD = code;
-      selectedASM = null;
-      selectedMDD = null;
-      selectedTSE = null;
-      selectedDealer = null;
-    });
-    loadHierarchyFilters(filters: code != null ? {'smd': code} : null);
-    fetchReport();
+
+  Widget _toggleButton(String label, Color bgColor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+      child: ElevatedButton(
+        onPressed: () {},
+        child: Text(label),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: bgColor,
+          foregroundColor: Colors.black,
+          minimumSize: const Size(60, 36),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+        ),
+      ),
+    );
   }
 
-  void onASMChanged(String? code) {
-    setState(() {
-      selectedASM = code;
-      selectedMDD = null;
-      selectedTSE = null;
-      selectedDealer = null;
-    });
-    loadHierarchyFilters(filters: code != null ? {'asm': code} : null);
-    fetchReport();
-  }
-
-  void onMDDChanged(String? code) {
-    setState(() {
-      selectedMDD = code;
-      selectedTSE = null;
-      selectedDealer = null;
-    });
-    loadHierarchyFilters(filters: code != null ? {'mdd': code} : null);
-    fetchReport();
-  }
-
-  void onTSEChanged(String? code) {
-    setState(() {
-      selectedTSE = code;
-      selectedDealer = null;
-    });
-    loadHierarchyFilters(filters: code != null ? {'tse': code} : null);
-    fetchReport();
-  }
-
-  void onDealerChanged(String? code) {
-    setState(() {
-      selectedDealer = code;
-    });
-    fetchReport();
+  Widget _tableHeader() {
+    return Row(
+      children: [
+        _headerCell("Price band"),
+        _headerCell("Samsung"),
+        _headerCell("Vivo"),
+        _headerCell("Oppo"),
+      ],
+    );
   }
 
 
-// Reset all filters
-  void resetFilters() {
-    setState(() {
-      selectedSMD = null;
-      selectedASM = null;
-      selectedMDD = null;
-      selectedTSE = null;
-      selectedDealer = null;
-    });
-    loadHierarchyFilters(); // Load full data
-    fetchReport();
+  static const cellPadding = EdgeInsets.symmetric(vertical: 8.0, horizontal: 10.0);
+
+  Widget _headerCell(String label) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.all(4),
+        padding: cellPadding,
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFEEDD),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        alignment: Alignment.center,
+        child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+    );
   }
-  @override
-  Widget build(BuildContext context) {
-    double maxValue = 0;
-    for (var row in tableData) {
-      for (var brand in brands) {
-        final val = row[brand];
-        if (val is num && val > maxValue) {
-          maxValue = val.toDouble();
-        }
+
+
+  Widget _dataRow(Map<String, String> row, {bool isTotal = false}) {
+    Color getCellColor(String key) {
+      if (isTotal) return Colors.orange.shade200;
+      switch (key) {
+        case 'Samsung':
+          return row[key] == '2,00,089' ? Colors.deepOrange : Colors.orange.shade100;
+        case 'Vivo':
+          return row[key] == '30,00,987' ? Colors.deepOrange : Colors.yellow.shade200;
+        case 'Oppo':
+          return row[key] == '0' ? Colors.white : Colors.orange.shade200;
+        default:
+          return Colors.white;
       }
     }
 
-    return Scaffold(
-      appBar: AppBar(title: Text("Extraction Report")),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Top filters
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: pickDateRange,
-                    icon: Icon(Icons.date_range),
-                    label: Text(getDateRangeText(), style: TextStyle(fontSize: 12)),
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 12),
-                Row(
-                  children: [
-                    Text("Value", style: TextStyle(
-                      color: isValueSelected ? Colors.blue : Colors.orange,
-                      fontWeight: isValueSelected ? FontWeight.bold : FontWeight.normal,
-                    )),
-                    Transform.scale(
-                      scale: 0.7,
-                      child: Switch(
-                        value: isValueSelected,
-                        onChanged: (val) {
-                          setState(() => isValueSelected = val);
-                          fetchReport();
-                        },
-                      ),
-                    ),
-                    Text("Volume", style: TextStyle(
-                      color: !isValueSelected ? Colors.blue : Colors.orange,
-                      fontWeight: !isValueSelected ? FontWeight.bold : FontWeight.normal,
-                    )),
-                  ],
-                ),
-              ],
-            ),
-            SizedBox(height: 10),
+    return Row(
+      children: [
+        _dataCell(row['band']!, Colors.orange.shade50),
+        _dataCell(row['Samsung']!, getCellColor('Samsung')),
+        _dataCell(row['Vivo']!, getCellColor('Vivo')),
+        _dataCell(row['Oppo']!, getCellColor('Oppo')),
+      ],
+    );
+  }
 
-            // Scroll-safe dropdowns
-            // Filters grouped in two rows
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      buildDropdown("District", districts, selectedDistrict, (val) => setState(() => selectedDistrict = val)),
-                      SizedBox(width: 10),
-                      buildDropdown("Taluka", talukas, selectedTaluka, (val) => setState(() => selectedTaluka = val)),
-                      SizedBox(width: 10),
-                      buildDropdown("Zone", zones, selectedZone, (val) => setState(() => selectedZone = val)),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 10),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      buildCodeNameSelector("SMD", smdList, selectedSMD, onSMDChanged),
-                      SizedBox(width: 10),
-                      buildCodeNameSelector("ASM", asmList, selectedASM, onASMChanged),
-                      SizedBox(width: 10),
-                      buildCodeNameSelector("MDD", mddList, selectedMDD, onMDDChanged),
-                      SizedBox(width: 10),
-                      buildCodeNameSelector("TSE", tseList, selectedTSE, onTSEChanged),
-                      SizedBox(width: 10),
-                      buildCodeNameSelector("Dealer", dealerList, selectedDealer, onDealerChanged),
-                      SizedBox(width: 10),
-                      ElevatedButton.icon(
-                        onPressed: resetFilters,
-                        icon: Icon(Icons.refresh, size: 18),
-                        label: Text("Reset"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              ],
-            ),
-
-            SizedBox(height: 14),
-
-            // Table section
-            Expanded(
-              child: loading
-                  ? ShimmerLoader()
-                  : tableData.isEmpty
-                  ? Center(child: Text("No data found"))
-                  : SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Column(
-                  children: [
-                    Table(
-                      defaultColumnWidth: FixedColumnWidth(100),
-                      // border: TableBorder.all(color: Colors.grey.shade300),
-                      children: [
-                        TableRow(
-                          // decoration: BoxDecoration(color: Colors.blueGrey.shade100),
-                          children: [
-                            buildHeaderCell("Price Band"),
-                            ...brands.map((b) => buildHeaderCell(b)).toList(),
-                            buildHeaderCell("Rank of Samsung", width: 120),
-                          ],
-                        ),
-                        ...tableData.map((row) {
-                          return TableRow(
-                            children: [
-                              buildCardCell(row["Price Class"] ?? "-"),
-                              ...brands.map((brand) {
-                                final val = row[brand] ?? 0;
-                                return buildCardCell(
-                                  val.toString(),
-                                  background: heatMapColor(
-                                    (val is num) ? val.toDouble() : 0,
-                                    maxValue,
-                                  ),
-                                  highlight: (val is num && val > maxValue * 0.7),
-                                );
-                              }).toList(),
-                              buildCardCell(row["Rank of Samsung"]?.toString() ?? "-"),
-                            ],
-                          );
-                        }).toList(),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+  Widget _dataCell(String value, Color color) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.all(4),
+        padding: cellPadding,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(8),
         ),
+        alignment: Alignment.center,
+        child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
       ),
     );
   }

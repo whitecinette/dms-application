@@ -77,7 +77,7 @@ class AdminSidebar extends StatelessWidget {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => ExtractionReportScreen()),
+                    MaterialPageRoute(builder: (_) => ExtractionReportPage()),
                   );
                 },
               ),
