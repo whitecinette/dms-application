@@ -1,5 +1,6 @@
 import 'package:dms_app/screens/humanResource/hr_dashboard.dart';
 import 'package:dms_app/screens/humanResource/hr_sidebar.dart';
+import 'package:dms_app/screens/reset_password_screen.dart';
 import 'package:dms_app/services/auth_manager.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
@@ -152,7 +153,24 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Text("Log in", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               SizedBox(height: 15),
-              TextButton(onPressed: () {}, child: Text("Forgot password?", style: TextStyle(color: Colors.black))),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => ResetPasswordScreen()),
+                  );
+                },
+                child: Text(
+                  "Forgot password?",
+                  style: TextStyle(
+                    color: Colors.indigo,         // 🔷 Highlight color
+                    fontWeight: FontWeight.bold,  // 💪 Bold text
+                    fontSize: 15,                 // 🔠 Slightly larger
+                    decoration: TextDecoration.underline, // 🔽 Underline (optional)
+                  ),
+                ),
+              ),
+
               TextButton(onPressed: () {}, child: Text("Don't have an account? Sign up", style: TextStyle(color: Colors.black))),
             ],
           ),
