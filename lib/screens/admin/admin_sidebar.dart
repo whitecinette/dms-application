@@ -1,5 +1,3 @@
-// lib/screens/employee/employee_sidebar.dart
-
 import 'package:dms_app/screens/admin/admin_extraction_report.dart';
 import 'package:dms_app/screens/admin/attendance.dart';
 import 'package:dms_app/screens/admin/beat_mapping_status.dart';
@@ -15,9 +13,10 @@ import '../employee/human_resources/vouchers.dart';
 import '../employee/targets.dart';
 import '../employee/announcements.dart';
 import '../employee/profile.dart';
-import '../login_screen.dart'; // For logout
+import '../login_screen.dart';
 import '../../services/auth_service.dart';
 import 'admin_extraction_status_screen.dart';
+import 'package:lucide_icons/lucide_icons.dart'; // 💡 Lucide = clean, flat icon set
 
 class AdminSidebar extends StatelessWidget {
   final dynamic user;
@@ -51,78 +50,67 @@ class AdminSidebar extends StatelessWidget {
                   style: TextStyle(color: Colors.white60, fontSize: 15),
                 ),
               ],
-
             ),
           ),
-          _buildDrawerItem(Icons.dashboard, "Sales Dashboard", context, SalesDashboard()),
-          // _buildDrawerItem(Icons.pie_chart, "Extraction", context, ExtractionStatusAdminScreen()),
-          // _buildDrawerItem(Icons.analytics, "Extraction Report", context, ExtractionReportScreen()),
+
+          _buildDrawerItem(LucideIcons.layoutDashboard, "Sales Dashboard", context, SalesDashboard(), color: Colors.blueGrey.shade700),
+
           ExpansionTile(
-            leading: Icon(Icons.pie_chart),
+            leading: Icon(LucideIcons.pieChart, size: 20, color: Colors.deepPurple.shade600),
             title: Text("Extraction"),
             children: [
               ListTile(
-                leading: Icon(Icons.check_circle_outline),
+                leading: Icon(LucideIcons.clipboardCheck, size: 20, color: Colors.green.shade700),
                 title: Text("Extraction Status"),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => ExtractionStatusAdminScreen()),
-                  );
-                },
+                onTap: () => _navigateTo(context, ExtractionStatusAdminScreen()),
               ),
               ListTile(
-                leading: Icon(Icons.analytics),
+                leading: Icon(LucideIcons.fileText, size: 20, color: Colors.teal.shade700),
                 title: Text("Extraction Report"),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => ExtractionReportPage()),
-                  );
-                },
+                onTap: () => _navigateTo(context, ExtractionReportPage()),
               ),
             ],
           ),
 
-          _buildDrawerItem(Icons.monitor_heart, "Pulse", context, PulseScreen()),
-          _buildDrawerItem(Icons.map, "Beat Mapping", context, BeatMappingStatusScreen()),
+          _buildDrawerItem(LucideIcons.heartPulse, "Pulse", context, PulseScreen(), color: Colors.red.shade400),
+          _buildDrawerItem(LucideIcons.map, "Beat Mapping", context, BeatMappingStatusScreen(), color: Colors.orange.shade700),
+
           ExpansionTile(
-            leading: Icon(Icons.people),
+            leading: Icon(LucideIcons.users, size: 20, color: Colors.indigo.shade600),
             title: Text("Human Resources"),
             children: [
-              _buildDrawerItem(Icons.event, "Attendance", context, AllAttendanceScreen()),
-              _buildDrawerItem(Icons.receipt, "Payslip", context, PayslipScreen()),
-              _buildDrawerItem(Icons.card_giftcard, "Vouchers", context, VouchersScreen()),
+              _buildDrawerItem(LucideIcons.calendarCheck, "Attendance", context, AllAttendanceScreen(), color: Colors.purple.shade600),
+              _buildDrawerItem(LucideIcons.receipt, "Payslip", context, PayslipScreen(), color: Colors.brown.shade600),
+              _buildDrawerItem(LucideIcons.ticket, "Vouchers", context, VouchersScreen(), color: Colors.deepOrange.shade600),
             ],
           ),
-          _buildDrawerItem(Icons.flag, "Targets", context, TargetsScreen()),
-          _buildDrawerItem(Icons.campaign, "Announcements", context, AnnouncementsScreen()),
-          _buildDrawerItem(Icons.fingerprint, "Punch In/Out", context, PunchInOutEmp()),
 
-          _buildDrawerItem(Icons.person, "Profile", context, ProfileScreen()),
+          _buildDrawerItem(LucideIcons.target, "Targets", context, TargetsScreen(), color: Colors.teal.shade700),
+          _buildDrawerItem(LucideIcons.megaphone, "Announcements", context, AnnouncementsScreen(), color: Colors.green.shade700),
+          _buildDrawerItem(LucideIcons.fingerprint, "Punch In/Out", context, PunchInOutEmp(), color: Colors.blueGrey.shade600),
+          _buildDrawerItem(LucideIcons.user, "Profile", context, ProfileScreen(), color: Colors.grey.shade800),
+
           Divider(),
-          _buildDrawerItem(Icons.logout, "Logout", context, LoginScreen(), isLogout: true),
+
+          _buildDrawerItem(LucideIcons.logOut, "Logout", context, LoginScreen(), isLogout: true, color: Colors.red.shade600),
         ],
       ),
     );
   }
 
-  Widget _buildDrawerItem(IconData icon, String title, BuildContext context, Widget screen, {bool isLogout = false}) {
+  Widget _buildDrawerItem(IconData icon, String title, BuildContext context, Widget screen,
+      {bool isLogout = false, Color color = Colors.black87}) {
     return ListTile(
-      leading: Icon(icon),
+      leading: Icon(icon, size: 20, color: color),
       title: Text(title),
       onTap: () async {
         if (isLogout) {
-          await AuthService.clear(); // ✅ Only clear on logout
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => LoginScreen()),
-          );
+          await AuthService.clear();
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
         } else {
           _navigateTo(context, screen);
         }
       },
     );
   }
-
 }
