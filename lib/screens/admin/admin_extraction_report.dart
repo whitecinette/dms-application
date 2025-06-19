@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import '../../config.dart';
 
 class ExtractionReportPage extends StatefulWidget {
   @override
@@ -11,6 +12,8 @@ class ExtractionReportPage extends StatefulWidget {
 class _ExtractionReportPageState extends State<ExtractionReportPage> {
   List<bool> valueVolumeToggle = [true, false];
   List<bool> shareDefaultToggle = [false, true];
+  Map<String, String> totalRow = {};
+
 
   int selectedMetric = 0;
   int selectedView = 1;
@@ -26,6 +29,12 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
   String? selectedTSE;
   String? selectedDealer;
 
+  @override
+  void initState() {
+    super.initState();
+    fetchReport();
+  }
+
   final List<Map<String, String>> fallbackData = [
     {'Price Class': '6-10k', 'Samsung': '2,00,089', 'Vivo': '12,889', 'Oppo': '0'},
     {'Price Class': '10-15k', 'Samsung': '10,089', 'Vivo': '30,00,987', 'Oppo': '10,000'},
@@ -36,12 +45,6 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
     {'Price Class': '70-100k', 'Samsung': '10,089', 'Vivo': '30,00,987', 'Oppo': '10,000'},
   ];
 
-  final Map<String, String> totalRow = {
-    'Price Class': 'Total',
-    'Samsung': '10,089',
-    'Vivo': '30,00,987',
-    'Oppo': '10,000',
-  };
 
   Future<void> fetchReport() async {
     setState(() => loading = true);
@@ -62,7 +65,7 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
     if (selectedTSE != null) queryParams["tse"] = selectedTSE!;
     if (selectedDealer != null) queryParams["dealer"] = selectedDealer!;
 
-    final uri = Uri.parse("https://your-api.com/get-extraction-report-for-admin")
+    final uri = Uri.parse("${Config.backendUrl}/get-extraction-report-for-admin")
         .replace(queryParameters: queryParams);
 
     try {
@@ -71,13 +74,31 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
         final jsonResponse = json.decode(response.body);
         final data = jsonResponse['data'] as List<dynamic>? ?? [];
 
-        tableData = data.map((e) => Map<String, dynamic>.from(e)).toList();
+        tableData = [];
+        Set<String> allKeys = {};
+        Map<String, dynamic>? extractedTotalRow;
 
-        if (tableData.isNotEmpty) {
-          final firstRow = tableData.first;
-          tableHeaders = firstRow.keys
-              .where((key) => key != "Price Class" && key != "Rank of Samsung")
-              .toList();
+        for (var row in data) {
+          final rowMap = Map<String, dynamic>.from(row);
+          final priceClass = rowMap['Price Class']?.toString().toLowerCase();
+
+          if (priceClass == 'total') {
+            extractedTotalRow = rowMap;
+            continue;
+          }
+
+          allKeys.addAll(rowMap.keys.map((k) => k.trim()));
+          tableData.add(rowMap);
+        }
+
+        allKeys.removeWhere((key) =>
+        key == 'Price Class' || key == 'Rank of Samsung' || key.toLowerCase() == 'total');
+
+        tableHeaders = allKeys.toList();
+
+        // Capture the total row if found
+        if (extractedTotalRow != null) {
+          totalRow = extractedTotalRow.map((k, v) => MapEntry(k, v?.toString() ?? ''));
         }
       } else {
         tableData = [];
@@ -88,6 +109,7 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
       tableData = [];
       tableHeaders = [];
     }
+
 
     setState(() => loading = false);
   }
@@ -205,12 +227,21 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> dataToShow =
-    tableData.isNotEmpty ? tableData : fallbackData;
+    final List<Map<String, dynamic>> dataToShow = tableData.length > 1
+        ? tableData.sublist(0, tableData.length - 1)
+        : fallbackData;
 
-    final List<String> headersToShow = tableHeaders.isNotEmpty
-        ? tableHeaders
-        : fallbackData.first.keys.where((k) => k != 'Price Class').toList();
+    final Map<String, dynamic> totalRow = tableData.length > 1
+        ? tableData.last
+        : {
+      'Price Class': 'Total',
+      'Samsung': '0',
+      'Vivo': '0',
+      'Oppo': '0',
+    };
+
+    final List<String> headersToShow = tableHeaders;
+
 
     return Scaffold(
       appBar: AppBar(
@@ -272,26 +303,38 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
               ],
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                _headerCell("Price band"),
-                for (final header in headersToShow) _headerCell(header),
-              ],
-            ),
-            if (loading)
-              const Expanded(child: Center(child: CircularProgressIndicator())),
-            if (!loading)
-              Expanded(
-                child: ListView.builder(
-                  itemCount: dataToShow.length + 1,
-                  itemBuilder: (_, index) {
-                    if (index == dataToShow.length) {
-                      return _dataRow(totalRow, isTotal: true);
-                    }
-                    return _dataRow(dataToShow[index]);
-                  },
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          _headerCell("Price band"),
+                          for (final header in headersToShow) _headerCell(header),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      for (int index = 0; index < dataToShow.length + 1; index++)
+                        _dataRow(
+                          index == dataToShow.length ? totalRow : dataToShow[index],
+                          isTotal: index == dataToShow.length,
+                        ),
+                    ],
+                  ),
                 ),
               ),
+            ),
+
+
+
+
+
+
+
           ],
         ),
       ),
@@ -334,16 +377,21 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
   }
 
   Widget _headerCell(String label) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.all(4),
-        padding: cellPadding,
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFEEDD),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        alignment: Alignment.center,
-        child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+    return Container(
+      margin: const EdgeInsets.all(4),
+      padding: cellPadding,
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFEEDD),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.center,
+      width: 100,
+      child: Text(
+        label,
+        style: const TextStyle(fontWeight: FontWeight.bold),
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
+        textAlign: TextAlign.center,
       ),
     );
   }
@@ -362,6 +410,8 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
     );
   }
 
+
+
   Color _getCellColor(String key, dynamic value, bool isTotal) {
     if (isTotal) return Colors.orange.shade200;
     if (value == 0 || value == null || value == '0') return Colors.white;
@@ -371,16 +421,21 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
   }
 
   Widget _dataCell(String value, Color color) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.all(4),
-        padding: cellPadding,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        alignment: Alignment.center,
-        child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+    return Container(
+      margin: const EdgeInsets.all(4),
+      padding: cellPadding,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.center,
+      width: 100,
+      child: Text(
+        value,
+        style: const TextStyle(fontWeight: FontWeight.w500),
+        textAlign: TextAlign.center,
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
       ),
     );
   }
