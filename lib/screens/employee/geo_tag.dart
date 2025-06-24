@@ -157,18 +157,30 @@ class _GeoTagScreenState extends ConsumerState<GeoTagScreen> {
                       final dealer = filteredDealers[index];
                       return ListTile(
                         title: Text(dealer['name']),
-                        subtitle: Text("Code: ${dealer['code']}"),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("Code: ${dealer['code']}"),
+                            Text(
+                              "${dealer['status'] ?? 'PENDING'}",
+                              style: TextStyle(
+                                color: dealer['status'] == 'DONE' ? Colors.green : Colors.orange,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                         onTap: () {
                           setState(() {
                             selectedDealer = dealer['code'];
                             _searchController.text = dealer['name'];
-                            filteredDealers = []; // Clear the filtered list
+                            filteredDealers = [];
                           });
 
-                          // Unfocus the text field to close the dropdown
                           _searchFocusNode.unfocus();
                         },
                       );
+
                     },
                   ),
                 ),
