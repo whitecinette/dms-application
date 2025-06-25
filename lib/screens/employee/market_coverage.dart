@@ -48,7 +48,7 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
       return;
     }
 
-    currentLocation = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    currentLocation = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.bestForNavigation,);
 
     controller.state = controller.state.copyWith(isLoading: true);
 
@@ -88,6 +88,8 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
     final isLoading = provider.isLoading;
     final dateRange = provider.dateRange;
     final formatter = DateFormat("dd MMM");
+
+    print("Filtered dealers: $dealers");
 
     return Scaffold(
       appBar: AppBar(
@@ -597,16 +599,40 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: () async {
+
+
+                      final userLat = currentLocation?.latitude;
+                      final userLng = currentLocation?.longitude;
+                      final dealerLat = d['latitude'];
+                      final dealerLng = d['longitude'];
+
+                      print("🧭 User Location: ($userLat, $userLng)");
+                      print("🏪 Dealer Location: ($dealerLat, $dealerLng)");
+                      print("📏 Distance: ${d['distance']?.toStringAsFixed(2)} km");
+
                       if ((d['distance'] ?? 9999) > 15.0) {
                         CustomPopup.showPopup(context, "Too Far", "You are more than 100 meters away from the dealer.", isSuccess: false);
                         return;
                       }
 
                       try {
+                        // final res = await ref.read(marketCoverageProvider.notifier).markDealerDone(
+                        //   dealerCode: d['code'],
+                        //   distance: d['distance'] ?? 0,
+                        // );
+
+
+                        ///CHECKINGG
+                        ///
                         final res = await ref.read(marketCoverageProvider.notifier).markDealerDone(
                           dealerCode: d['code'],
                           distance: d['distance'] ?? 0,
+                          userLat: currentLocation?.latitude,
+                          userLng: currentLocation?.longitude,
+                          dealerLat: d['latitude'],
+                          dealerLng: d['longitude'],
                         );
+
 
                         if (res['success']) {
                           CustomPopup.showPopup(context, "Success", res['message']);

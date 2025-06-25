@@ -17,6 +17,7 @@ import '../login_screen.dart';
 import '../../services/auth_service.dart';
 import 'admin_extraction_status_screen.dart';
 import 'package:lucide_icons/lucide_icons.dart'; // 💡 Lucide = clean, flat icon set
+import 'interactive_earth_screen.dart';
 
 class AdminSidebar extends StatelessWidget {
   final dynamic user;
@@ -88,6 +89,14 @@ class AdminSidebar extends StatelessWidget {
           _buildDrawerItem(LucideIcons.target, "Targets", context, TargetsScreen(), color: Colors.teal.shade700),
           _buildDrawerItem(LucideIcons.megaphone, "Announcements", context, AnnouncementsScreen(), color: Colors.green.shade700),
           _buildDrawerItem(LucideIcons.fingerprint, "Punch In/Out", context, PunchInOutEmp(), color: Colors.blueGrey.shade600),
+          _buildDrawerItem(
+            LucideIcons.globe,
+            "3D Earth View",
+            context,
+            InteractiveEarthScreen(),
+            color: Colors.lightBlue.shade700,
+          ),
+
           _buildDrawerItem(LucideIcons.user, "Profile", context, ProfileScreen(), color: Colors.grey.shade800),
 
           Divider(),

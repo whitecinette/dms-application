@@ -347,6 +347,10 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
   Future<Map<String, dynamic>> markDealerDone({
     required String dealerCode,
     required double distance,
+    double? userLat,
+    double? userLng,
+    double? dealerLat,
+    double? dealerLng,
   }) async {
     final token = await AuthService.getToken();
     if (token == null) return {"success": false, "message": "Token not found"};
@@ -355,6 +359,10 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
     final body = json.encode({
       "dealerCode": dealerCode,
       "distance": distance,
+      "userLat" : userLat,
+      "userLng" : userLng,
+      "dealerLat" : dealerLat,
+      "dealerLng" : dealerLng,
     });
 
     try {
