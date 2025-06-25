@@ -335,7 +335,7 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Request Leave'),
+          title: Text('New Leave'),
           content: LeaveForm(
             onSubmit: (formData) {
               print('Leave requested: $formData');

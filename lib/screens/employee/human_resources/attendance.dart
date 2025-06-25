@@ -121,18 +121,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
-  void _filterByStatus(String? status) {
-    setState(() {
-      selectedStatus = status;
-    });
-    _fetchAttendanceData(reset: true);
-  }
-
   void _filterLeaveByStatus(String? status) {
     setState(() {
       leaveSelectedStatus = status;
     });
     _fetchLeaveData(reset: true);
+  }
+
+  void _filterByStatus(String? status) {
+    setState(() {
+      selectedStatus = status;
+    });
+    _fetchAttendanceData(reset: true);
   }
 
   void _pickDateRange() async {

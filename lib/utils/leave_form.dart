@@ -34,6 +34,13 @@ class _LeaveFormState extends State<LeaveForm> {
     {'label': 'Other', 'value': 'other'},
   ];
 
+  String _formatDate(DateTime dt) {
+    return "${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dt.weekday % 7]}, "
+        "${dt.day.toString().padLeft(2, '0')} "
+        "${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][dt.month - 1]} "
+        "${dt.year}";
+  }
+
   void _resetForm() {
     setState(() {
       leaveType = null;
@@ -49,21 +56,18 @@ class _LeaveFormState extends State<LeaveForm> {
   }
 
   Future<void> _pickFromDate() async {
-    try {
-      final picked = await showDatePicker(
-        context: context,
-        initialDate: fromDate ?? DateTime.now(),
-        firstDate: DateTime.now(),
-        lastDate: DateTime(2100),
-      );
-      if (picked != null) {
-        setState(() {
-          fromDate = picked;
-          if (isHalfDay) toDate = picked;
-        });
-      }
-    } catch (e) {
-      CustomPopup.showPopup(context, "Error", "Failed to pick From Date.", isSuccess: false);
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: fromDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2100),
+    );
+
+    if (pickedDate != null) {
+      setState(() {
+        fromDate = pickedDate;
+        if (isHalfDay) toDate = pickedDate;
+      });
     }
   }
 
@@ -128,7 +132,7 @@ class _LeaveFormState extends State<LeaveForm> {
 
       final response = await ApiService.requestLeave(formData);
 
-      Navigator.of(context).pop(); // Close loading spinner
+      Navigator.of(context).pop();
 
       CustomPopup.showPopup(
         parentContext,
@@ -138,7 +142,7 @@ class _LeaveFormState extends State<LeaveForm> {
       );
 
       await Future.delayed(Duration(milliseconds: 1000));
-      Navigator.of(context, rootNavigator: true).pop(); // Forces popping top-most
+      Navigator.of(context, rootNavigator: true).pop();
       widget.onSubmit(formData);
     } catch (e) {
       if (Navigator.canPop(context)) Navigator.of(context).pop();
@@ -162,69 +166,67 @@ class _LeaveFormState extends State<LeaveForm> {
       );
     }
   }
+  int getTotalLeaveDays() {
+    if (fromDate == null || toDate == null) return 0;
+    return toDate!.difference(fromDate!).inDays + 1;
+  }
 
   InputDecoration _inputDecoration(String label) {
     return InputDecoration(
       labelText: label,
       filled: true,
       fillColor: Colors.grey[100],
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final textStyleLabel = TextStyle(fontSize: 12, color: Colors.grey[600]);
+    final textStyleValue = TextStyle(fontSize: 14, fontWeight: FontWeight.w500);
+    final iconSize = 20.0;
+    final padding = EdgeInsets.symmetric(horizontal: 14, vertical: 14);
+    final radius = BorderRadius.circular(12);
+
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(18.0),
+        padding: const EdgeInsets.all(14.0),
         child: Form(
           key: _formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              DropdownButtonFormField<String>(
-                decoration: _inputDecoration('Leave Type'),
-                isExpanded: true,
-                value: leaveType,
-                items: leaveTypes.map((type) {
-                  return DropdownMenuItem(
-                    value: type['value'],
-                    child: Text(type['label']!),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => leaveType = val),
-                validator: (val) => val == null || val.isEmpty ? 'Please select leave type' : null,
-              ),
-              SizedBox(height: 16),
-
+              _buildDropdownField(icon: Icons.grid_view_rounded, label: "Type", value: leaveTypes.firstWhere((e) => e['value'] == leaveType, orElse: () => {'label': 'Select'})['label']!, onTap: () async {
+                final selected = await showModalBottomSheet<String>(
+                  context: context,
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                  builder: (_) => ListView(
+                    shrinkWrap: true,
+                    children: leaveTypes.map((type) => ListTile(
+                      title: Text(type['label']!),
+                      onTap: () => Navigator.pop(context, type['value']),
+                    )).toList(),
+                  ),
+                );
+                if (selected != null) setState(() => leaveType = selected);
+              }),
+              SizedBox(height: 10),
               TextFormField(
-                readOnly: true,
-                decoration: _inputDecoration('From Date').copyWith(
-                  suffixIcon: Icon(Icons.calendar_today),
-                ),
-                controller: TextEditingController(
-                  text: fromDate == null ? '' : "${fromDate!.day}/${fromDate!.month}/${fromDate!.year}",
-                ),
-                onTap: _pickFromDate,
+                maxLines: 2,
+                decoration: _inputDecoration('Reason'),
+                onSaved: (val) => reason = val?.trim() ?? '',
+                validator: (val) => val == null || val.trim().isEmpty ? 'Reason is required' : null,
               ),
-              SizedBox(height: 16),
-
-              TextFormField(
-                readOnly: true,
-                decoration: _inputDecoration('To Date').copyWith(
-                  suffixIcon: Icon(Icons.calendar_today),
-                ),
-                controller: TextEditingController(
-                  text: toDate == null ? '' : "${toDate!.day}/${toDate!.month}/${toDate!.year}",
-                ),
-                onTap: _pickToDate,
-              ),
-              SizedBox(height: 16),
-
+              SizedBox(height: 10),
+              _buildDropdownField(icon: Icons.arrow_forward_ios_rounded, label: "From", value: fromDate != null ? _formatDate(fromDate!) : "Select From Date", onTap: _pickFromDate),
+              SizedBox(height: 10),
+              _buildDropdownField(icon: Icons.arrow_forward_ios_rounded, label: "To", value: toDate != null ? _formatDate(toDate!) : "Select To Date", onTap: _pickToDate),
+              SizedBox(height: 10),
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text("Half Day Leave"),
+                title: Text("Half Day Leave", style: TextStyle(fontSize: 13)),
                 value: isHalfDay,
                 onChanged: (val) {
                   setState(() {
@@ -234,44 +236,90 @@ class _LeaveFormState extends State<LeaveForm> {
                   });
                 },
               ),
-
               if (isHalfDay)
-                DropdownButtonFormField<String>(
-                  decoration: _inputDecoration('Session'),
-                  value: halfDaySession,
-                  items: ['morning', 'afternoon'].map((session) {
-                    return DropdownMenuItem(
-                      value: session,
-                      child: Text(session[0].toUpperCase() + session.substring(1)),
+                _buildDropdownField(
+                  icon: Icons.access_time_rounded,
+                  label: "Session",
+                  value: halfDaySession != null
+                      ? halfDaySession![0].toUpperCase() + halfDaySession!.substring(1)
+                      : "Select Session",
+                  onTap: () async {
+                    final selected = await showModalBottomSheet<String>(
+                      context: context,
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                      builder: (_) => ListView(
+                        shrinkWrap: true,
+                        children: ['morning', 'afternoon'].map((session) => ListTile(
+                          title: Text(session[0].toUpperCase() + session.substring(1)),
+                          onTap: () => Navigator.pop(context, session),
+                        )).toList(),
+                      ),
                     );
-                  }).toList(),
-                  onChanged: (val) => setState(() => halfDaySession = val),
-                  validator: (val) =>
-                  isHalfDay && (val == null || val.isEmpty) ? 'Select session' : null,
+                    if (selected != null) setState(() => halfDaySession = selected);
+                  },
                 ),
-              if (isHalfDay) SizedBox(height: 16),
 
-              TextFormField(
-                maxLines: 3,
-                decoration: _inputDecoration('Reason'),
-                onSaved: (val) => reason = val?.trim() ?? '',
-                validator: (val) => val == null || val.trim().isEmpty ? 'Reason is required' : null,
-              ),
               SizedBox(height: 16),
-
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _submit,
                   style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 14),
+                    padding: EdgeInsets.symmetric(vertical: 12),
                     backgroundColor: Colors.blueAccent,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  child: Text('Submit', style: TextStyle(color: Colors.white)),
+                  child: Text(
+                    (fromDate != null && toDate != null)
+                        ? 'Apply for ${getTotalLeaveDays()} Day${getTotalLeaveDays() > 1 ? 's' : ''} Leave'
+                        : 'Submit',
+                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  ),
                 ),
               ),
+
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdownField({required IconData icon, required String label, required String value, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.blue.shade100,
+              ),
+              child: Icon(icon, color: Colors.blue, size: 20),
+            ),
+            SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                  SizedBox(height: 2),
+                  Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_drop_down, color: Colors.grey),
+          ],
         ),
       ),
     );
