@@ -21,6 +21,7 @@ class _LeaveFormState extends State<LeaveForm> {
   DateTime? toDate;
   String reason = '';
   bool isHalfDay = false;
+  String? halfDaySession;
   String? attachmentUrl;
   String? fileName;
 
@@ -32,6 +33,7 @@ class _LeaveFormState extends State<LeaveForm> {
     {'label': 'Paternity Leave', 'value': 'paternity'},
     {'label': 'Other', 'value': 'other'},
   ];
+
   void _resetForm() {
     setState(() {
       leaveType = null;
@@ -39,6 +41,7 @@ class _LeaveFormState extends State<LeaveForm> {
       toDate = null;
       reason = '';
       isHalfDay = false;
+      halfDaySession = null;
       attachmentUrl = null;
       fileName = null;
     });
@@ -53,13 +56,23 @@ class _LeaveFormState extends State<LeaveForm> {
         firstDate: DateTime.now(),
         lastDate: DateTime(2100),
       );
-      if (picked != null) setState(() => fromDate = picked);
+      if (picked != null) {
+        setState(() {
+          fromDate = picked;
+          if (isHalfDay) toDate = picked;
+        });
+      }
     } catch (e) {
       CustomPopup.showPopup(context, "Error", "Failed to pick From Date.", isSuccess: false);
     }
   }
 
   Future<void> _pickToDate() async {
+    if (isHalfDay) {
+      CustomPopup.showPopup(context, "Info", "To Date is same as From Date for Half Day leave.");
+      return;
+    }
+
     try {
       final picked = await showDatePicker(
         context: context,
@@ -86,6 +99,11 @@ class _LeaveFormState extends State<LeaveForm> {
       return;
     }
 
+    if (isHalfDay && (halfDaySession == null || halfDaySession!.isEmpty)) {
+      CustomPopup.showPopup(context, "Session Required", "Please select a half-day session.", isSuccess: false);
+      return;
+    }
+
     _formKey.currentState!.save();
 
     final formData = {
@@ -95,8 +113,10 @@ class _LeaveFormState extends State<LeaveForm> {
       'reason': reason,
       'attachmentUrl': attachmentUrl,
       'isHalfDay': isHalfDay,
+      if (isHalfDay) 'halfDaySession': halfDaySession,
     };
-_resetForm();
+
+    _resetForm();
     final parentContext = context;
 
     try {
@@ -117,12 +137,11 @@ _resetForm();
         isSuccess: true,
       );
 
-      await Future.delayed(Duration(milliseconds: 700));
-      Navigator.of(parentContext).pop(); // Close LeaveForm dialog
-
+      await Future.delayed(Duration(milliseconds: 1000));
+      Navigator.of(context, rootNavigator: true).pop(); // Forces popping top-most
       widget.onSubmit(formData);
     } catch (e) {
-      if (Navigator.canPop(context)) Navigator.of(context).pop(); // Close loading spinner if open
+      if (Navigator.canPop(context)) Navigator.of(context).pop();
 
       String errorMsg;
 
@@ -203,6 +222,35 @@ _resetForm();
               ),
               SizedBox(height: 16),
 
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text("Half Day Leave"),
+                value: isHalfDay,
+                onChanged: (val) {
+                  setState(() {
+                    isHalfDay = val ?? false;
+                    if (!isHalfDay) halfDaySession = null;
+                    if (isHalfDay && fromDate != null) toDate = fromDate;
+                  });
+                },
+              ),
+
+              if (isHalfDay)
+                DropdownButtonFormField<String>(
+                  decoration: _inputDecoration('Session'),
+                  value: halfDaySession,
+                  items: ['morning', 'afternoon'].map((session) {
+                    return DropdownMenuItem(
+                      value: session,
+                      child: Text(session[0].toUpperCase() + session.substring(1)),
+                    );
+                  }).toList(),
+                  onChanged: (val) => setState(() => halfDaySession = val),
+                  validator: (val) =>
+                  isHalfDay && (val == null || val.isEmpty) ? 'Select session' : null,
+                ),
+              if (isHalfDay) SizedBox(height: 16),
+
               TextFormField(
                 maxLines: 3,
                 decoration: _inputDecoration('Reason'),
@@ -210,45 +258,6 @@ _resetForm();
                 validator: (val) => val == null || val.trim().isEmpty ? 'Reason is required' : null,
               ),
               SizedBox(height: 16),
-              //
-              // Align(
-              //   alignment: Alignment.centerLeft,
-              //   child: OutlinedButton.icon(
-              //     icon: Icon(Icons.attach_file, size: 20),
-              //     label: Text(
-              //       fileName != null ? fileName! : 'Add Attachment (Optional)',
-              //       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-              //     ),
-              //     style: OutlinedButton.styleFrom(
-              //       foregroundColor: Colors.black87,
-              //       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              //       side: BorderSide(color: Colors.grey.shade400),
-              //       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              //     ),
-              //     onPressed: () async {
-              //       try {
-              //         FilePickerResult? result = await FilePicker.platform.pickFiles(
-              //           allowMultiple: false,
-              //           type: FileType.custom,
-              //           allowedExtensions: ['jpg', 'png', 'jpeg', 'pdf', 'doc', 'docx'],
-              //         );
-              //         if (result != null && result.files.single.path != null) {
-              //           setState(() {
-              //             attachmentUrl = result.files.single.path!;
-              //             fileName = path.basename(attachmentUrl!);
-              //           });
-              //         } else {
-              //           ScaffoldMessenger.of(context).showSnackBar(
-              //             SnackBar(content: Text('No file selected')),
-              //           );
-              //         }
-              //       } catch (e) {
-              //         CustomPopup.showPopup(context, 'Error', 'File selection failed: ${e.toString()}', isSuccess: false);
-              //       }
-              //     },
-              //   ),
-              // ),
-              // SizedBox(height: 16),
 
               SizedBox(
                 width: double.infinity,
