@@ -42,11 +42,70 @@ class ApiService {
     }
   }
 
+  // static Future<Map<String, dynamic>> punchIn(String latitude, String longitude, File image) async {
+  //   final url = Uri.parse("${Config.backendUrl}/punch-in");
+  //   String? token = await AuthService.getToken();
+  //
+  //   if (token == null) {
+  //     return {
+  //       "warning": true,
+  //       "message": "User is not authenticated",
+  //     };
+  //   }
+  //
+  //   try {
+  //     var request = http.MultipartRequest("POST", url);
+  //     request.headers["Authorization"] = "Bearer $token";
+  //     request.fields['latitude'] = latitude;
+  //     request.fields['longitude'] = longitude;
+  //
+  //     final mimeType = lookupMimeType(image.path) ?? "image/jpeg";
+  //     final fileStream = await http.MultipartFile.fromPath(
+  //       'punchInImage',
+  //       image.path,
+  //       contentType: MediaType.parse(mimeType),
+  //     );
+  //
+  //     request.files.add(fileStream);
+  //
+  //     final response = await request.send();
+  //     final responseBody = await response.stream.bytesToString();
+  //
+  //     try {
+  //       final decoded = json.decode(responseBody);
+  //
+  //       return {
+  //         "statusCode": response.statusCode,
+  //         ...decoded,
+  //       };
+  //     } catch (e) {
+  //       return {
+  //         "statusCode": response.statusCode,
+  //         "warning": true,
+  //         "message": "Server returned an unexpected response. Please try again later.",
+  //         "rawResponse": responseBody,
+  //       };
+  //     }
+  //   } catch (e) {
+  //     return {
+  //       "warning": true,
+  //       "message": "Network or server error occurred: ${e.toString()}",
+  //     };
+  //   }
+  // }
+
+
+
+//punch out
+
   static Future<Map<String, dynamic>> punchIn(String latitude, String longitude, File image) async {
     final url = Uri.parse("${Config.backendUrl}/punch-in");
+    print("📡 API URL: $url");
+
     String? token = await AuthService.getToken();
 
     if (token == null) {
+      print("❌ No auth token found");
       return {
         "warning": true,
         "message": "User is not authenticated",
@@ -54,10 +113,14 @@ class ApiService {
     }
 
     try {
+      print("📤 Preparing Punch In Multipart Request...");
       var request = http.MultipartRequest("POST", url);
       request.headers["Authorization"] = "Bearer $token";
+
       request.fields['latitude'] = latitude;
       request.fields['longitude'] = longitude;
+
+      print("📍 Latitude: $latitude, Longitude: $longitude");
 
       final mimeType = lookupMimeType(image.path) ?? "image/jpeg";
       final fileStream = await http.MultipartFile.fromPath(
@@ -67,18 +130,33 @@ class ApiService {
       );
 
       request.files.add(fileStream);
+      print("📎 Attached Image: ${image.path}, MIME: $mimeType");
+
+      final fileSize = image.lengthSync();
+      print("🖼️ Uploading image size: $fileSize bytes");
+
+      print("🚀 Sending request...");
+      final stopwatch = Stopwatch()..start();
 
       final response = await request.send();
+
+      stopwatch.stop();
+      print("⏱️ Request completed in ${stopwatch.elapsedMilliseconds} ms");
+
       final responseBody = await response.stream.bytesToString();
+      print("📥 Raw response body: $responseBody");
 
       try {
         final decoded = json.decode(responseBody);
+        print("✅ Parsed response: $decoded");
 
         return {
           "statusCode": response.statusCode,
           ...decoded,
         };
       } catch (e) {
+        print("⚠️ JSON parsing failed: ${e.toString()}");
+
         return {
           "statusCode": response.statusCode,
           "warning": true,
@@ -87,6 +165,8 @@ class ApiService {
         };
       }
     } catch (e) {
+      print("❗ Request failed: ${e.toString()}");
+
       return {
         "warning": true,
         "message": "Network or server error occurred: ${e.toString()}",
@@ -94,9 +174,6 @@ class ApiService {
     }
   }
 
-
-
-//punch out
   static Future<Map<String, dynamic>> punchOut(String latitude, String longitude, File image, {String? dealerCode}) async {
     final url = Uri.parse("${Config.backendUrl}/punch-out");
 

@@ -13,7 +13,6 @@ import 'dart:io';
 import 'package:dms_app/services/location_service.dart';
 import 'package:dms_app/utils/responsive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:geolocator/geolocator.dart';
 
 class PunchInOutEmp extends ConsumerStatefulWidget {
   @override
@@ -89,145 +88,53 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
     }
   }
 
-  // Future<void> _submitPunchIn() async {
-  //   if (_image == null) {
-  //     await _captureImage(); // Automatically open camera if no image
-  //   }
-  //
-  //   setState(() {
-  //     _isPunchingIn = true;
-  //   });
-  //
-  //   try {
-  //     // ✅ Fetch fresh and accurate location (like in Market Coverage)
-  //     final position = await Geolocator.getCurrentPosition(
-  //       desiredAccuracy: LocationAccuracy.bestForNavigation,
-  //     );
-  //
-  //     final latitude = position.latitude.toString();
-  //     final longitude = position.longitude.toString();
-  //
-  //     // 🧭 Debug log (optional)
-  //     print("📍 Punch In Location: ($latitude, $longitude)");
-  //
-  //     // ⛔ Double-check image again
-  //     if (_image == null) {
-  //       CustomPopup.showPopup(
-  //         context,
-  //         "Warning",
-  //         "Image is required. Please try again.",
-  //         type: MessageType.warning,
-  //       );
-  //       setState(() => _isPunchingIn = false); // ✅ FIX
-  //       return;
-  //     }
-  //
-  //
-  //     final response = await ApiService.punchIn(latitude, longitude, _image!);
-  //
-  //     if (response.containsKey('message')) {
-  //       if (response['warning'] == true || response['statusCode'] == 403) {
-  //         CustomPopup.showPopup(
-  //           context,
-  //           "Warning",
-  //           response['message'] ?? "There is a warning.",
-  //           type: MessageType.warning,
-  //         );
-  //       } else {
-  //         setState(() {
-  //           _hasPunchedIn = true;
-  //           _image = null;
-  //         });
-  //
-  //         await _savePunchStatus(true);
-  //
-  //         CustomPopup.showPopup(
-  //           context,
-  //           "Success",
-  //           response['message'] ?? "You have successfully punched in.",
-  //           isSuccess: true,
-  //         );
-  //       }
-  //     } else {
-  //       CustomPopup.showPopup(
-  //         context,
-  //         "Error",
-  //         response['message'] ?? "Unexpected response",
-  //         isSuccess: false,
-  //       );
-  //     }
-  //   } catch (error) {
-  //     CustomPopup.showPopup(
-  //       context,
-  //       "Error",
-  //       "Something went wrong: ${error.toString()}",
-  //       isSuccess: false,
-  //     );
-  //   } finally {
-  //     setState(() {
-  //       _isPunchingIn = false;
-  //     });
-  //   }
-  // }
-
   Future<void> _submitPunchIn() async {
-    print("🔁 Punch In initiated...");
-
     if (_image == null) {
-      print("📸 No image found. Opening camera...");
       await _captureImage(); // Automatically open camera if no image
     }
+
+    final location = ref.watch(coordinatesProvider);
+
+    // Re-check if image is still null or location is empty after capture
+    if (_image == null || location.isEmpty) {
+      CustomPopup.showPopup(
+        context,
+        "Warning",
+        "Please capture an image and fetch location.",
+        type: MessageType.warning,
+      );
+      return;
+    }
+
+    List<String> coordinates = location.split(',');
+    String latitude = coordinates[0].trim();
+    String longitude = coordinates[1].trim();
 
     setState(() {
       _isPunchingIn = true;
     });
 
     try {
-      // ✅ Fetch fresh and accurate location
-      print("📍 Getting current location...");
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.bestForNavigation,
-      );
-
-      final latitude = position.latitude.toString();
-      final longitude = position.longitude.toString();
-      print("✅ Location fetched: Latitude = $latitude, Longitude = $longitude");
-
-      // ⛔ Re-check image again
-      if (_image == null) {
-        print("❌ Image still null after capture. Aborting Punch In.");
-        CustomPopup.showPopup(
-          context,
-          "Warning",
-          "Image is required. Please try again.",
-          type: MessageType.warning,
-        );
-        setState(() => _isPunchingIn = false);
-        return;
-      }
-
-      print("📤 Sending Punch In request to API...");
       final response = await ApiService.punchIn(latitude, longitude, _image!);
-
-      print("📥 API Response: $response");
 
       if (response.containsKey('message')) {
         if (response['warning'] == true || response['statusCode'] == 403) {
-          print("⚠️ Warning received: ${response['message']}");
           CustomPopup.showPopup(
             context,
             "Warning",
             response['message'] ?? "There is a warning.",
             type: MessageType.warning,
           );
-        } else {
-          print("✅ Punch In successful: ${response['message']}");
+        }
+
+        else {
           setState(() {
             _hasPunchedIn = true;
             _image = null;
           });
 
           await _savePunchStatus(true);
+          ref.read(coordinatesProvider.notifier).state = "";
 
           CustomPopup.showPopup(
             context,
@@ -237,7 +144,6 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
           );
         }
       } else {
-        print("❌ Unexpected response format: $response");
         CustomPopup.showPopup(
           context,
           "Error",
@@ -246,7 +152,6 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
         );
       }
     } catch (error) {
-      print("🚨 Punch In failed: ${error.toString()}");
       CustomPopup.showPopup(
         context,
         "Error",
@@ -257,10 +162,8 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
       setState(() {
         _isPunchingIn = false;
       });
-      print("🧹 Punch In flow complete");
     }
   }
-
 
   Widget _buildCircleButton({
     required IconData icon,
@@ -315,26 +218,22 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
       await _captureImage(); // Automatically open camera if no image
     }
 
-    final position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.bestForNavigation,
-    );
-
-    final latitude = position.latitude.toString();
-    final longitude = position.longitude.toString();
-
+    final location = ref.watch(coordinatesProvider);
 
     // Re-check if image is still null or location is empty after capture
-    if (_image == null) {
+    if (_image == null || location.isEmpty) {
       CustomPopup.showPopup(
         context,
         "Warning",
-        "Image is required. Please try again.",
+        "Please capture an image and fetch location.",
         type: MessageType.warning,
       );
-      setState(() => _isPunchingIn = false); // ✅ FIX
       return;
     }
 
+    List<String> coordinates = location.split(',');
+    String latitude = coordinates[0].trim();
+    String longitude = coordinates[1].trim();
 
     setState(() {
       _isPunchingOut = true; // ✅ Show spinner
@@ -392,24 +291,17 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
   }
 
   Future<void> _showDealerSelectionDialog() async {
-    final position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.bestForNavigation,
-    );
-    final currentLat = position.latitude.toString();
-    final currentLng = position.longitude.toString();
+    final location = ref.watch(coordinatesProvider);
 
-
-    if (_image == null) {
+    if (_image == null || location.isEmpty) {
       CustomPopup.showPopup(
         context,
         "Warning",
-        "Image is required. Please try again.",
+        "Please capture an image and fetch location first.",
         type: MessageType.warning,
       );
-      setState(() => _isPunchingIn = false); // ✅ FIX
       return;
     }
-
 
     setState(() {
       _isSelectingDealerAndPunching = true;
