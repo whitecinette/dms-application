@@ -49,11 +49,12 @@ class SalesFilterNotifier extends StateNotifier<SalesFilterState> {
   SalesFilterNotifier()
       : super(SalesFilterState(
     selectedType: 'value',
-    startDate: DateTime(2025, 2, 1),
-    endDate: DateTime(2025, 2, 28),
+    startDate: DateTime(DateTime.now().year, DateTime.now().month, 1),
+    endDate: DateTime.now(),
     selectedSubordinate: 'self',
     selectedSubordinateCodes: [],
   ));
+
 
   void updateType(String type) {
     state = state.copyWith(selectedType: type.toLowerCase());
