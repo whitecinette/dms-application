@@ -32,8 +32,6 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
   String? _userRole;
   String? _selectedDealerCode;
   bool _isSelectingDealerAndPunching = false;
-  Position? _cachedPosition;
-
 
   @override
   void initState() {
@@ -41,46 +39,8 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
     _loadPunchStatus();
     _loadUserRole();
     _updateTime();
-    _initializeAccurateLocation(); // 🔥 New
     Timer.periodic(Duration(seconds: 1), (timer) => _updateTime());
   }
-
-  Future<void> _initializeAccurateLocation() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-
-    if (permission == LocationPermission.deniedForever || permission == LocationPermission.denied) {
-      CustomPopup.showPopup(context, "Permission Denied", "Location permission is required for attendance.");
-      return;
-    }
-
-    // Wait for accurate location fix
-    final position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.bestForNavigation,
-    );
-
-    print("📍 Initial Location: ${position.latitude}, ${position.longitude}");
-    print("📡 Accuracy: ${position.accuracy} meters");
-
-    if (position.accuracy <= 50) {
-      _cachedPosition = position;
-    } else {
-      // Optional: Retry once if accuracy too poor
-      await Future.delayed(Duration(seconds: 2));
-      final retryPosition = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.bestForNavigation,
-      );
-      _cachedPosition = retryPosition;
-      print("🔁 Retried Accuracy: ${retryPosition.accuracy} meters");
-    }
-
-    ref.read(coordinatesProvider.notifier).state =
-    "${_cachedPosition?.latitude}, ${_cachedPosition?.longitude}";
-  }
-
-
   Future<void> _loadUserRole() async {
     final user = await AuthService.getUser();
     if (user != null && user.containsKey('position')) {
@@ -225,16 +185,13 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
     try {
       // ✅ Fetch fresh and accurate location
       print("📍 Getting current location...");
-      if (_cachedPosition == null) {
-        CustomPopup.showPopup(context, "Error", "Location not available. Please ensure GPS is on.");
-        return;
-      }
-      final latitude = _cachedPosition!.latitude.toString();
-      final longitude = _cachedPosition!.longitude.toString();
-      final accuracy = _cachedPosition!.accuracy;
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.bestForNavigation,
+      );
 
-      print("📍 Punch In Coords => Lat: $latitude, Lng: $longitude, Accuracy: ${accuracy.toStringAsFixed(2)} meters");
-
+      final latitude = position.latitude.toString();
+      final longitude = position.longitude.toString();
+      print("✅ Location fetched: Latitude = $latitude, Longitude = $longitude");
 
       // ⛔ Re-check image again
       if (_image == null) {
@@ -358,13 +315,12 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
       await _captureImage(); // Automatically open camera if no image
     }
 
-    if (_cachedPosition == null) {
-      CustomPopup.showPopup(context, "Error", "Location not available. Please ensure GPS is on.");
-      return;
-    }
-    final latitude = _cachedPosition!.latitude.toString();
-    final longitude = _cachedPosition!.longitude.toString();
+    final position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.bestForNavigation,
+    );
 
+    final latitude = position.latitude.toString();
+    final longitude = position.longitude.toString();
 
 
     // Re-check if image is still null or location is empty after capture
@@ -436,13 +392,11 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
   }
 
   Future<void> _showDealerSelectionDialog() async {
-    if (_cachedPosition == null) {
-      CustomPopup.showPopup(context, "Error", "Location not available. Please ensure GPS is on.");
-      return;
-    }
-    final latitude = _cachedPosition!.latitude.toString();
-    final longitude = _cachedPosition!.longitude.toString();
-
+    final position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.bestForNavigation,
+    );
+    final currentLat = position.latitude.toString();
+    final currentLng = position.longitude.toString();
 
 
     if (_image == null) {
@@ -526,13 +480,7 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
               });
             },
           ),
-          IconButton(
-            icon: Icon(Icons.gps_fixed),
-            tooltip: "Refresh GPS",
-            onPressed: _initializeAccurateLocation, // 🔁 Use your accurate location fetcher
-          ),
         ],
-
       ),
       body: SafeArea(
         child: Column(

@@ -50,6 +50,9 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
 
     currentLocation = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.bestForNavigation,);
 
+    print("📍 Market Cov coords: ${currentLocation?.latitude}, ${currentLocation?.longitude} (Accuracy: ${currentLocation?.accuracy} m)");
+
+
     controller.state = controller.state.copyWith(isLoading: true);
 
     // ⛔ Don't pre-fetch if we're opening via RoutePlan
