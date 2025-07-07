@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import '../../config.dart';
+import '../../services/auth_service.dart';
+
 
 class ExtractionReportPage extends StatefulWidget {
   @override
@@ -13,6 +15,12 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
   List<bool> valueVolumeToggle = [true, false];
   List<bool> shareDefaultToggle = [false, true];
   Map<String, String> totalRow = {};
+  List<Map<String, dynamic>> subordinate = [];
+  List<String> positionLevels = [];
+  List<Map<String, dynamic>> dropdownValue = []; // [{code, name, position}]
+  Map<String, List<Map<String, dynamic>>> selectedActorsByPosition = {};
+
+
 
 
   int selectedMetric = 0;
@@ -32,8 +40,99 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    final firstDay = DateTime(now.year, now.month, 1);
+    final lastDay = DateTime(now.year, now.month + 1, 0);
+    selectedDateRange = DateTimeRange(start: firstDay, end: lastDay);
+    fetchHierarchy(); // <-- NEW
     fetchReport();
   }
+
+  Widget _dateButton(String label) {
+    return ElevatedButton(
+      onPressed: () async {
+        final picked = await showDateRangePicker(
+          context: context,
+          initialDateRange: selectedDateRange,
+          firstDate: DateTime(2023),
+          lastDate: DateTime.now().add(const Duration(days: 365)),
+        );
+        if (picked != null) {
+          setState(() {
+            selectedDateRange = picked;
+          });
+          fetchReport(); // Refresh data on selection
+        }
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFE3F2FD),
+        foregroundColor: Colors.black,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        textStyle: const TextStyle(fontSize: 12),
+        minimumSize: const Size(10, 32),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(5),
+        ),
+      ),
+      child: Text(
+        label == "Start date"
+            ? DateFormat('dd MMM').format(selectedDateRange?.start ?? DateTime.now())
+            : DateFormat('dd MMM').format(selectedDateRange?.end ?? DateTime.now()),
+      ),
+    );
+  }
+
+
+  Future<void> fetchHierarchy() async {
+    try {
+      final Map<String, List<String>> positionCodes = {};
+      for (final item in dropdownValue) {
+        final pos = item['position'];
+        if (!positionCodes.containsKey(pos)) {
+          positionCodes[pos] = [];
+        }
+        positionCodes[pos]!.add(item['code']);
+      }
+
+      final params = positionCodes.map(
+            (pos, codes) => MapEntry(pos, codes.join(',')),
+      );
+
+      final uri = Uri.parse("${Config.backendUrl}/get-hierarchy-filter")
+          .replace(queryParameters: params);
+
+      final token = await AuthService.getToken();
+
+      final response = await http.get(uri, headers: {
+        'Authorization': 'Bearer $token', // Or whatever your auth header is
+      });
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        subordinate.clear();
+        positionLevels.clear();
+
+        data.forEach((pos, list) {
+          if (list is List && list.isNotEmpty) {
+            positionLevels.add(pos);
+            for (final person in list) {
+              subordinate.add({
+                'code': person['code'],
+                'name': person['name'],
+                'position': pos,
+              });
+            }
+          }
+        });
+
+        setState(() {}); // refresh dropdowns
+      }
+    } catch (e) {
+      print('Error fetching hierarchy: $e');
+    }
+  }
+
+
 
   final List<Map<String, String>> fallbackData = [
     {'Price Class': '6-10k', 'Samsung': '2,00,089', 'Vivo': '12,889', 'Oppo': '0'},
@@ -45,6 +144,103 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
     {'Price Class': '70-100k', 'Samsung': '10,089', 'Vivo': '30,00,987', 'Oppo': '10,000'},
   ];
 
+  Map<String, dynamic> _extractRowValues(Map<String, dynamic> row) {
+    final Map<String, dynamic> values = {};
+    for (final key in tableHeaders) {
+      if (key != 'Price Class' && key != 'Rank of Samsung') {
+        values[key] = _parseValue(row[key]);
+      }
+    }
+    return values;
+  }
+
+  Map<String, double> _getRowMinMax(Map<String, dynamic> rowValues) {
+    double min = double.infinity;
+    double max = -double.infinity;
+
+    rowValues.forEach((key, val) {
+      if (val is num) {
+        min = val < min ? val.toDouble() : min;
+        max = val > max ? val.toDouble() : max;
+      }
+    });
+
+    return {'min': min, 'max': max};
+  }
+
+  dynamic _parseValue(dynamic value) {
+    if (value == null) return 0;
+    if (value is num) return value;
+    if (value is String) {
+      final cleaned = value
+          .replaceAll(',', '')
+          .replaceAll('%', '')  // <-- Important fix
+          .trim();
+      return double.tryParse(cleaned) ?? 0;
+    }
+    return 0;
+  }
+
+
+  String _getDisplayValue(dynamic value) {
+    final parsed = _parseValue(value);
+
+    if (selectedView == 0) {
+      return "${parsed.toStringAsFixed(1)}%";
+    }
+
+    if (parsed >= 10000000) {
+      return "${(parsed / 10000000).toStringAsFixed(2)} Cr";
+    } else if (parsed >= 100000) {
+      return "${(parsed / 100000).toStringAsFixed(2)} L";
+    } else if (parsed >= 1000) {
+      return "${(parsed / 1000).toStringAsFixed(1)} K";
+    } else {
+      return parsed.toString();
+    }
+  }
+
+
+
+
+
+  Color _getHeatmapColor(dynamic val, double rowMin, double rowMax, bool isTotal) {
+    if (isTotal || val == null) return Colors.orange.shade50;
+
+    final value = _parseValue(val);
+    if (rowMin == rowMax) return Colors.orange.shade50;
+
+    final normalized = (value - rowMin) / (rowMax - rowMin);
+    double r, g, b;
+
+    if (normalized < 0.5) {
+      // Light to medium orange
+      final double factor = normalized * 2;
+      r = 255;
+      g = 229 - ((229 - 153) * factor).toDouble();
+      b = 204 - ((204 - 51) * factor).toDouble();
+
+    } else {
+      // Medium to deep orange
+      final double factor = (normalized - 0.5) * 2;
+      r = 255 - ((255 - 204) * factor).toDouble();
+      g = 153 - ((153 - 85) * factor).toDouble();
+      b = 51 - (51 * factor).toDouble();
+
+    }
+
+    return Color.fromRGBO(r.round(), g.round(), b.round(), 1);
+  }
+
+  double _calculateTotal(Map<String, dynamic> rowValues) {
+    double sum = 0;
+    rowValues.forEach((key, val) {
+      if (val is num) sum += val.toDouble();
+    });
+    return sum;
+  }
+
+
 
   Future<void> fetchReport() async {
     setState(() => loading = true);
@@ -55,11 +251,24 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
 
     Map<String, String> queryParams = {
       "metric": selectedMetric == 0 ? "value" : "volume",
+      "view": selectedView == 0 ? "share" : "default",  // 🔥 Add this line!
     };
+
 
     if (startDate != null) queryParams["startDate"] = dateFormat.format(startDate);
     if (endDate != null) queryParams["endDate"] = dateFormat.format(endDate);
-    if (selectedSMD != null) queryParams["smd"] = selectedSMD!;
+    final Map<String, List<String>> grouped = {};
+
+    for (final item in dropdownValue) {
+      final pos = item['position'];
+      if (!grouped.containsKey(pos)) grouped[pos] = [];
+      grouped[pos]!.add(item['code']);
+    }
+
+    grouped.forEach((pos, codes) {
+      queryParams[pos] = codes.join(',');
+    });
+
     if (selectedASM != null) queryParams["asm"] = selectedASM!;
     if (selectedMDD != null) queryParams["mdd"] = selectedMDD!;
     if (selectedTSE != null) queryParams["tse"] = selectedTSE!;
@@ -178,58 +387,211 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Filters", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                      ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange.shade100,
-                          foregroundColor: Colors.black,
-                        ),
-                        child: const Text("Reset Filters"),
-                      )
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            "Filters",
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              dropdownValue.clear();
+                              selectedActorsByPosition.clear();
+                              fetchReport();
+                              Navigator.of(context).pop();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange.shade100,
+                              foregroundColor: Colors.black,
+                            ),
+                            child: const Text("Reset Filters"),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: positionLevels.map((pos) {
+                          final selectedCount = selectedActorsByPosition[pos]?.length ?? 0;
+                          return ElevatedButton(
+                            onPressed: () {
+                              showMultiSelectModal(context, pos, () {
+                                setStateDialog(() {});
+                                fetchReport();
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade50,
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              selectedCount > 0
+                                  ? '${pos.toUpperCase()} ($selectedCount)'
+                                  : pos.toUpperCase(),
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // OPTIONAL: Show selected chips below filter buttons
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: dropdownValue.map((actor) {
+                          return Chip(
+                            label: Text(
+                                "${actor['position'].toString().toUpperCase()} - ${actor['name']} (${actor['code']})",
+                                style: const TextStyle(fontSize: 11)),
+                            backgroundColor: Colors.grey.shade200,
+                          );
+                        }).toList(),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      _dropdown("state"),
-                      _dropdown("district"),
-                      _dropdown("town"),
-                      _dropdown("smd"),
-                      _dropdown("asm"),
-                      _dropdown("mdd"),
-                      _dropdown("tse"),
-                      _dropdown("dealer"),
-                    ],
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
   }
 
+  void showMultiSelectModal(BuildContext context, String position, VoidCallback onApply) {
+    List<Map<String, dynamic>> selectedList = List.from(
+      selectedActorsByPosition[position] ?? [],
+    );
+    String searchText = "";
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final filtered = subordinate.where((actor) {
+              final name = actor['name']?.toString().toLowerCase() ?? '';
+              final code = actor['code']?.toString().toLowerCase() ?? '';
+              return actor['position'] == position &&
+                  (name.contains(searchText.toLowerCase()) ||
+                      code.contains(searchText.toLowerCase()));
+            }).toList();
+
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.6,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Select ${position.toUpperCase()}",
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 10),
+                      TextField(
+                        decoration: const InputDecoration(
+                          hintText: "Search name or code",
+                          prefixIcon: Icon(Icons.search),
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        onChanged: (val) => setModalState(() => searchText = val),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: selectedList.map((actor) {
+                          return Chip(
+                            label: Text("${actor['name']} (${actor['code']})"),
+                            onDeleted: () {
+                              setModalState(() {
+                                selectedList.removeWhere((a) => a['code'] == actor['code']);
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const Divider(),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final actor = filtered[index];
+                            final alreadySelected = selectedList.any((s) => s['code'] == actor['code']);
+                            return CheckboxListTile(
+                              title: Text("${actor['name']} (${actor['code']})"),
+                              value: alreadySelected,
+                              onChanged: (checked) {
+                                setModalState(() {
+                                  if (checked == true) {
+                                    selectedList.add(actor);
+                                  } else {
+                                    selectedList.removeWhere((a) => a['code'] == actor['code']);
+                                  }
+                                });
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                      const Divider(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton(
+                            onPressed: () => setModalState(() => selectedList.clear()),
+                            child: const Text("CLEAR"),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              selectedActorsByPosition[position] = List.from(selectedList);
+                              dropdownValue = selectedActorsByPosition.values.expand((e) => e).toList();
+                              onApply();
+                              Navigator.of(context).pop();
+                            },
+                            child: const Text("APPLY"),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> dataToShow = tableData.length > 1
-        ? tableData.sublist(0, tableData.length - 1)
-        : fallbackData;
+    final bool isUsingFallback = tableData.length <= 1;
+    final List<Map<String, dynamic>> dataToShow = isUsingFallback
+        ? fallbackData
+        : tableData.sublist(0, tableData.length - 1);
+
 
     final Map<String, dynamic> totalRow = tableData.length > 1
         ? tableData.last
@@ -240,7 +602,11 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
       'Oppo': '0',
     };
 
-    final List<String> headersToShow = tableHeaders;
+    final List<String> headersToShow = [
+      ...tableHeaders,
+      if (!tableHeaders.contains("Total")) "Total",
+    ];
+
 
 
     return Scaffold(
@@ -288,7 +654,13 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
                 _buildSegmentedToggle(
                   options: ['Value', 'Volume'],
                   selectedIndex: selectedMetric,
-                  onTap: (index) => setState(() => selectedMetric = index),
+                  onTap: (index) {
+                    setState(() {
+                      selectedMetric = index;
+                    });
+                    fetchReport();
+                  }
+                  ,
                   backgroundColor: Colors.orange.shade300,
                   selectedColor: Colors.orange.shade100,
                 ),
@@ -296,10 +668,16 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
                 _buildSegmentedToggle(
                   options: ['Share', 'Default'],
                   selectedIndex: selectedView,
-                  onTap: (index) => setState(() => selectedView = index),
+                  onTap: (index) {
+                    setState(() {
+                      selectedView = index;
+                    });
+                    fetchReport();
+                  },
                   backgroundColor: Colors.blue.shade300,
                   selectedColor: Colors.blue.shade100,
                 ),
+
               ],
             ),
             const SizedBox(height: 16),
@@ -336,23 +714,6 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
 
 
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _dateButton(String label) {
-    return ElevatedButton(
-      onPressed: () {},
-      child: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Color(0xFFE3F2FD),
-        foregroundColor: Colors.black,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        textStyle: const TextStyle(fontSize: 12),
-        minimumSize: const Size(10, 32),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(5),
         ),
       ),
     );
@@ -397,30 +758,37 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
   }
 
   Widget _dataRow(Map<String, dynamic> row, {bool isTotal = false}) {
-    final keys = row.keys.where((k) => k != 'Price Class');
+    final rowValues = _extractRowValues(row);
+    final minMax = _getRowMinMax(rowValues);
+
     return Row(
       children: [
         _dataCell(row['Price Class']?.toString() ?? '-', Colors.orange.shade50),
-        for (final key in keys)
+        for (final header in tableHeaders)
           _dataCell(
-            row[key]?.toString() ?? '-',
-            _getCellColor(key, row[key], isTotal),
+            _getDisplayValue(row[header]),
+            _getHeatmapColor(
+              row[header],
+              minMax['min'] ?? 0.0,
+              minMax['max'] ?? 0.0,
+              isTotal,
+            ),
+
+            bold: true,
           ),
+        _dataCell(
+          _getDisplayValue(row["Total"] ?? _calculateTotal(rowValues)),
+          isTotal ? Colors.orange.shade200 : Colors.orange.shade50,
+          bold: true,
+        ),
       ],
     );
   }
 
 
 
-  Color _getCellColor(String key, dynamic value, bool isTotal) {
-    if (isTotal) return Colors.orange.shade200;
-    if (value == 0 || value == null || value == '0') return Colors.white;
-    if ((value is int && value > 100000) || (value is String && value.contains('30,00,987')))
-      return Colors.deepOrange;
-    return Colors.orange.shade100;
-  }
 
-  Widget _dataCell(String value, Color color) {
+  Widget _dataCell(String value, Color color, {bool bold = false}) {
     return Container(
       margin: const EdgeInsets.all(4),
       padding: cellPadding,
@@ -432,13 +800,17 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
       width: 100,
       child: Text(
         value,
-        style: const TextStyle(fontWeight: FontWeight.w500),
+        style: TextStyle(
+          fontWeight: bold ? FontWeight.bold : FontWeight.w500,
+          fontSize: 12,
+        ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.ellipsis,
         maxLines: 1,
       ),
     );
   }
+
 
   static const cellPadding = EdgeInsets.symmetric(vertical: 8.0, horizontal: 10.0);
 }
