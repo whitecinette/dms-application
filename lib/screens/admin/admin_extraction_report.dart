@@ -159,14 +159,14 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
     double max = -double.infinity;
 
     rowValues.forEach((key, val) {
-      if (val is num) {
-        min = val < min ? val.toDouble() : min;
-        max = val > max ? val.toDouble() : max;
-      }
+      final parsed = _parseValue(val).toDouble();
+      if (parsed < min) min = parsed;
+      if (parsed > max) max = parsed;
     });
 
     return {'min': min, 'max': max};
   }
+
 
   dynamic _parseValue(dynamic value) {
     if (value == null) return 0;
@@ -204,33 +204,27 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
 
 
 
-  Color _getHeatmapColor(dynamic val, double rowMin, double rowMax, bool isTotal) {
-    if (isTotal || val == null) return Colors.orange.shade50;
+  Color _getHeatmapColor(dynamic val, double min, double max, {bool isTotal = false}) {
+    final value = _parseValue(val).toDouble();
+    if (max == min) return Colors.blue.shade100.withAlpha((0.65 * 255).toInt());
 
-    final value = _parseValue(val);
-    if (rowMin == rowMax) return Colors.orange.shade50;
+    final norm = ((value - min) / (max - min)).clamp(0.0, 1.0);
 
-    final normalized = (value - rowMin) / (rowMax - rowMin);
-    double r, g, b;
+    final low = HSVColor.fromColor(Colors.blue.shade100);
+    final high = HSVColor.fromColor(Colors.green.shade300);
 
-    if (normalized < 0.5) {
-      // Light to medium orange
-      final double factor = normalized * 2;
-      r = 255;
-      g = 229 - ((229 - 153) * factor).toDouble();
-      b = 204 - ((204 - 51) * factor).toDouble();
+    final color = HSVColor.lerp(low, high, norm)!.toColor();
 
-    } else {
-      // Medium to deep orange
-      final double factor = (normalized - 0.5) * 2;
-      r = 255 - ((255 - 204) * factor).toDouble();
-      g = 153 - ((153 - 85) * factor).toDouble();
-      b = 51 - (51 * factor).toDouble();
-
-    }
-
-    return Color.fromRGBO(r.round(), g.round(), b.round(), 1);
+    return color.withAlpha((0.95 * 255).toInt()); // pastel and safe from deprecation
   }
+
+
+
+
+
+
+
+
 
   double _calculateTotal(Map<String, dynamic> rowValues) {
     double sum = 0;
@@ -739,17 +733,22 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
 
   Widget _headerCell(String label) {
     return Container(
-      margin: const EdgeInsets.all(4),
+      margin: const EdgeInsets.all(1),
       padding: cellPadding,
       decoration: BoxDecoration(
-        color: const Color(0xFFFFEEDD),
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.grey.shade200, // Softer gray background
+        borderRadius: BorderRadius.zero,
       ),
       alignment: Alignment.center,
-      width: 100,
+      width: 110,
+      height: 52,
       child: Text(
         label,
-        style: const TextStyle(fontWeight: FontWeight.bold),
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 13.5,
+          color: Colors.black87, // Dark gray text
+        ),
         overflow: TextOverflow.ellipsis,
         maxLines: 1,
         textAlign: TextAlign.center,
@@ -757,28 +756,36 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
     );
   }
 
+
+
+
+
   Widget _dataRow(Map<String, dynamic> row, {bool isTotal = false}) {
     final rowValues = _extractRowValues(row);
     final minMax = _getRowMinMax(rowValues);
 
     return Row(
       children: [
-        _dataCell(row['Price Class']?.toString() ?? '-', Colors.orange.shade50),
+        _dataCell(
+          row['Price Class']?.toString() ?? '-',
+          _getHeatmapColor(
+            _calculateTotal(_extractRowValues(row)), // or some logic specific to Price class
+            minMax['min'] ?? 0.0,
+            minMax['max'] ?? 0.0,
+
+          ),
+          bold: true,
+        ),
+
         for (final header in tableHeaders)
           _dataCell(
             _getDisplayValue(row[header]),
-            _getHeatmapColor(
-              row[header],
-              minMax['min'] ?? 0.0,
-              minMax['max'] ?? 0.0,
-              isTotal,
-            ),
-
+            _getHeatmapColor(row[header], minMax['min']!, minMax['max']!),
             bold: true,
           ),
         _dataCell(
           _getDisplayValue(row["Total"] ?? _calculateTotal(rowValues)),
-          isTotal ? Colors.orange.shade200 : Colors.orange.shade50,
+          _getHeatmapColor(row["Total"], minMax['min']!, minMax['max']!),
           bold: true,
         ),
       ],
@@ -788,21 +795,24 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
 
 
 
+
   Widget _dataCell(String value, Color color, {bool bold = false}) {
     return Container(
-      margin: const EdgeInsets.all(4),
+      margin: const EdgeInsets.all(1), // tighter grid
       padding: cellPadding,
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.zero, // square corners
       ),
       alignment: Alignment.center,
-      width: 100,
+      width: 110, // 💡 Broader cells
+      height: 52,  // 💡 Taller cells
       child: Text(
         value,
         style: TextStyle(
           fontWeight: bold ? FontWeight.bold : FontWeight.w500,
-          fontSize: 12,
+          fontSize: 13.5, // Slightly bigger font
+          color: Colors.black,
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.ellipsis,
@@ -812,5 +822,9 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
   }
 
 
-  static const cellPadding = EdgeInsets.symmetric(vertical: 8.0, horizontal: 10.0);
+
+
+
+  static const cellPadding = EdgeInsets.symmetric(vertical: 14.0, horizontal: 12.0);
+
 }
