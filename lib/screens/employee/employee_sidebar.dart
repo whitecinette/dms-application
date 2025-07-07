@@ -18,9 +18,15 @@ import 'announcements.dart';
 import 'profile.dart';
 import '../login_screen.dart'; // For logout
 import '../../services/auth_service.dart';
+import '../admin/admin_extraction_status_screen.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+
+
 
 class EmployeeSidebar extends StatelessWidget {
   final dynamic user;
+  final allowedPositions = ['smd', 'spd', 'zsm', 'asm', 'tse'];
+
 
   EmployeeSidebar({required this.user});
 
@@ -55,7 +61,14 @@ class EmployeeSidebar extends StatelessWidget {
             ),
           ),
           _buildDrawerItem(Icons.dashboard, "Sales Dashboard", context, SalesDashboard()),
-          _buildDrawerItem(Icons.pie_chart, "Extraction", context, ExtractionScreen()),
+          _buildDrawerItem(Icons.pie_chart, "Add Extraction", context, ExtractionScreen()),
+          if (allowedPositions.contains(user['position'])) ...[
+            ListTile(
+              leading: Icon(Icons.assignment_turned_in),
+              title: Text("Extraction Status"),
+              onTap: () => _navigateTo(context, ExtractionStatusAdminScreen()),
+            ),
+          ],
           _buildDrawerItem(Icons.monitor_heart, "Pulse", context, PulseScreen()),
           _buildDrawerItem(Icons.map, "Beat Mapping", context, BeatMappingScreen()),
           _buildDrawerItem(Icons.route, "Route Plan", context, RoutePlanScreen()),
@@ -75,6 +88,7 @@ class EmployeeSidebar extends StatelessWidget {
           _buildDrawerItem(Icons.map, "Geo Tagging", context, GeoTagScreen()),
           _buildDrawerItem(Icons.fingerprint, "Punch In/Out", context, PunchInOutEmp()),
           _buildDrawerItem(Icons.account_circle, "Profile", context, ProfileScreen()),
+
           Divider(),
           _buildDrawerItem(Icons.logout, "Logout", context, LoginScreen(), isLogout: true),
           SizedBox(height: 60),

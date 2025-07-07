@@ -1,504 +1,279 @@
-import 'package:dms_app/widgets/shimmer_loader.dart';
 import 'package:flutter/material.dart';
-import 'package:multi_select_flutter/multi_select_flutter.dart';
 import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../../config.dart';
-import '../../widgets/shimmer_loader.dart';
+import 'package:http/http.dart' as http;
+
+import '../../services/auth_service.dart';
+import '../../config.dart'; // Ensure Config.backendUrl is defined
 
 class ExtractionStatusAdminScreen extends StatefulWidget {
-
-
   @override
-  State<ExtractionStatusAdminScreen> createState() =>
-      _ExtractionStatusAdminScreenState();
-
+  _ExtractionStatusAdminScreenState createState() => _ExtractionStatusAdminScreenState();
 }
 
 class _ExtractionStatusAdminScreenState extends State<ExtractionStatusAdminScreen> {
-  DateTimeRange dateRange = DateTimeRange(
-    start: DateTime(DateTime.now().year, DateTime.now().month, 1),
-    end: DateTime(DateTime.now().year, DateTime.now().month + 1, 0),
-  );
+  DateTime? _startDate;
+  DateTime? _endDate;
+  String _searchQuery = '';
+  List<String> selectedRoles = []; // e.g., ['asm', 'zsm']
+  bool showSelfOnly = true;
+  Map<String, dynamic>? selfData;
+  List<String> availableRoles = [];
 
-  Map<String, List<Map<String, String>>> dropdownOptions = {
-    "mdd": [],
-    "asm": [],
-    "smd": [],
-  };
+
+
+
 
   bool isLoading = false;
-
-
-  final TextEditingController searchController = TextEditingController();
-
-  List<String> selectedMdd = [];
-  List<String> selectedAsm = [];
-  List<String> selectedSmd = [];
-
   List<Map<String, dynamic>> statusData = [];
 
-  // Dummy dropdown items
-  final List<Map<String, String>> dummyMdd = [
-    {"code": "MDD01", "name": "MDD One"},
-    {"code": "MDD02", "name": "MDD Two"},
-  ];
-  final List<Map<String, String>> dummyAsm = [
-    {"code": "ASM01", "name": "ASM One"},
-    {"code": "ASM02", "name": "ASM Two"},
-  ];
-  final List<Map<String, String>> dummySmd = [
-    {"code": "SMD01", "name": "SMD One"},
-    {"code": "SMD02", "name": "SMD Two"},
-  ];
+  Future<void> fetchAvailableRoles() async {
+    try {
+      final token = await AuthService.getToken();
 
-  @override
-  void initState() {
-    super.initState();
-    fetchDropdownData("mdd");
-    fetchDropdownData("asm");
-    fetchDropdownData("smd");
+      final response = await http.get(
+        Uri.parse('${Config.backendUrl}/user/get-subordinate-positions'),
+        headers: {
+          "Authorization": "Bearer $token",
+        },
+      );
 
-    fetchExtractionStatus();
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+
+        setState(() {
+          availableRoles = List<String>.from(decoded['subordinates']);
+          selectedRoles = List<String>.from(decoded['subordinates']);
+        });
+      } else {
+        print("Role API Error: ${response.body}");
+      }
+    } catch (e) {
+      print("Fetch Exception: $e");
+    }
   }
 
-  Future<void> fetchDropdownData(String position) async {
-    final uri = Uri.parse('${Config.backendUrl}/admin/get-users-by-positions');
-    final body = {"positions": [position]};
+  void _showRoleFilterPopup() {
+    final roles = availableRoles;
+    final tempSelectedRoles = List<String>.from(selectedRoles); // temp copy
 
-    final response = await http.post(uri,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode(body),
-    );
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Text("Roles", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Spacer(),
+                      OutlinedButton(
+                        onPressed: () {
+                          setModalState(() => tempSelectedRoles.clear());
+                        },
+                        child: Text("Clear"),
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.orange.shade50,
+                          side: BorderSide(color: Colors.orange.shade200),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  ...roles.map((role) => GestureDetector(
+                    onTap: () {
+                      setModalState(() {
+                        if (tempSelectedRoles.contains(role)) {
+                          tempSelectedRoles.remove(role);
+                        } else {
+                          tempSelectedRoles.add(role);
+                        }
+                      });
+                    },
+                    child: Container(
+                      margin: EdgeInsets.symmetric(vertical: 4),
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(role),
+                          Spacer(),
+                          if (tempSelectedRoles.contains(role))
+                            Icon(Icons.check_circle, color: Colors.green),
+                        ],
+                      ),
+                    ),
+                  )),
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body)["data"];
-      setState(() {
-        dropdownOptions[position] = List<Map<String, String>>.from(
-          data.map((item) => {
-            "code": item["code"].toString(),
-            "name": item["name"].toString(),
-          }),
+                  SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context); // close popup
+                      setState(() {
+                        selectedRoles = tempSelectedRoles;
+                      });
+                      fetchExtractionStatus(); // fetch with new roles
+                    },
+                    child: Text("Apply"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade100,
+                      foregroundColor: Colors.black,
+                      padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
-      });
-
-
-      print("Fetched for $position: $data");
-
-    } else {
-      print("Failed to fetch $position: ${response.body}");
-    }
-  }
-
-
-  Future<void> fetchExtractionStatus() async {
-    setState(() => isLoading = true); // 👈 Start loading
-
-    final uri = Uri.parse('${Config.backendUrl}/admin/extraction-status');
-    final body = {
-      "startDate": DateFormat("yyyy-MM-dd").format(dateRange.start),
-      "endDate": DateFormat("yyyy-MM-dd").format(dateRange.end),
-      "mdd": selectedMdd,
-      "asm": selectedAsm,
-      "smd": selectedSmd,
-    };
-
-    final response = await http.post(uri,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(body));
-
-    if (response.statusCode == 200) {
-      final decoded = jsonDecode(response.body);
-      setState(() {
-        statusData = List<Map<String, dynamic>>.from(decoded["data"]);
-      });
-    } else {
-      print("Error: ${response.body}");
-    }
-
-    setState(() => isLoading = false); // 👈 Stop loading
-  }
-
-
-  List<Map<String, dynamic>> get filteredData {
-    final query = searchController.text.toLowerCase();
-    return statusData.where((item) {
-      final name = item["name"].toString().toLowerCase();
-      final code = item["code"].toString().toLowerCase();
-      return name.contains(query) || code.contains(query);
-    }).toList();
-  }
-
-  Widget buildColoredBlock(String label, String value, Color color) {
-    return Expanded(
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color),
-        ),
-        child: Column(
-          children: [
-            Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
-            Text(label, style: TextStyle(color: color)),
-          ],
-        ),
-      ),
+      },
     );
   }
 
-  Widget buildMultiSelectDropdown({
-    required String title,
-    required String position,
-    required List<String> selectedValues,
-    required Function(List<String>) onApply,
-  }) {
-    final items = dropdownOptions[position] ?? [];
-
-    return GestureDetector(
-      onTap: () => _showCustomDropdown(context, position, selectedValues, onApply),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade400),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Expanded(
+  Widget _buildSegmentedViewToggle() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.blue.shade200,
+        borderRadius: BorderRadius.circular(32),
+      ),
+      padding: const EdgeInsets.all(2),
+      child: Row(
+        children: List.generate(2, (index) {
+          final isSelected = showSelfOnly == (index == 1);
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                showSelfOnly = index == 1;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.blue.shade100 : Colors.transparent,
+                borderRadius: BorderRadius.circular(32),
+              ),
               child: Text(
-                selectedValues.isEmpty
-                    ? title
-                    : selectedValues
-                    .map((code) {
-                  final item = items.firstWhere(
-                        (e) => e["code"] == code,
-                    orElse: () => {"code": code, "name": ""},
-                  );
-                  return item["name"] ?? code;
-                })
-                    .join(", "),
-                style: TextStyle(fontSize: 13),
-                overflow: TextOverflow.ellipsis,
+                index == 0 ? 'All Data' : 'Self',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black,
+                ),
               ),
             ),
-            Icon(Icons.arrow_drop_down),
-          ],
-        ),
-
+          );
+        }),
       ),
     );
   }
 
 
+  Widget _buildSelfCard() {
+    if (selfData == null) return Center(child: Text("No self data"));
 
-  @override
-  Widget build(BuildContext context) {
-    final formatter = DateFormat("dd MMM");
+    final user = selfData!;
+    final done = user['done'];
+    final pending = user['pending'];
+    final total = user['total'];
+    final donePercent = int.parse(user['Done Percent'].replaceAll('%', ''));
+    final pendingPercent = int.parse(user['Pending Percent'].replaceAll('%', ''));
+    final cardWidth = MediaQuery.of(context).size.width;
 
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(12),
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(top: 12, left: 2, right: 2),
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 2,
+        child: Container(
+          height: 340,
+          padding: EdgeInsets.all(16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 🔙 Back Button
+              // Header
               Row(
                 children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Icon(Icons.arrow_back_ios_new, size: 20),
+                  Text(user['code'], style: TextStyle(fontWeight: FontWeight.w600)),
+                  Spacer(),
+                  Text(user['position'], style: TextStyle(color: Colors.grey[600])),
+                ],
+              ),
+              SizedBox(height: 6),
+
+              // Name
+              Text(user['name'], style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              SizedBox(height: 20),
+
+              // Bars side-by-side
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // Done Column
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("$donePercent%", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text("Done: $done", style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+                      SizedBox(height: 6),
+                      Container(
+                        width: cardWidth * 0.4,
+                        height: (donePercent.toDouble().clamp(12, 100)),
+                        decoration: BoxDecoration(
+                          color: Color(0xFFC8E6C9),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(width: 10),
-                  Text("Extraction Status", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+
+                  Spacer(),
+
+                  // Pending Column
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text("$pendingPercent%", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text("Pending: $pending", style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+                      SizedBox(height: 6),
+                      Container(
+                        width: cardWidth * 0.4,
+                        height: (pendingPercent.toDouble().clamp(12, 100)),
+                        decoration: BoxDecoration(
+                          color: Color(0xFFF8BBD0),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
 
-              SizedBox(height: 12),
+              SizedBox(height: 16),
+              Text("Total: $total", style: TextStyle(color: Colors.grey[600])),
 
-              // 🔍 Date & Filter Row
-              // Row(
-              //   children: [
-              //     Expanded(
-              //       child: GestureDetector(
-              //         onTap: () async {
-              //           final picked = await showDateRangePicker(
-              //             context: context,
-              //             initialDateRange: dateRange,
-              //             firstDate: DateTime(2023),
-              //             lastDate: DateTime.now(),
-              //           );
-              //           if (picked != null) {
-              //             setState(() => dateRange = picked);
-              //             fetchExtractionStatus();
-              //           }
-              //         },
-              //         child: Container(
-              //           padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              //           decoration: BoxDecoration(
-              //             borderRadius: BorderRadius.circular(8),
-              //             border: Border.all(color: Colors.grey.shade400),
-              //           ),
-              //           child: Row(
-              //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              //             children: [
-              //               Text("${formatter.format(dateRange.start)} - ${formatter.format(dateRange.end)}"),
-              //               Icon(Icons.calendar_month),
-              //             ],
-              //           ),
-              //         ),
-              //       ),
-              //     ),
-              //     SizedBox(width: 8),
-              //     IconButton(
-              //       icon: Icon(Icons.refresh),
-              //       onPressed: fetchExtractionStatus,
-              //     )
-              //   ],
-              // ),
-
-              SizedBox(height: 10),
-
-              // 🧠 Search
-              TextField(
-                controller: searchController,
-                decoration: InputDecoration(
-                  hintText: "Search by name or code...",
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.orange.shade200),
+                    backgroundColor: Colors.orange.shade50,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
+                  onPressed: () {},
+                  child: Text("View", style: TextStyle(color: Colors.black)),
                 ),
-                onChanged: (_) => setState(() {}),
               ),
-
-              SizedBox(height: 10),
-
-              // 🔽 Dropdowns Row
-              Row(
-                children: [
-                  Expanded(
-                    child: buildMultiSelectDropdown(
-                      title: "SMD",
-                      position: "smd",
-                      selectedValues: selectedSmd,
-                      onApply: (values) {
-                        setState(() => selectedSmd = values);
-                        fetchExtractionStatus();
-                      },
-                    ),
-                  ),
-
-                  SizedBox(width: 8),
-
-                  Expanded(
-                    child: buildMultiSelectDropdown(
-                      title: "MDD",
-                      position: "mdd",
-                      selectedValues: selectedMdd,
-                      onApply: (values) {
-                        setState(() => selectedMdd = values);
-                        fetchExtractionStatus();
-                      },
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: buildMultiSelectDropdown(
-                      title: "ASM",
-                      position: "asm",
-                      selectedValues: selectedAsm,
-                      onApply: (values) {
-                        setState(() => selectedAsm = values);
-                        fetchExtractionStatus();
-                      },
-                    ),
-                  ),
-
-
-                ],
-              ),
-
-              SizedBox(height: 10),
-
-
-              // 🧾 Dropdowns
-              // MultiSelectDialogField(
-              //   items: dummyMdd.map((e) => MultiSelectItem(e["code"], "${e["code"]} - ${e["name"]}")).toList(),
-              //   listType: MultiSelectListType.LIST,
-              //   title: Text("Select MDD"),
-              //   buttonText: Text("Select MDD"),
-              //   onConfirm: (values) {
-              //     selectedMdd = values.map((e) => e.toString()).toList();
-              //     fetchExtractionStatus();
-              //   },
-              // ),
-              //
-              // MultiSelectDialogField(
-              //   items: dummyAsm.map((e) => MultiSelectItem(e["code"], "${e["code"]} - ${e["name"]}")).toList(),
-              //   listType: MultiSelectListType.LIST,
-              //   title: Text("Select ASM"),
-              //   buttonText: Text("Select ASM"),
-              //   onConfirm: (values) {
-              //     selectedAsm = values.map((e) => e.toString()).toList();
-              //     fetchExtractionStatus();
-              //   },
-              // ),
-              //
-              // MultiSelectDialogField(
-              //   items: dummySmd.map((e) => MultiSelectItem(e["code"], "${e["code"]} - ${e["name"]}")).toList(),
-              //   listType: MultiSelectListType.LIST,
-              //   title: Text("Select SMD"),
-              //   buttonText: Text("Select SMD"),
-              //   onConfirm: (values) {
-              //     selectedSmd = values.map((e) => e.toString()).toList();
-              //     fetchExtractionStatus();
-              //   },
-              // ),
-
-              SizedBox(height: 10),
-
-              // 🔢 Status Grid
-              Expanded(
-                child: isLoading ?
-                    ShimmerLoader()
-                    : ListView.builder(
-                  itemCount: filteredData.length,
-                  itemBuilder: (_, index) {
-                    final person = filteredData[index];
-                    return Container(
-                      margin: EdgeInsets.only(left: 2, right: 2, top: 2, bottom: 20),
-                      padding: EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Color(0xFFF6F3FF),
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.12),
-                            offset: Offset(0, 1),
-                            blurRadius: 3,
-                          ),
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.24),
-                            offset: Offset(0, 1),
-                            blurRadius: 2,
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Top row with code and total
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                person["code"],
-                                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                              ),
-                              Text(
-                                "Total: ${person["total"]}",
-                                style: TextStyle(fontSize: 13),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            person["name"],
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                          ),
-                          SizedBox(height: 10),
-
-                          // Done / Pending blocks
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  padding: EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.shade50,
-                                    border: Border.all(color: Colors.green),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text("Done", style: TextStyle(color: Colors.green, fontSize: 12)),
-                                      SizedBox(height: 4),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            '${person['done']}',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                              color: Colors.green.shade900,
-                                            ),
-                                          ),
-                                          Text(
-                                            '${person['donePercent']}%',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14,
-                                              color: Colors.green.shade900,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: Container(
-                                  padding: EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.shade50,
-                                    border: Border.all(color: Colors.red),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text("Pending", style: TextStyle(color: Colors.red, fontSize: 12)),
-                                      SizedBox(height: 4),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            '${person['pending']}',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                              color: Colors.red.shade900,
-                                            ),
-                                          ),
-                                          Text(
-                                            '${person['pendingPercent']}%',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14,
-                                              color: Colors.red.shade900,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-
-              ),
-
             ],
           ),
         ),
@@ -507,63 +282,299 @@ class _ExtractionStatusAdminScreenState extends State<ExtractionStatusAdminScree
   }
 
 
-  void _showCustomDropdown(BuildContext context, String position, List<String> selectedValues, Function(List<String>) onApply) {
-    List<String> tempSelected = List.from(selectedValues);
-    final items = dropdownOptions[position] ?? [];
 
-    showDialog(
+
+
+
+
+
+
+  Future<void> _selectDate(BuildContext context, bool isStart) async {
+    final picked = await showDatePicker(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("Select ${position.toUpperCase()}"),
-          content: Container(
-            width: double.maxFinite,
-            height: 300,
-            child: StatefulBuilder(
-              builder: (context, setState) {
-                return ListView(
-                  children: items.map((item) {
-                    final code = item["code"]!;
-                    final name = item["name"]!;
-                    return CheckboxListTile(
-                      value: tempSelected.contains(code),
-                      title: Text("$code - $name", style: TextStyle(fontSize: 13)),
-                      onChanged: (bool? selected) {
-                        setState(() {
-                          if (selected == true) {
-                            tempSelected.add(code);
-                          } else {
-                            tempSelected.remove(code);
-                          }
-                        });
-                      },
-                    );
-                  }).toList(),
-                );
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text("Cancel", style: TextStyle(color: Colors.grey[900])),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                onApply(tempSelected);
-              },
-              child: Text("Apply", style: TextStyle(color: Colors.white)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueGrey[600], // Deep Blue
-              ),
-            ),
-
-          ],
-        );
-      },
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
     );
+    if (picked != null) {
+      setState(() {
+        if (isStart) {
+          _startDate = picked;
+        } else {
+          _endDate = picked;
+        }
+      });
+
+      // 👇 Fetch data immediately when date changes
+      if (_startDate != null && _endDate != null) {
+        fetchExtractionStatus();
+      }
+    }
   }
 
 
+  void _resetFilters() {
+    setState(() {
+      _startDate = null;
+      _endDate = null;
+      _searchQuery = '';
+    });
+  }
+
+  Future<void> fetchExtractionStatus() async {
+    setState(() => isLoading = true);
+
+    try {
+      final token = await AuthService.getToken();
+
+      final uri = Uri.parse('${Config.backendUrl}/user/extraction-status-role-wise');
+
+      final body = {
+        "startDate": DateFormat("yyyy-MM-dd").format(_startDate ?? DateTime.now()),
+        "endDate": DateFormat("yyyy-MM-dd").format(_endDate ?? DateTime.now()),
+        "roles": selectedRoles,
+      };
+
+      final response = await http.post(
+        uri,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        setState(() {
+          statusData = List<Map<String, dynamic>>.from(decoded["data"]);
+          selfData = decoded["selfData"]; // 👈 Add this
+        });
+      } else {
+        print("API Error: ${response.body}");
+      }
+    } catch (e) {
+      print("Fetch Exception: $e");
+    }
+
+    setState(() => isLoading = false);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    final now = DateTime.now();
+    _startDate = DateTime(now.year, now.month, 1); // First day of month
+    _endDate = DateTime(now.year, now.month + 1, 0); // Last day of month
+    fetchAvailableRoles();
+    fetchExtractionStatus();
+  }
+
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredData = statusData.where((e) =>
+        e['name'].toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Extraction Status'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: fetchExtractionStatus,
+          )
+        ],
+      ),
+      body: Padding(
+        padding: EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                _buildDateButton("Start date", _startDate, true),
+                Text("  to  "),
+                _buildDateButton("End date", _endDate, false),
+                Spacer(),
+                OutlinedButton(
+                  onPressed: () {
+                    _resetFilters();
+                    fetchExtractionStatus();
+                  },
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.orange.shade50, // light orange fill
+                    foregroundColor: Colors.black,          // black text
+                    side: BorderSide(color: Colors.orange.shade200), // soft orange border
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text("Reset Filters"),
+                )
+
+
+
+              ],
+            ),
+            SizedBox(height: 10),
+            InkWell(
+              onTap: _showRoleFilterPopup,
+              child: Row(
+                children: [
+                  Text("View by Role"),
+                  Icon(Icons.swap_vert),
+                  Spacer(),
+                  _buildSegmentedViewToggle(),
+                ],
+              ),
+
+            ),
+
+            SizedBox(height: 10),
+            TextField(
+              decoration: InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: 'Search',
+                filled: true,
+                fillColor: Colors.blue.shade50,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onChanged: (val) => setState(() => _searchQuery = val),
+            ),
+            SizedBox(height: 10),
+            Expanded(
+              child: isLoading
+                  ? Center(child: CircularProgressIndicator())
+                  : showSelfOnly
+                  ? _buildSelfCard()
+                  : filteredData.isEmpty
+                  ? Center(child: Text("No data found"))
+                  : ListView.builder(
+                itemCount: filteredData.length,
+                itemBuilder: (context, index) {
+                  final user = filteredData[index];
+                  final int done = user['done'];
+                  final int pending = user['pending'];
+                  final int total = user['total'];
+                  final double doneWidth = 220 * (done / total);
+                  final double pendingWidth = 220 * (pending / total);
+
+                  return Card(
+                    margin: EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 1,
+                    child: Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(user['code'], style: TextStyle(fontWeight: FontWeight.w600)),
+                              Spacer(),
+                              Text(user['position'], style: TextStyle(color: Colors.grey[600])),
+                            ],
+                          ),
+                          SizedBox(height: 4),
+                          Text(user['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                          SizedBox(height: 12),
+
+                          // Done bar
+                          Row(
+                            children: [
+                              Stack(
+                                children: [
+                                  Container(
+                                    width: 220,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      color: Color(0xFFDCEDC8),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                  Container(
+                                    width: doneWidth,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      color: Color(0xFF81C784),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(user['Done Percent'], style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                                  Text("Done: $done", style: TextStyle(fontSize: 10)),
+                                ],
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 4),
+
+                          // Pending bar
+                          Row(
+                            children: [
+                              Stack(
+                                children: [
+                                  Container(
+                                    width: 220,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      color: Color(0xFFFFCDD2),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                  Container(
+                                    width: pendingWidth,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      color: Color(0xFFE57373),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(user['Pending Percent'], style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                                  Text("Pending: $pending", style: TextStyle(fontSize: 10)),
+                                ],
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 6),
+                          Text("Total: $total", style: TextStyle(color: Colors.grey[600])),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            )
+
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateButton(String label, DateTime? date, bool isStart) {
+    return TextButton(
+      onPressed: () => _selectDate(context, isStart),
+      style: TextButton.styleFrom(
+        backgroundColor: Colors.blue.shade100,
+      ),
+      child: Text(
+        date != null ? DateFormat('dd MMM').format(date) : label,
+        style: TextStyle(color: Colors.black),
+      ),
+    );
+  }
 }
