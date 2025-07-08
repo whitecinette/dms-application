@@ -210,6 +210,101 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
   //   }
   // }
 
+  // Future<void> _submitPunchIn() async {
+  //   print("🔁 Punch In initiated...");
+  //
+  //   if (_image == null) {
+  //     print("📸 No image found. Opening camera...");
+  //     await _captureImage(); // Automatically open camera if no image
+  //   }
+  //
+  //   setState(() {
+  //     _isPunchingIn = true;
+  //   });
+  //
+  //   try {
+  //     // ✅ Fetch fresh and accurate location
+  //     print("📍 Getting current location...");
+  //     if (_cachedPosition == null) {
+  //       CustomPopup.showPopup(context, "Error", "Location not available. Please ensure GPS is on.");
+  //       return;
+  //     }
+  //     final latitude = _cachedPosition!.latitude.toString();
+  //     final longitude = _cachedPosition!.longitude.toString();
+  //     final accuracy = _cachedPosition!.accuracy;
+  //
+  //     print("📍 Punch In Coords => Lat: $latitude, Lng: $longitude, Accuracy: ${accuracy.toStringAsFixed(2)} meters");
+  //
+  //
+  //     // ⛔ Re-check image again
+  //     if (_image == null) {
+  //       print("❌ Image still null after capture. Aborting Punch In.");
+  //       CustomPopup.showPopup(
+  //         context,
+  //         "Warning",
+  //         "Image is required. Please try again.",
+  //         type: MessageType.warning,
+  //       );
+  //       setState(() => _isPunchingIn = false);
+  //       return;
+  //     }
+  //
+  //     print("📤 Sending Punch In request to API...");
+  //     final response = await ApiService.punchIn(latitude, longitude, _image!);
+  //
+  //     print("📥 API Response: $response");
+  //
+  //     if (response.containsKey('message')) {
+  //       if (response['warning'] == true || response['statusCode'] == 403) {
+  //         print("⚠️ Warning received: ${response['message']}");
+  //         CustomPopup.showPopup(
+  //           context,
+  //           "Warning",
+  //           response['message'] ?? "There is a warning.",
+  //           type: MessageType.warning,
+  //         );
+  //       } else {
+  //         print("✅ Punch In successful: ${response['message']}");
+  //         setState(() {
+  //           _hasPunchedIn = true;
+  //           _image = null;
+  //         });
+  //
+  //         await _savePunchStatus(true);
+  //
+  //         CustomPopup.showPopup(
+  //           context,
+  //           "Success",
+  //           response['message'] ?? "You have successfully punched in.",
+  //           isSuccess: true,
+  //         );
+  //       }
+  //     } else {
+  //       print("❌ Unexpected response format: $response");
+  //       CustomPopup.showPopup(
+  //         context,
+  //         "Error",
+  //         response['message'] ?? "Unexpected response",
+  //         isSuccess: false,
+  //       );
+  //     }
+  //   } catch (error) {
+  //     print("🚨 Punch In failed: ${error.toString()}");
+  //     CustomPopup.showPopup(
+  //       context,
+  //       "Error",
+  //       "Something went wrong: ${error.toString()}",
+  //       isSuccess: false,
+  //     );
+  //   } finally {
+  //     setState(() {
+  //       _isPunchingIn = false;
+  //     });
+  //     print("🧹 Punch In flow complete");
+  //   }
+  // }
+
+  //nameera only change the statusCode to show error and warning messages correctly
   Future<void> _submitPunchIn() async {
     print("🔁 Punch In initiated...");
 
@@ -255,13 +350,19 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
       print("📥 API Response: $response");
 
       if (response.containsKey('message')) {
-        if (response['warning'] == true || response['statusCode'] == 403) {
+        final isSuccess = response['success'] == true; // ✅ ADDED
+        final isWarning = response['warning'] == true; // ✅ ADDED
+        final statusCode = response['statusCode'] ?? 200; // ✅ ADDED
+
+        if (!isSuccess || statusCode >= 400) {
           print("⚠️ Warning received: ${response['message']}");
           CustomPopup.showPopup(
             context,
-            "Warning",
+            // "Warning",
+            isWarning ? "Warning" : "Error",
             response['message'] ?? "There is a warning.",
-            type: MessageType.warning,
+            // type: MessageType.warning,
+            type: isWarning ? MessageType.warning : MessageType.error,
           );
         } else {
           print("✅ Punch In successful: ${response['message']}");
@@ -275,7 +376,8 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
           CustomPopup.showPopup(
             context,
             "Success",
-            response['message'] ?? "You have successfully punched in.",
+            // response['message']?.toString() ?? "You have successfully punched in.",
+            response['message']?.toString() ?? "You have successfully punched in.",
             isSuccess: true,
           );
         }
@@ -303,7 +405,6 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
       print("🧹 Punch In flow complete");
     }
   }
-
 
   Widget _buildCircleButton({
     required IconData icon,
@@ -353,67 +454,166 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
   }
 
 
+  // Future<void> _submitPunchOut() async {
+  //   if (_image == null) {
+  //     await _captureImage(); // Automatically open camera if no image
+  //   }
+  //
+  //   if (_cachedPosition == null) {
+  //     CustomPopup.showPopup(context, "Error", "Location not available. Please ensure GPS is on.");
+  //     return;
+  //   }
+  //   final latitude = _cachedPosition!.latitude.toString();
+  //   final longitude = _cachedPosition!.longitude.toString();
+  //
+  //
+  //
+  //   // Re-check if image is still null or location is empty after capture
+  //   if (_image == null) {
+  //     CustomPopup.showPopup(
+  //       context,
+  //       "Warning",
+  //       "Image is required. Please try again.",
+  //       type: MessageType.warning,
+  //     );
+  //     setState(() => _isPunchingIn = false); // ✅ FIX
+  //     return;
+  //   }
+  //
+  //
+  //   setState(() {
+  //     _isPunchingOut = true; // ✅ Show spinner
+  //   });
+  //
+  //
+  //   try {
+  //     final response = await ApiService.punchOut(latitude, longitude, _image!, dealerCode: _selectedDealerCode);
+  //
+  //     if (response.containsKey('message')) {
+  //       if (response['warning'] == true) {
+  //         CustomPopup.showPopup(
+  //           context,
+  //           "Warning",
+  //           response['message'] ?? "There is a warning.",
+  //           type: MessageType.warning,
+  //         );
+  //       }
+  //       setState(() {
+  //         _hasPunchedIn = true;
+  //         _image = null;
+  //         _selectedDealerCode = null;
+  //       });
+  //
+  //       await _savePunchStatus(true);
+  //       ref.read(coordinatesProvider.notifier).state = "";
+  //
+  //       CustomPopup.showPopup(
+  //         context,
+  //         "Success",
+  //         response['message'] ?? "You have successfully punched out.",
+  //         isSuccess: true,
+  //       );
+  //
+  //     } else {
+  //       CustomPopup.showPopup(
+  //         context,
+  //         "Error",
+  //         response['message'] ?? "Unexpected response",
+  //         isSuccess: false,
+  //       );
+  //     }
+  //   } catch (error) {
+  //     CustomPopup.showPopup(
+  //       context,
+  //       "Error",
+  //       "Something went wrong: ${error.toString()}",
+  //       isSuccess: false,
+  //     );
+  //   } finally {
+  //     setState(() {
+  //       _isPunchingOut = false;
+  //     });
+  //   }
+  // }
+
+
+  // updated api 7 july 2025
   Future<void> _submitPunchOut() async {
+    print("🔁 Punch Out initiated...");
+
     if (_image == null) {
+      print("📸 No image found. Opening camera...");
       await _captureImage(); // Automatically open camera if no image
     }
 
     if (_cachedPosition == null) {
+      setState(() => _isPunchingOut = false); // ✅ ADDED
       CustomPopup.showPopup(context, "Error", "Location not available. Please ensure GPS is on.");
       return;
     }
+
     final latitude = _cachedPosition!.latitude.toString();
     final longitude = _cachedPosition!.longitude.toString();
+    final accuracy = _cachedPosition!.accuracy;
+    print("📍 Punch Out Coords => Lat: $latitude, Lng: $longitude, Accuracy: ${accuracy.toStringAsFixed(2)} meters");
 
-
-
-    // Re-check if image is still null or location is empty after capture
     if (_image == null) {
+      print("❌ Image still null after capture. Aborting Punch Out.");
       CustomPopup.showPopup(
         context,
         "Warning",
         "Image is required. Please try again.",
         type: MessageType.warning,
       );
-      setState(() => _isPunchingIn = false); // ✅ FIX
+      setState(() => _isPunchingOut = false); // ✅ FIX
       return;
     }
-
 
     setState(() {
       _isPunchingOut = true; // ✅ Show spinner
     });
 
-
     try {
-      final response = await ApiService.punchOut(latitude, longitude, _image!, dealerCode: _selectedDealerCode);
+      print("📤 Sending Punch Out request to API...");
+      final response = await ApiService.punchOut(latitude, longitude, _image!);
+
+      print("📥 API Response: $response");
 
       if (response.containsKey('message')) {
-        if (response['warning'] == true) {
+        final isSuccess = response['success'] == true; // ✅ ADDED
+        final isWarning = response['warning'] == true; // ✅ ADDED
+        final statusCode = response['statusCode'] ?? 200; // ✅ ADDED
+
+        if (!isSuccess || statusCode >= 400) { // ✅ UPDATED
+          print("⚠️ Warning/Error received: ${response['message']}");
           CustomPopup.showPopup(
             context,
-            "Warning",
-            response['message'] ?? "There is a warning.",
-            type: MessageType.warning,
+            isWarning ? "Warning" : "Error", // ✅ UPDATED
+            response['message'] ?? "Something went wrong.",
+            type: isWarning ? MessageType.warning : MessageType.error, // ✅ UPDATED
+          );
+        } else {
+          print("✅ Punch Out successful: ${response['message']}");
+          setState(() {
+            _hasPunchedIn = true;
+            _image = null;
+            // _selectedDealerCode = null;
+          });
+
+          await _savePunchStatus(true);
+          ref.read(coordinatesProvider.notifier).state = "";
+
+          CustomPopup.showPopup(
+            context,
+            "Success",
+            // response['message'] ?? "You have successfully punched out.",
+            response['message']?.toString() ?? "You have successfully punched out.",
+            isSuccess: true,
+
           );
         }
-        setState(() {
-          _hasPunchedIn = true;
-          _image = null;
-          _selectedDealerCode = null;
-        });
-
-        await _savePunchStatus(true);
-        ref.read(coordinatesProvider.notifier).state = "";
-
-        CustomPopup.showPopup(
-          context,
-          "Success",
-          response['message'] ?? "You have successfully punched out.",
-          isSuccess: true,
-        );
-
       } else {
+        print("❌ Unexpected response format: $response");
         CustomPopup.showPopup(
           context,
           "Error",
@@ -422,6 +622,7 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
         );
       }
     } catch (error) {
+      print("🚨 Punch Out failed: ${error.toString()}");
       CustomPopup.showPopup(
         context,
         "Error",
@@ -432,8 +633,10 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
       setState(() {
         _isPunchingOut = false;
       });
+      print("🧹 Punch Out flow complete");
     }
   }
+
 
   Future<void> _showDealerSelectionDialog() async {
     if (_cachedPosition == null) {

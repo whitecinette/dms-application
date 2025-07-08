@@ -241,7 +241,7 @@ class _PunchInOutState extends ConsumerState<PunchInOutEmp> {
 
 
     try {
-      final response = await ApiService.punchOut(latitude, longitude, _image!, dealerCode: _selectedDealerCode);
+      final response = await ApiService.punchOut(latitude, longitude, _image!);
 
       if (response.containsKey('message')) {
         if (response['warning'] == true) {

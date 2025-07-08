@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+enum MessageType { success, warning, info, error }
 
 class CustomPopup {
   static void showPopup(BuildContext context, String title, String message, {bool? isSuccess, MessageType? type}) {
@@ -10,14 +11,18 @@ class CustomPopup {
     } else {
       // Handle info and warning messages
       switch (type) {
+        case MessageType.success: // ✅ ADDED
+          titleColor = Colors.green;
+          break;
         case MessageType.warning:
           titleColor = Colors.orange;
           break;
-        case MessageType.info:
-          titleColor = Colors.blue;
+        case MessageType.error:
+          titleColor = Colors.red;
           break;
+        case MessageType.info:
         default:
-          titleColor = Colors.black; // Default color if type is not specified
+          titleColor = Colors.blue; // Default color if type is not specified
       }
     }
 
@@ -42,5 +47,4 @@ class CustomPopup {
   }
 }
 
-enum MessageType { warning, info }
 

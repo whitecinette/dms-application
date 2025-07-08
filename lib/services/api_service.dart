@@ -107,6 +107,7 @@ class ApiService {
     if (token == null) {
       print("❌ No auth token found");
       return {
+        "success": false,
         "warning": true,
         "message": "User is not authenticated",
       };
@@ -152,6 +153,7 @@ class ApiService {
 
         return {
           "statusCode": response.statusCode,
+          "success": response.statusCode == 200 || response.statusCode == 201,
           ...decoded,
         };
       } catch (e) {
@@ -159,6 +161,7 @@ class ApiService {
 
         return {
           "statusCode": response.statusCode,
+          "success": false,
           "warning": true,
           "message": "Server returned an unexpected response. Please try again later.",
           "rawResponse": responseBody,
@@ -166,7 +169,6 @@ class ApiService {
       }
     } catch (e) {
       print("❗ Request failed: ${e.toString()}");
-
       return {
         "warning": true,
         "message": "Network or server error occurred: ${e.toString()}",
@@ -174,48 +176,124 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> punchOut(String latitude, String longitude, File image, {String? dealerCode}) async {
+  // static Future<Map<String, dynamic>> punchOut(String latitude, String longitude, File image, {String? dealerCode}) async {
+  //   final url = Uri.parse("${Config.backendUrl}/punch-out");
+  //
+  //   // Fetch JWT token
+  //   String? token = await AuthService.getToken();
+  //   if (token == null) {
+  //     throw Exception("User is not authenticated");
+  //   }
+  //
+  //   var request = http.MultipartRequest("POST", url);
+  //   request.headers["Authorization"] = "Bearer $token";
+  //
+  //   // ✅ Sending location data
+  //   request.fields['latitude'] = latitude;
+  //   request.fields['longitude'] = longitude;
+  //   // ✅ Add dealerCode only if it's provided
+  //   if (dealerCode != null && dealerCode.isNotEmpty) {
+  //     request.fields['dealerCode'] = dealerCode;
+  //   }
+  //
+  //   // ✅ Ensuring correct field name for backend (Must match multer field)
+  //   final mimeType = lookupMimeType(image.path) ?? "image/jpeg";
+  //   final fileStream = await http.MultipartFile.fromPath(
+  //     'punchOutImage', // ✅ Field name should be "punchOutImage"
+  //     image.path,
+  //     contentType: MediaType.parse(mimeType),
+  //   );
+  //
+  //   request.files.add(fileStream);
+  //
+  //   final response = await request.send();
+  //   final responseBody = await response.stream.bytesToString();
+  //
+  //   final decoded = json.decode(responseBody);
+  //
+  //   if (response.statusCode == 201 || response.statusCode == 200) {
+  //     return decoded;
+  //   } else {
+  //     // ❌ Error case
+  //     throw Exception(decoded['message'] ?? "Punch-out failed");
+  //   }
+  // }
+
+  static Future<Map<String, dynamic>> punchOut(String latitude, String longitude, File image) async {
     final url = Uri.parse("${Config.backendUrl}/punch-out");
 
     // Fetch JWT token
     String? token = await AuthService.getToken();
     if (token == null) {
-      throw Exception("User is not authenticated");
+      return {
+        "success": false, // ✅ ADDED
+        "warning": true,  // ✅ ADDED
+        "message": "User is not authenticated", // ✅ ADDED
+      };
     }
 
-    var request = http.MultipartRequest("POST", url);
-    request.headers["Authorization"] = "Bearer $token";
+    try {
+      var request = http.MultipartRequest("POST", url);
+      request.headers["Authorization"] = "Bearer $token";
 
-    // ✅ Sending location data
-    request.fields['latitude'] = latitude;
-    request.fields['longitude'] = longitude;
-    // ✅ Add dealerCode only if it's provided
-    if (dealerCode != null && dealerCode.isNotEmpty) {
-      request.fields['dealerCode'] = dealerCode;
-    }
+      request.fields['latitude'] = latitude;
+      request.fields['longitude'] = longitude;
 
-    // ✅ Ensuring correct field name for backend (Must match multer field)
-    final mimeType = lookupMimeType(image.path) ?? "image/jpeg";
-    final fileStream = await http.MultipartFile.fromPath(
-      'punchOutImage', // ✅ Field name should be "punchOutImage"
-      image.path,
-      contentType: MediaType.parse(mimeType),
-    );
+      // if (dealerCode != null && dealerCode.isNotEmpty) {
+      //   request.fields['dealerCode'] = dealerCode;
+      // }
 
-    request.files.add(fileStream);
+      final mimeType = lookupMimeType(image.path) ?? "image/jpeg";
+      final fileStream = await http.MultipartFile.fromPath(
+        'punchOutImage',
+        image.path,
+        contentType: MediaType.parse(mimeType),
+      );
+      request.files.add(fileStream);
 
-    final response = await request.send();
-    final responseBody = await response.stream.bytesToString();
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      // final decoded = json.decode(responseBody);
 
-    final decoded = json.decode(responseBody);
-
-    if (response.statusCode == 201 || response.statusCode == 200) {
-      return decoded;
-    } else {
-      // ❌ Error case
-      throw Exception(decoded['message'] ?? "Punch-out failed");
+      // ✅ Decode response safely
+      Map<String, dynamic> decoded;
+      try {
+        decoded = json.decode(responseBody);
+      } catch (e) {
+        print("⚠️ JSON decode failed: $e");
+        return {
+          "statusCode": response.statusCode,
+          "success": false,
+          "warning": true,
+          "message": "Unexpected server response. Please try again later.",
+          "raw": responseBody,
+        };
+      }
+// ✅ Optionally handle 401 (token expired)
+      if (response.statusCode == 401) {
+        return {
+          "statusCode": 401,
+          "success": false,
+          "warning": true,
+          "message": "Session expired. Please log in again.",
+        };
+      }
+      // ✅ Unified response structure with success + statusCode
+      return {
+        "statusCode": response.statusCode, // ✅ ADDED
+        "success": response.statusCode == 200 || response.statusCode == 201, // ✅ ADDED
+        ...decoded, // ✅ ADDED
+      };
+    } catch (e) {
+      // ✅ Fallback structured error response instead of throwing
+      return {
+        "success": false, // ✅ ADDED
+        "warning": true,  // ✅ ADDED
+        "message": "Punch-out failed: ${e.toString()}", // ✅ ADDED
+      };
     }
   }
+
 
 // Get Weekly Beat Mapping Schedule
   static Future<Map<String, dynamic>> getWeeklyBeatMappingSchedule(String? startDate, String? endDate) async {
