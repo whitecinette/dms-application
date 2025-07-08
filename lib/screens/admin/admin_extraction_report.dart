@@ -206,17 +206,34 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
 
   Color _getHeatmapColor(dynamic val, double min, double max, {bool isTotal = false}) {
     final value = _parseValue(val).toDouble();
-    if (max == min) return Colors.blue.shade100.withAlpha((0.65 * 255).toInt());
+    if (max == min) return const Color(0xFFFFE0B2).withAlpha((0.95 * 255).toInt()); // fallback orange
 
     final norm = ((value - min) / (max - min)).clamp(0.0, 1.0);
 
-    final low = HSVColor.fromColor(Colors.blue.shade100);
-    final high = HSVColor.fromColor(Colors.green.shade300);
+    late HSVColor color;
 
-    final color = HSVColor.lerp(low, high, norm)!.toColor();
+    if (norm < 0.5) {
+      // Red → Orange
+      final factor = norm / 0.5;
+      color = HSVColor.lerp(
+        HSVColor.fromColor(const Color(0xFFFFC1C1)),
+        HSVColor.fromColor(const Color(0xFFFFE0B2)),
+        factor,
+      )!;
+    } else {
+      // Orange → Green
+      final factor = (norm - 0.5) / 0.5;
+      color = HSVColor.lerp(
+        HSVColor.fromColor(const Color(0xFFFFE0B2)),
+        HSVColor.fromColor(const Color(0xFFC8E6C9)),
+        factor,
+      )!;
+    }
 
-    return color.withAlpha((0.95 * 255).toInt()); // pastel and safe from deprecation
+    return color.toColor().withAlpha((0.95 * 255).toInt());
   }
+
+
 
 
 
