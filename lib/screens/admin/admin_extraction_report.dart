@@ -233,6 +233,24 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
     return color.toColor().withAlpha((0.95 * 255).toInt());
   }
 
+  Map<String, dynamic> getBrandTotalRow() {
+    final Map<String, double> brandSums = {};
+
+    for (final header in tableHeaders) {
+      double sum = 0.0;
+      for (final row in tableData) {
+        final parsed = _parseValue(row[header]);
+        if (parsed != null) sum += parsed;
+      }
+      brandSums[header] = sum;
+    }
+
+    return {
+      'Price Class': 'Brand Total',
+      ...brandSums.map((k, v) => MapEntry(k, v.toString())),
+    };
+  }
+
 
 
 
@@ -707,11 +725,12 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      for (int index = 0; index < dataToShow.length + 1; index++)
-                        _dataRow(
-                          index == dataToShow.length ? totalRow : dataToShow[index],
-                          isTotal: index == dataToShow.length,
-                        ),
+                      for (int index = 0; index < dataToShow.length; index++)
+                        _dataRow(dataToShow[index]),
+
+                      _dataRow(totalRow, isTotal: true),
+                      _dataRow(getBrandTotalRow(), isBrandTotal: true),
+
                     ],
                   ),
                 ),
@@ -777,38 +796,56 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
 
 
 
-  Widget _dataRow(Map<String, dynamic> row, {bool isTotal = false}) {
+  Widget _dataRow(Map<String, dynamic> row, {bool isTotal = false, bool isBrandTotal = false})
+  {
     final rowValues = _extractRowValues(row);
     final minMax = _getRowMinMax(rowValues);
 
+    // For Total column (vertical heatmap)
+    final totalValue = _parseValue(row["Total"] ?? _calculateTotal(rowValues));
+    final totalValues = tableData
+        .map((r) => _parseValue(r["Total"] ?? _calculateTotal(_extractRowValues(r))))
+        .where((v) => v != null)
+        .map((v) => v!.toDouble())
+        .toList();
+
+    final totalMin = totalValues.isNotEmpty
+        ? totalValues.reduce((a, b) => a < b ? a : b)
+        : 0.0;
+    final totalMax = totalValues.isNotEmpty
+        ? totalValues.reduce((a, b) => a > b ? a : b)
+        : 1.0;
+
     return Row(
       children: [
+        // First column: Price Class
         _dataCell(
           row['Price Class']?.toString() ?? '-',
           _getHeatmapColor(
-            _calculateTotal(_extractRowValues(row)), // or some logic specific to Price class
+            _calculateTotal(rowValues),
             minMax['min'] ?? 0.0,
-            minMax['max'] ?? 0.0,
-
+            minMax['max'] ?? 1.0,
           ),
           bold: true,
         ),
 
+        // Brand columns
         for (final header in tableHeaders)
           _dataCell(
             _getDisplayValue(row[header]),
             _getHeatmapColor(row[header], minMax['min']!, minMax['max']!),
             bold: true,
           ),
+
+        // Last column: Total (uses vertical heatmap scale)
         _dataCell(
           _getDisplayValue(row["Total"] ?? _calculateTotal(rowValues)),
-          _getHeatmapColor(row["Total"], minMax['min']!, minMax['max']!),
+          _getHeatmapColor(totalValue, totalMin, totalMax),
           bold: true,
         ),
       ],
     );
   }
-
 
 
 
