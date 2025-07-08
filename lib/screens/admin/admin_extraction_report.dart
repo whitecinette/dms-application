@@ -246,9 +246,10 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
     }
 
     return {
-      'Price Class': 'Brand Total',
+      'Price Class': 'Brand Total', // Ensures no clash with any price class like '100k+'
       ...brandSums.map((k, v) => MapEntry(k, v.toString())),
     };
+
   }
 
 
@@ -325,9 +326,26 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
             continue;
           }
 
-          allKeys.addAll(rowMap.keys.map((k) => k.trim()));
+          if (priceClass == 'brand total') {
+            continue; // Don't allow brand total from backend
+          }
+
           tableData.add(rowMap);
+          allKeys.addAll(rowMap.keys.map((k) => k.trim()));
         }
+
+        // Remove any duplicate 'total' or 'brand total' rows from tableData
+        tableData.removeWhere((row) {
+          final label = row['Price Class']?.toString().toLowerCase();
+          return label == 'total' || label == 'brand total';
+        });
+
+        // Safely assign total row only if it existed in response
+        if (extractedTotalRow != null) {
+          totalRow = extractedTotalRow.map((k, v) => MapEntry(k, v?.toString() ?? ''));
+        }
+
+
 
         allKeys.removeWhere((key) =>
         key == 'Price Class' || key == 'Rank of Samsung' || key.toLowerCase() == 'total');
@@ -619,11 +637,20 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
     final bool isUsingFallback = tableData.length <= 1;
     final List<Map<String, dynamic>> dataToShow = isUsingFallback
         ? fallbackData
-        : tableData.sublist(0, tableData.length - 1);
+        : tableData.where((row) {
+      final label = row['Price Class']?.toString().toLowerCase();
+      return label != 'total' && label != 'brand total';
+    }).toList();
 
 
-    final Map<String, dynamic> totalRow = tableData.length > 1
-        ? tableData.last
+
+    final Map<String, dynamic>? extractedTotalRow = tableData.firstWhere(
+          (row) => row['Price Class']?.toString().toLowerCase() == 'total',
+      orElse: () => {},
+    );
+
+    final Map<String, dynamic> totalRow = extractedTotalRow?.isNotEmpty == true
+        ? extractedTotalRow!
         : {
       'Price Class': 'Total',
       'Samsung': '0',
@@ -631,10 +658,19 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
       'Oppo': '0',
     };
 
+// Clean tableData from any total/brand total rows
+    tableData.removeWhere((row) {
+      final label = row['Price Class']?.toString().toLowerCase();
+      return label == 'total' || label == 'brand total';
+    });
+
+
     final List<String> headersToShow = [
       ...tableHeaders,
-      if (!tableHeaders.contains("Total")) "Total",
+      if (!tableHeaders.contains("Total") && selectedView != 0) "Total",
     ];
+
+
 
 
 
@@ -728,8 +764,14 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
                       for (int index = 0; index < dataToShow.length; index++)
                         _dataRow(dataToShow[index]),
 
-                      _dataRow(totalRow, isTotal: true),
-                      _dataRow(getBrandTotalRow(), isBrandTotal: true),
+                        // if (selectedView != 0)
+                        //   _dataRow(totalRow, isTotal: true),
+
+                      if (selectedView != 0)
+                        _dataRow(getBrandTotalRow(), isBrandTotal: true),
+
+
+
 
                     ],
                   ),
@@ -840,9 +882,12 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
       children: [
         // First column: Price Class
         _dataCell(
-          row['Price Class']?.toString() ?? '-',
+          row['Price Class']?.toString().toUpperCase() == 'BRAND TOTAL'
+              ? 'BRAND TOTAL'
+              : row['Price Class']?.toString() ?? '-',
           Colors.grey.shade300, // neutral background for label
           bold: true,
+
         ),
 
         // Brand cells
@@ -858,17 +903,15 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
 
         // Total cell
         // Total cell
-        _dataCell(
-          _getDisplayValue(row["Total"] ?? _calculateTotal(rowValues)),
-          isBrandTotal
-              ? Colors.grey.shade300 // no heatmap on brand total total-cell
-              : _getHeatmapColor(
-            totalValue,
-            totalMin,
-            totalMax,
+        if (selectedView != 0)
+          _dataCell(
+            _getDisplayValue(row["Total"] ?? _calculateTotal(rowValues)),
+            isBrandTotal
+                ? Colors.grey.shade300
+                : _getHeatmapColor(totalValue, totalMin, totalMax),
+            bold: true,
           ),
-          bold: true,
-        ),
+
 
 
       ],
