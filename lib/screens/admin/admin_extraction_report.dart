@@ -796,17 +796,17 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
 
 
 
-  Widget _dataRow(Map<String, dynamic> row, {bool isTotal = false, bool isBrandTotal = false})
-  {
+  Widget _dataRow(Map<String, dynamic> row, {bool isTotal = false, bool isBrandTotal = false}) {
     final rowValues = _extractRowValues(row);
     final minMax = _getRowMinMax(rowValues);
 
-    // For Total column (vertical heatmap)
+    // Total column heatmap (vertical scale)
     final totalValue = _parseValue(row["Total"] ?? _calculateTotal(rowValues));
     final totalValues = tableData
+        .where((r) => (r['Price Class']?.toString().toLowerCase() != 'brand total')) // ✅ Skip only brand total
         .map((r) => _parseValue(r["Total"] ?? _calculateTotal(_extractRowValues(r))))
-        .where((v) => v != null)
-        .map((v) => v!.toDouble())
+        .whereType<num>()
+        .map((v) => v.toDouble())
         .toList();
 
     final totalMin = totalValues.isNotEmpty
@@ -816,36 +816,65 @@ class _ExtractionReportPageState extends State<ExtractionReportPage> {
         ? totalValues.reduce((a, b) => a > b ? a : b)
         : 1.0;
 
+// BrandTotal: horizontal heatmap
+    List<double> horizontalValues = [];
+    double horizontalMin = 0.0;
+    double horizontalMax = 1.0;
+
+    if (isBrandTotal) {
+      horizontalValues = tableHeaders
+          .where((h) => h.toLowerCase() != 'total') // ⛔ exclude total column
+          .map((h) => _parseValue(row[h]))
+          .whereType<num>()             // Filters out nulls and non-numeric
+          .map((v) => v.toDouble())     // Ensures everything is double
+          .toList();
+
+      if (horizontalValues.isNotEmpty) {
+        horizontalMin = horizontalValues.reduce((a, b) => a < b ? a : b);
+        horizontalMax = horizontalValues.reduce((a, b) => a > b ? a : b);
+      }
+    }
+
+
     return Row(
       children: [
         // First column: Price Class
         _dataCell(
           row['Price Class']?.toString() ?? '-',
-          _getHeatmapColor(
-            _calculateTotal(rowValues),
-            minMax['min'] ?? 0.0,
-            minMax['max'] ?? 1.0,
-          ),
+          Colors.grey.shade300, // neutral background for label
           bold: true,
         ),
 
-        // Brand columns
+        // Brand cells
         for (final header in tableHeaders)
           _dataCell(
             _getDisplayValue(row[header]),
-            _getHeatmapColor(row[header], minMax['min']!, minMax['max']!),
+            isBrandTotal
+                ? _getHeatmapColor(row[header], horizontalMin, horizontalMax)
+                : _getHeatmapColor(row[header], minMax['min']!, minMax['max']!),
             bold: true,
           ),
 
-        // Last column: Total (uses vertical heatmap scale)
+
+        // Total cell
+        // Total cell
         _dataCell(
           _getDisplayValue(row["Total"] ?? _calculateTotal(rowValues)),
-          _getHeatmapColor(totalValue, totalMin, totalMax),
+          isBrandTotal
+              ? Colors.grey.shade300 // no heatmap on brand total total-cell
+              : _getHeatmapColor(
+            totalValue,
+            totalMin,
+            totalMax,
+          ),
           bold: true,
         ),
+
+
       ],
     );
   }
+
 
 
 
