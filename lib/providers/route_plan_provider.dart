@@ -168,6 +168,35 @@ class RoutePlanNotifier extends StateNotifier<RoutePlanState> {
       return null;
     }
   }
+  // fetch user routes
+  Future<List<String>> fetchUserRoutes() async {
+    final token = await AuthService.getToken();
+    if (token == null) return [];
+
+    final uri = Uri.parse("${Config.backendUrl}/get-route-by-user");
+
+    try {
+      final response = await http.get(uri, headers: {
+        'Authorization': 'Bearer $token',
+      });
+
+      if (response.statusCode == 200) {
+        final jsonRes = json.decode(response.body);
+        final List data = jsonRes['data'] ?? [];
+
+        // Extract unique route names
+        final routeNames = data.map<String>((item) => item['name'].toString()).toSet().toList();
+
+        return routeNames;
+      } else {
+        print("Failed to fetch user routes: ${response.statusCode}");
+        return [];
+      }
+    } catch (e) {
+      print("Error fetching user routes: $e");
+      return [];
+    }
+  }
 
   Future<bool> deleteRoute(String routeId) async {
     final token = await AuthService.getToken();

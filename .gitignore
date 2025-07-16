@@ -47,4 +47,5 @@ app.*.map.json
 lib/config.dart
 # Ignore NDK build outputs
 android/app/.cxx/
+macos/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme
 

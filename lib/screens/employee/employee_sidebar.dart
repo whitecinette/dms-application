@@ -3,7 +3,7 @@
 import 'package:dms_app/screens/employee/geo_tag.dart';
 import 'package:dms_app/screens/employee/market_coverage.dart';
 import 'package:dms_app/screens/employee/punch_in_out_emp.dart';
-import 'package:dms_app/screens/employee/route_plan.dart';
+import 'package:dms_app/screens/employee/route_plan_backup.dart';
 import 'package:dms_app/screens/employee/human_resources/travel_schedule.dart';
 import 'package:flutter/material.dart';
 import 'sales_dashboard.dart';
@@ -71,7 +71,9 @@ class EmployeeSidebar extends StatelessWidget {
           ],
           _buildDrawerItem(Icons.monitor_heart, "Pulse", context, PulseScreen()),
           _buildDrawerItem(Icons.map, "Beat Mapping", context, BeatMappingScreen()),
+          // _buildDrawerItem(Icons.route, "Route Plan", context, RoutePlanScreen()),
           _buildDrawerItem(Icons.route, "Route Plan", context, RoutePlanScreen()),
+
           _buildDrawerItem(Icons.travel_explore, "Market Coverage", context, MarketCoverageScreen()),
           ExpansionTile(
             leading: Icon(Icons.people),
