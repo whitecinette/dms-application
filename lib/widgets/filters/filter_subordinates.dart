@@ -36,6 +36,119 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
     localSelected = _groupByPosition(selected);
   }
 
+  Widget _buildPositionChip(String position) {
+    final count = localSelected[position]?.length ?? 0;
+    final isActive = activePosition == position;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (isActive) {
+            activePosition = null;
+            final allSelected = localSelected.values.expand((e) => e).toList();
+            final currentSelected = ref.read(salesFilterProvider).selectedSubordinateCodes;
+
+            if (!_listEquals(allSelected, currentSelected)) {
+              ref.read(salesFilterProvider.notifier).updateSubordinates(allSelected);
+            }
+          } else {
+            activePosition = position;
+          }
+        });
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        margin: EdgeInsets.symmetric(vertical: 4),
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFF5C6F7A) : Colors.white, // softer blueGrey
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              position,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: isActive ? Colors.white : const Color(0xFF5C6F7A),
+              ),
+            ),
+            if (count > 0)
+              Container(
+                margin: EdgeInsets.only(left: 6),
+                padding: EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.orange,
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(color: Colors.white, fontSize: 9),
+                ),
+              ),
+            SizedBox(width: 4),
+            Icon(
+              isActive ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, // Minimalistic
+              size: 18,
+              color: isActive ? Colors.white : const Color(0xFF5C6F7A),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClearButton() {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          localSelected.clear();
+          activePosition = null;
+          ref.read(salesFilterProvider.notifier).updateSubordinates([]);
+        });
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        margin: EdgeInsets.symmetric(vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFCF0F0), // very light red background
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.close_rounded, size: 16, color: Colors.redAccent),
+            SizedBox(width: 6),
+            Text(
+              "Clear",
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.redAccent,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+
+
   @override
   Widget build(BuildContext context) {
     final subordinatesState = ref.watch(subordinatesProvider);
@@ -54,146 +167,46 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
             // Top Row of Position Tabs
             Container(
               alignment: Alignment.centerLeft,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: positions.map((position) {
-                    int count = localSelected[position]?.length ?? 0;
-                    bool isActive = activePosition == position;
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // First horizontal scrollable row
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final position in positions.take((positions.length / 2).ceil()))
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: _buildPositionChip(position),
+                          ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 6),
 
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          if (isActive) {
-                            activePosition = null;
-
-                            final allSelected = localSelected.values.expand((e) => e).toList();
-                            final currentSelected = ref.read(salesFilterProvider).selectedSubordinateCodes;
-
-                            final isDifferent = !_listEquals(allSelected, currentSelected);
-
-                            if (isDifferent) {
-                              filterNotifier.updateSubordinates(allSelected);
-                            }
-                          } else {
-                            activePosition = position;
-                          }
-                        });
-                      },
-                      child: Container(
-                        margin: EdgeInsets.symmetric(horizontal: 0),
-                        padding: EdgeInsets.symmetric(horizontal: 0, vertical: 0),
-
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            ...positions.map((position) {
-                              int count = localSelected[position]?.length ?? 0;
-                              bool isActive = activePosition == position;
-
-                              return GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    if (isActive) {
-                                      activePosition = null;
-
-                                      final allSelected = localSelected.values.expand((e) => e).toList();
-                                      final currentSelected = ref.read(salesFilterProvider).selectedSubordinateCodes;
-
-                                      final isDifferent = !_listEquals(allSelected, currentSelected);
-
-                                      if (isDifferent) {
-                                        filterNotifier.updateSubordinates(allSelected);
-                                      }
-                                    } else {
-                                      activePosition = position;
-                                    }
-                                  });
-                                },
-                                child: Container(
-                                  margin: EdgeInsets.symmetric(horizontal: 6),
-                                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: isActive ? Colors.blueGrey : Colors.white,
-                                    border: Border.all(color: Colors.blueGrey),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        position,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: isActive ? Colors.white : Colors.blueGrey,
-                                        ),
-                                      ),
-                                      if (count > 0)
-                                        Container(
-                                          margin: EdgeInsets.only(left: 6),
-                                          padding: EdgeInsets.all(6),
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: Colors.orange,
-                                          ),
-                                          child: Text(
-                                            '$count',
-                                            style: TextStyle(color: Colors.white, fontSize: 10),
-                                          ),
-                                        ),
-                                      Icon(
-                                        isActive ? Icons.arrow_drop_up : Icons.arrow_drop_down,
-                                        color: isActive ? Colors.white : Colors.blueGrey,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }),
-
-                            // 👇 Add Clear Button inline
-                            GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  localSelected.clear();
-                                  activePosition = null;
-                                  ref.read(salesFilterProvider.notifier).updateSubordinates([]);
-                                });
-                              },
-                              child: Container(
-                                margin: EdgeInsets.symmetric(horizontal: 6),
-                                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  border: Border.all(color: Colors.redAccent),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.clear, color: Colors.redAccent, size: 16),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      "Clear",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.redAccent,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
+                  // Second horizontal scrollable row + Clear
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final position in positions.skip((positions.length / 2).ceil()))
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: _buildPositionChip(position),
+                          ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: _buildClearButton(),
                         ),
-
-                      ),
-                    );
-                  }).toList(),
-                ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
+
+
 
 
 
