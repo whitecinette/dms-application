@@ -65,7 +65,7 @@ class RoutePlanNotifier extends StateNotifier<RoutePlanState> {
 
     state = state.copyWith(filteredRoutes: results);
   }
-
+  // fetch routes by user
   Future<void> fetchRoutePlans() async {
     state = state.copyWith(isLoading: true);
 
@@ -140,6 +140,43 @@ class RoutePlanNotifier extends StateNotifier<RoutePlanState> {
       return false;
     }
   }
+
+  // add route plan by user
+  Future<bool> addRoutePlanFromSelectedRoutes(List<String> selectedRoutes) async {
+    print("reachingggggggg");
+    state = state.copyWith(isLoading: true);
+    final token = await AuthService.getToken();
+
+    if (token == null) {
+      state = state.copyWith(isLoading: false);
+      return false;
+    }
+
+    final uri = Uri.parse("${Config.backendUrl}/add-route-plan-by-user");
+    final body = jsonEncode({
+      "routes": selectedRoutes,
+    });
+
+    try {
+      final response = await http.post(uri, headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      }, body: body);
+
+      final success = response.statusCode == 200 || response.statusCode == 201;
+
+      if (success) {
+        await fetchRoutePlans(); // Refresh the list after adding
+      }
+
+      return success;
+    } catch (e) {
+      print("Error in addRoutePlanFromSelectedRoutes: $e");
+      state = state.copyWith(isLoading: false);
+      return false;
+    }
+  }
+
 
   Future<Map<String, List<String>>?> fetchMarketCoverageDropdown() async {
     final token = await AuthService.getToken();

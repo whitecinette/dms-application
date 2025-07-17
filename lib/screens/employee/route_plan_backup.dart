@@ -57,12 +57,13 @@ List<String> routeOptions = [];
   }
 
   void _submit() async {
-    if (selectedRange == null) return;
-    final success = await ref.read(routePlanProvider.notifier).addRoutePlan(
-      startDate: selectedRange!.start,
-      endDate: selectedRange!.end,
-      itinerary: itinerary,
-    );
+    final selectedRoutes = itinerary['routes']!;
+    if (selectedRoutes.isEmpty) return;
+
+    final success = await ref
+        .read(routePlanProvider.notifier)
+        .addRoutePlanFromSelectedRoutes(selectedRoutes);
+
     if (success) {
       await ref.read(routePlanProvider.notifier).fetchRoutePlans();
       Navigator.pop(context);
@@ -252,7 +253,7 @@ List<String> routeOptions = [];
                 // _buildDropdownButton('district', districtOptions),
                 // _buildDropdownButton('zone', zoneOptions),
                 // _buildDropdownButton('taluka', talukaOptions),
-                _buildDropdownButton('Routes', routeOptions)
+                _buildDropdownButton('routes', routeOptions)
               ],
             ),
             SizedBox(height: 12),
