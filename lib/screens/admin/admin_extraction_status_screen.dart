@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../services/auth_service.dart';
+import 'package:dms_app/screens/admin/extraction_status_details.dart';
 import '../../config.dart'; // Ensure Config.backendUrl is defined
 
 class ExtractionStatusAdminScreen extends StatefulWidget {
@@ -270,7 +271,17 @@ class _ExtractionStatusAdminScreenState extends State<ExtractionStatusAdminScree
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ExtractionStatusDetailsScreen(
+                          userCode: user['code'], // optional param
+                          userName: user['name'],  // optional param
+                        ),
+                      ),
+                    );
+                  },
                   child: Text("View", style: TextStyle(color: Colors.black)),
                 ),
               ),
@@ -279,6 +290,7 @@ class _ExtractionStatusAdminScreenState extends State<ExtractionStatusAdminScree
         ),
       ),
     );
+
   }
 
 
@@ -551,6 +563,30 @@ class _ExtractionStatusAdminScreenState extends State<ExtractionStatusAdminScree
                           ),
                           SizedBox(height: 6),
                           Text("Total: $total", style: TextStyle(color: Colors.grey[600])),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: Colors.orange.shade200),
+                                backgroundColor: Colors.orange.shade50,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ExtractionStatusDetailsScreen(
+                                      userCode: user['code'],
+                                      userName: user['name'],
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Text("View", style: TextStyle(color: Colors.black)),
+                            ),
+                          ),
+
                         ],
                       ),
                     ),
