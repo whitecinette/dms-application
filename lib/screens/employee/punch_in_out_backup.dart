@@ -1,17 +1,17 @@
 import 'dart:async';
 
-import 'package:dms_app/screens/employee/sales_dashboard.dart';
-import 'package:dms_app/services/api_service.dart';
-import 'package:dms_app/services/auth_service.dart';
-import 'package:dms_app/utils/custom_pop_up.dart';
-import 'package:dms_app/utils/dealer_selector_popup.dart';
-import 'package:dms_app/utils/leave_form.dart';
+import 'package:siddhaconnect/screens/employee/sales_dashboard.dart';
+import 'package:siddhaconnect/services/api_service.dart';
+import 'package:siddhaconnect/services/auth_service.dart';
+import 'package:siddhaconnect/utils/custom_pop_up.dart';
+import 'package:siddhaconnect/utils/dealer_selector_popup.dart';
+import 'package:siddhaconnect/utils/leave_form.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:dms_app/services/location_service.dart';
-import 'package:dms_app/utils/responsive.dart';
+import 'package:siddhaconnect/services/location_service.dart';
+import 'package:siddhaconnect/utils/responsive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PunchInOutEmp extends ConsumerStatefulWidget {

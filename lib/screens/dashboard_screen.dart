@@ -1,6 +1,6 @@
 // lib/main.dart
 
-import 'package:dms_app/screens/login_screen.dart';
+import 'package:siddhaconnect/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 
 

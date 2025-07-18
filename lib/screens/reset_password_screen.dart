@@ -1,6 +1,6 @@
-import 'package:dms_app/config.dart';
-import 'package:dms_app/screens/login_screen.dart';
-import 'package:dms_app/utils/custom_pop_up.dart';
+import 'package:siddhaconnect/config.dart';
+import 'package:siddhaconnect/screens/login_screen.dart';
+import 'package:siddhaconnect/utils/custom_pop_up.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';

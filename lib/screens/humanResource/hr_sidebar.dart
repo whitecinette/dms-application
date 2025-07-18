@@ -1,22 +1,22 @@
 // lib/screens/humanResource/HumanResourceSidebar.dart
 
-import 'package:dms_app/screens/employee/punch_in_out_emp.dart';
-import 'package:dms_app/screens/humanResource/actor_code.dart';
-import 'package:dms_app/screens/humanResource/attendance.dart';
-import 'package:dms_app/screens/humanResource/Hr_beat_mapping.dart';
-import 'package:dms_app/screens/humanResource/announcement.dart';
-import 'package:dms_app/screens/humanResource/dashboard.dart';
-import 'package:dms_app/screens/humanResource/hr_dashboard.dart';
-import 'package:dms_app/screens/humanResource/leave_request.dart';
-import 'package:dms_app/screens/humanResource/obm.dart';
-import 'package:dms_app/screens/humanResource/payroll.dart';
-import 'package:dms_app/screens/humanResource/products.dart';
-import 'package:dms_app/screens/humanResource/profile.dart';
-import 'package:dms_app/screens/humanResource/punch_in_out.dart';
-import 'package:dms_app/screens/humanResource/timeline.dart';
-import 'package:dms_app/screens/humanResource/tracking.dart';
-import 'package:dms_app/screens/humanResource/user_profile.dart';
-import 'package:dms_app/screens/humanResource/vouchers.dart';
+import 'package:siddhaconnect/screens/employee/punch_in_out_emp.dart';
+import 'package:siddhaconnect/screens/humanResource/actor_code.dart';
+import 'package:siddhaconnect/screens/humanResource/attendance.dart';
+import 'package:siddhaconnect/screens/humanResource/Hr_beat_mapping.dart';
+import 'package:siddhaconnect/screens/humanResource/announcement.dart';
+import 'package:siddhaconnect/screens/humanResource/dashboard.dart';
+import 'package:siddhaconnect/screens/humanResource/hr_dashboard.dart';
+import 'package:siddhaconnect/screens/humanResource/leave_request.dart';
+import 'package:siddhaconnect/screens/humanResource/obm.dart';
+import 'package:siddhaconnect/screens/humanResource/payroll.dart';
+import 'package:siddhaconnect/screens/humanResource/products.dart';
+import 'package:siddhaconnect/screens/humanResource/profile.dart';
+import 'package:siddhaconnect/screens/humanResource/punch_in_out.dart';
+import 'package:siddhaconnect/screens/humanResource/timeline.dart';
+import 'package:siddhaconnect/screens/humanResource/tracking.dart';
+import 'package:siddhaconnect/screens/humanResource/user_profile.dart';
+import 'package:siddhaconnect/screens/humanResource/vouchers.dart';
 import 'package:flutter/material.dart';
 import '../login_screen.dart'; // For logout
 

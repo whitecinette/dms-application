@@ -1,5 +1,5 @@
-import 'package:dms_app/services/api_service.dart';
-import 'package:dms_app/utils/custom_pop_up.dart';
+import 'package:siddhaconnect/services/api_service.dart';
+import 'package:siddhaconnect/utils/custom_pop_up.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;

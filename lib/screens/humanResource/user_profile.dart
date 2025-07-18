@@ -1,6 +1,6 @@
-import 'package:dms_app/services/api_service.dart';
+import 'package:siddhaconnect/services/api_service.dart';
 import 'package:flutter/material.dart';
-import 'package:dms_app/utils/responsive.dart';
+import 'package:siddhaconnect/utils/responsive.dart';
 
 class UserProfileScreen extends StatefulWidget {
   @override

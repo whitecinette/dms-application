@@ -1,8 +1,8 @@
 // lib/screens/dealer/dealer_dashboard.dart
 
-import 'package:dms_app/screens/dealer/dealer_sidebar.dart';
-import 'package:dms_app/screens/dealer/sales_dashboard.dart';
-import 'package:dms_app/widgets/header.dart';
+import 'package:siddhaconnect/screens/dealer/dealer_sidebar.dart';
+import 'package:siddhaconnect/screens/dealer/sales_dashboard.dart';
+import 'package:siddhaconnect/widgets/header.dart';
 import 'package:flutter/material.dart';
 
 class DealerDashboard extends StatelessWidget {

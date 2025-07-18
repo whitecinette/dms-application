@@ -1,10 +1,10 @@
 // lib/screens/employee/employee_sidebar.dart
 
-import 'package:dms_app/screens/employee/geo_tag.dart';
-import 'package:dms_app/screens/employee/market_coverage.dart';
-import 'package:dms_app/screens/employee/punch_in_out_emp.dart';
-import 'package:dms_app/screens/employee/route_plan_backup.dart';
-import 'package:dms_app/screens/employee/human_resources/travel_schedule.dart';
+import 'package:siddhaconnect/screens/employee/geo_tag.dart';
+import 'package:siddhaconnect/screens/employee/market_coverage.dart';
+import 'package:siddhaconnect/screens/employee/punch_in_out_emp.dart';
+import 'package:siddhaconnect/screens/employee/route_plan_backup.dart';
+import 'package:siddhaconnect/screens/employee/human_resources/travel_schedule.dart';
 import 'package:flutter/material.dart';
 import 'sales_dashboard.dart';
 import 'extraction.dart';

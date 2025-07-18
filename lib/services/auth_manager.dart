@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:dms_app/main.dart';
+import 'package:siddhaconnect/main.dart';
 import 'package:flutter/material.dart';
 import 'auth_service.dart';  // import your existing auth_service
 import '../screens/login_screen.dart';  // adjust path as needed

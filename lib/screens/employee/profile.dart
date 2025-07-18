@@ -1,5 +1,5 @@
-import 'package:dms_app/config.dart';
-import 'package:dms_app/screens/update_pass_from_profile.dart';
+import 'package:siddhaconnect/config.dart';
+import 'package:siddhaconnect/screens/update_pass_from_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';

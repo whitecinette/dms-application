@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:dms_app/screens/humanResource/hr_sidebar.dart';
+import 'package:siddhaconnect/screens/humanResource/hr_sidebar.dart';
 
 class HrDashboard extends StatelessWidget {
   final dynamic user;

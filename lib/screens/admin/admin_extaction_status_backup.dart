@@ -1,4 +1,4 @@
-import 'package:dms_app/widgets/shimmer_loader.dart';
+import 'package:siddhaconnect/widgets/shimmer_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:multi_select_flutter/multi_select_flutter.dart';
 import 'package:intl/intl.dart';

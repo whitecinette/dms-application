@@ -1,7 +1,7 @@
 // lib/screens/employee/employee_sidebar.dart
 
-import 'package:dms_app/screens/dealer/finance_dashboard.dart';
-import 'package:dms_app/screens/employee/punch_in_out_emp.dart';
+import 'package:siddhaconnect/screens/dealer/finance_dashboard.dart';
+import 'package:siddhaconnect/screens/employee/punch_in_out_emp.dart';
 import 'package:flutter/material.dart';
 import 'sales_dashboard.dart';
 import 'profile.dart';

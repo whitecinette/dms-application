@@ -1,5 +1,5 @@
 // 🔄 Styled Beat Mapping UI to match design
-import 'package:dms_app/utils/custom_pop_up.dart';
+import 'package:siddhaconnect/utils/custom_pop_up.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

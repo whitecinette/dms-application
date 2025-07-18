@@ -1,7 +1,7 @@
-import 'package:dms_app/screens/humanResource/hr_dashboard.dart';
-import 'package:dms_app/screens/humanResource/hr_sidebar.dart';
-import 'package:dms_app/screens/reset_password_screen.dart';
-import 'package:dms_app/services/auth_manager.dart';
+import 'package:siddhaconnect/screens/humanResource/hr_dashboard.dart';
+import 'package:siddhaconnect/screens/humanResource/hr_sidebar.dart';
+import 'package:siddhaconnect/screens/reset_password_screen.dart';
+import 'package:siddhaconnect/services/auth_manager.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'employee/employee_dashboard.dart';

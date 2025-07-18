@@ -1,7 +1,7 @@
-import 'package:dms_app/config.dart';
-import 'package:dms_app/screens/employee/profile.dart';
-import 'package:dms_app/screens/employee/sales_dash_backup.dart';
-import 'package:dms_app/utils/custom_pop_up.dart';
+import 'package:siddhaconnect/config.dart';
+import 'package:siddhaconnect/screens/employee/profile.dart';
+import 'package:siddhaconnect/screens/employee/sales_dash_backup.dart';
+import 'package:siddhaconnect/utils/custom_pop_up.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';

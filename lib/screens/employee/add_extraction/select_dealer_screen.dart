@@ -1,7 +1,7 @@
 // lib/screens/employee/add_extraction/select_dealer_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:dms_app/services/auth_service.dart';
+import 'package:siddhaconnect/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 

@@ -1,6 +1,6 @@
-import 'package:dms_app/widgets/shimmer_loader.dart';
+import 'package:siddhaconnect/widgets/shimmer_loader.dart';
 import 'package:flutter/material.dart';
-import 'package:dms_app/services/api_service.dart';
+import 'package:siddhaconnect/services/api_service.dart';
 import 'package:shimmer/shimmer.dart';  // Import shimmer package
 import 'custom_pop_up.dart';
 

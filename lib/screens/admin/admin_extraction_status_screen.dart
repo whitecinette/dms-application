@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../services/auth_service.dart';
-import 'package:dms_app/screens/admin/extraction_status_details.dart';
+import 'package:siddhaconnect/screens/admin/extraction_status_details.dart';
 import '../../config.dart'; // Ensure Config.backendUrl is defined
 
 class ExtractionStatusAdminScreen extends StatefulWidget {

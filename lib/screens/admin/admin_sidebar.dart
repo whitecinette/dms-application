@@ -1,7 +1,7 @@
-import 'package:dms_app/screens/admin/admin_extraction_report.dart';
-import 'package:dms_app/screens/admin/attendance.dart';
-import 'package:dms_app/screens/admin/beat_mapping_status.dart';
-import 'package:dms_app/screens/employee/punch_in_out_emp.dart';
+import 'package:siddhaconnect/screens/admin/admin_extraction_report.dart';
+import 'package:siddhaconnect/screens/admin/attendance.dart';
+import 'package:siddhaconnect/screens/admin/beat_mapping_status.dart';
+import 'package:siddhaconnect/screens/employee/punch_in_out_emp.dart';
 import 'package:flutter/material.dart';
 import '../employee/sales_dashboard.dart';
 import '../employee/extraction.dart';

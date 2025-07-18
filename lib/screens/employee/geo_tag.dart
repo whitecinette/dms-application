@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'dart:async';
-import 'package:dms_app/services/api_service.dart';
-import 'package:dms_app/services/location_service.dart';
-import 'package:dms_app/utils/custom_pop_up.dart';
+import 'package:siddhaconnect/services/api_service.dart';
+import 'package:siddhaconnect/services/location_service.dart';
+import 'package:siddhaconnect/utils/custom_pop_up.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';

@@ -1,7 +1,7 @@
 import 'dart:io';
-import 'package:dms_app/config.dart';
-import 'package:dms_app/services/auth_service.dart';
-import 'package:dms_app/utils/custom_pop_up.dart';
+import 'package:siddhaconnect/config.dart';
+import 'package:siddhaconnect/services/auth_service.dart';
+import 'package:siddhaconnect/utils/custom_pop_up.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
