@@ -56,17 +56,48 @@ List<String> routeOptions = [];
     }
   }
 
+  // void _submit() async {
+  //   final selectedRoutes = itinerary['routes']!;
+  //   if (selectedRoutes.isEmpty) return;
+  //
+  //   final success = await ref
+  //       .read(routePlanProvider.notifier)
+  //       .requestRoutePlan(selectedRoutes);
+  //
+  //   if (success) {
+  //     await ref.read(routePlanProvider.notifier).fetchRoutePlans();
+  //     Navigator.pop(context);
+  //   }
+  // }
+
+
   void _submit() async {
     final selectedRoutes = itinerary['routes']!;
-    if (selectedRoutes.isEmpty) return;
+    if (selectedRoutes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select at least one route")),
+      );
+      return;
+    }
 
     final success = await ref
         .read(routePlanProvider.notifier)
-        .addRoutePlanFromSelectedRoutes(selectedRoutes);
+        .requestRoutePlan(selectedRoutes);
 
     if (success) {
       await ref.read(routePlanProvider.notifier).fetchRoutePlans();
-      Navigator.pop(context);
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Route request submitted successfully")),
+        );
+      }
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to submit route request")),
+        );
+      }
     }
   }
 
@@ -300,7 +331,25 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
   }
 
 
+  // Future<void> _fetchRoutes({bool reset = false}) async {
+  //   print("fetched routes");
+  //   if (reset) {
+  //     final now = DateTime.now();
+  //     final startOfMonth = DateTime(now.year, now.month, 1);
+  //     final endOfMonth = DateTime(now.year, now.month + 1, 0);
+  //     selectedRange = DateTimeRange(start: startOfMonth, end: endOfMonth);
+  //   }
+  //
+  //   if (selectedRange != null) {
+  //     ref.read(routePlanProvider.notifier).setDateRange(selectedRange!);
+  //     await ref.read(routePlanProvider.notifier).fetchRoutePlans();
+  //   }
+  // }
+
+
   Future<void> _fetchRoutes({bool reset = false}) async {
+    print("Fetching requested routes...");
+
     if (reset) {
       final now = DateTime.now();
       final startOfMonth = DateTime(now.year, now.month, 1);
@@ -309,8 +358,9 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
     }
 
     if (selectedRange != null) {
-      ref.read(routePlanProvider.notifier).setDateRange(selectedRange!);
-      await ref.read(routePlanProvider.notifier).fetchRoutePlans();
+      await ref
+          .read(routePlanProvider.notifier)
+          .fetchRequestedRoutePlans(selectedRange: selectedRange!);
     }
   }
 
@@ -420,83 +470,130 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
               itemCount: state.filteredRoutes.length,
               itemBuilder: (context, index) {
                 final route = state.filteredRoutes[index];
+
+                final status = route['status'] ?? 'requested';
+                final bgColor = status == 'approved'
+                    ? Colors.green.shade50
+                    : status == 'rejected'
+                    ? Colors.grey.shade200
+                    : Colors.yellow.shade100;
+
                 return Card(
+                  color: bgColor,
                   margin: EdgeInsets.all(10),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: ListTile(
-                    onTap: () {
-                      final provider = ref.read(marketCoverageProvider.notifier);
-                      provider.resetFilters(); // ✅ Clear filters
+                  child: Stack(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Title + Itinerary + Date
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(Icons.near_me_outlined),
+                              title: Text(route['name'], style: TextStyle(fontWeight: FontWeight.bold)),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(height: 4),
+                                  Text(route['itinerary'].join(', ')),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    '${DateFormat("dd MMM yyyy").format(DateTime.parse(route['startDate']))}',
+                                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                                  ),
+                                ],
+                              ),
+                              onTap: () {
+                                final provider = ref.read(marketCoverageProvider.notifier);
+                                provider.resetFilters();
 
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => MarketCoverageScreen(
-                            initialRouteName: route['name'],
-                            initialStartDate: DateTime.parse(route['startDate']),
-                            initialEndDate: DateTime.parse(route['endDate']),
-                            initialItinerary: List<String>.from(route['itinerary']),
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => MarketCoverageScreen(
+                                      initialRouteName: route['name'],
+                                      initialStartDate: DateTime.parse(route['startDate']),
+                                      initialEndDate: DateTime.parse(route['endDate']),
+                                      initialItinerary: List<String>.from(route['itinerary']),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // 🔴 Delete button at top-right (only if status is requested)
+                      if (status == 'requested')
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: IconButton(
+                            icon: Icon(Icons.delete_outline, color: Colors.redAccent),
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (BuildContext dialogContext) {
+                                  return AlertDialog(
+                                    title: Text("Delete Route"),
+                                    content: Text("Are you sure you want to delete this route?"),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(dialogContext, false),
+                                        child: Text("Cancel"),
+                                      ),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.redAccent,
+                                          foregroundColor: Colors.white,
+                                        ),
+                                        onPressed: () => Navigator.pop(dialogContext, true),
+                                        child: Text("Delete"),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+
+                              if (confirm == true) {
+                                final success = await ref.read(routePlanProvider.notifier).deleteRoute(route['_id']);
+                                if (success) {
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Route deleted successfully")));
+                                  _fetchRoutes();
+                                }
+                              }
+                            },
                           ),
                         ),
-                      );
-                    },
-                    leading: Icon(Icons.near_me_outlined),
-                    title: Text(route['name'], style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(route['itinerary'].join(', ')),
-                        SizedBox(height: 4),
-                        // Text(
-                        //   '${DateFormat("dd MMM yyyy").format(DateTime.parse(route['startDate']))} to ${DateFormat("dd MMM yyyy").format(DateTime.parse(route['endDate']))}',
-                        //   style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-                        // ),
 
-                        Text(
-                          '${DateFormat("dd MMM yyyy").format(DateTime.parse(route['startDate']))} ',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                      // 🟡 Status Badge at bottom-right
+                      Positioned(
+                        bottom: 8,
+                        right: 12,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: status == 'approved'
+                                ? Colors.green
+                                : status == 'rejected'
+                                ? Colors.grey
+                                : Colors.orange,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            status.toUpperCase(),
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
                         ),
-                      ],
-                    ),
-                    trailing: IconButton(
-                      icon: Icon(Icons.delete_outline, color: Colors.redAccent),
-                      onPressed: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (BuildContext dialogContext) {
-                            return AlertDialog(
-                              title: Text("Delete Route"),
-                              content: Text("Are you sure you want to delete this route? This will also remove related dealers from schedule."),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(dialogContext, false),
-                                  child: Text("Cancel"),
-                                ),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.redAccent,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  onPressed: () => Navigator.pop(dialogContext, true),
-                                  child: Text("Delete"),
-                                ),
-
-                              ],
-                            );
-                          },
-                        );
-
-                        if (confirm == true) {
-                          final success = await ref.read(routePlanProvider.notifier).deleteRoute(route['_id']);
-                          if (success) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Route deleted successfully")));
-                            _fetchRoutes();
-                          }
-                        }
-                      },
-                    ),
+                      ),
+                    ],
                   ),
                 );
+
 
               },
             ),

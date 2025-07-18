@@ -141,42 +141,138 @@ class RoutePlanNotifier extends StateNotifier<RoutePlanState> {
     }
   }
 
-  // add route plan by user
-  Future<bool> addRoutePlanFromSelectedRoutes(List<String> selectedRoutes) async {
-    print("reachingggggggg");
-    state = state.copyWith(isLoading: true);
-    final token = await AuthService.getToken();
+  // // add route plan by user
+  // Future<bool> addRoutePlanFromSelectedRoutes(List<String> selectedRoutes) async {
+  //   print("reachingggggggg");
+  //   state = state.copyWith(isLoading: true);
+  //   final token = await AuthService.getToken();
+  //
+  //   if (token == null) {
+  //     state = state.copyWith(isLoading: false);
+  //     return false;
+  //   }
+  //
+  //   final uri = Uri.parse("${Config.backendUrl}/add-route-plan-by-user");
+  //   final body = jsonEncode({
+  //     "routes": selectedRoutes,
+  //   });
+  //
+  //   try {
+  //     final response = await http.post(uri, headers: {
+  //       'Content-Type': 'application/json',
+  //       'Authorization': 'Bearer $token',
+  //     }, body: body);
+  //
+  //     final success = response.statusCode == 200 || response.statusCode == 201;
+  //
+  //     if (success) {
+  //       await fetchRoutePlans(); // Refresh the list after adding
+  //     }
+  //
+  //     return success;
+  //   } catch (e) {
+  //     print("Error in addRoutePlanFromSelectedRoutes: $e");
+  //     state = state.copyWith(isLoading: false);
+  //     return false;
+  //   }
+  // }
+  //
 
+  // request route plan
+  Future<bool> requestRoutePlan(List<String> selectedRoutes) async {
+    print("requesting route plan...");
+    state = state.copyWith(isLoading: true);
+
+    final token = await AuthService.getToken();
+    print("Token in requestRoutePlan: $token");  // ⬅️ Add this
     if (token == null) {
       state = state.copyWith(isLoading: false);
       return false;
     }
 
-    final uri = Uri.parse("${Config.backendUrl}/add-route-plan-by-user");
+    final uri = Uri.parse("${Config.backendUrl}/request-route-plan");
     final body = jsonEncode({
       "routes": selectedRoutes,
+      // optional: include "startDate" and "endDate" if your backend supports it
+      // "startDate": "2025-07-20",
+      // "endDate": "2025-07-22"
     });
 
     try {
-      final response = await http.post(uri, headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      }, body: body);
+      final response = await http.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: body,
+      );
 
       final success = response.statusCode == 200 || response.statusCode == 201;
 
       if (success) {
-        await fetchRoutePlans(); // Refresh the list after adding
+        // If you have a separate list of requested routes, refresh it here
+        // await fetchRequestedRoutePlans();
       }
 
       return success;
     } catch (e) {
-      print("Error in addRoutePlanFromSelectedRoutes: $e");
+      print("Error in requestRoutePlan: $e");
       state = state.copyWith(isLoading: false);
       return false;
     }
   }
 
+
+  // get Requested Route Plan
+  Future<void> fetchRequestedRoutePlans({required DateTimeRange selectedRange}) async {
+    print("Fetching requested route plans...");
+    state = state.copyWith(isLoading: true);
+
+    final token = await AuthService.getToken();
+    if (token == null) {
+      state = state.copyWith(isLoading: false);
+      return;
+    }
+
+    final uri = Uri.parse("${Config.backendUrl}/get-requested-route").replace(
+      queryParameters: {
+        'startDate': selectedRange.start.toIso8601String(),
+        'endDate': selectedRange.end.toIso8601String(),
+      },
+    );
+
+    try {
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final jsonRes = json.decode(response.body);
+        final List<dynamic> rawData = jsonRes['data'] ?? [];
+
+        print("Fetched ${rawData.length} requested routes");
+
+        final List<Map<String, dynamic>> data =
+        List<Map<String, dynamic>>.from(rawData);
+
+        state = state.copyWith(
+          routes: data,
+          filteredRoutes: data,
+          isLoading: false,
+        );
+      } else {
+        print("Failed to fetch requested route plans: ${response.statusCode}");
+        state = state.copyWith(isLoading: false);
+      }
+    } catch (e) {
+      print("Error in fetchRequestedRoutePlans: $e");
+      state = state.copyWith(isLoading: false);
+    }
+  }
 
   Future<Map<String, List<String>>?> fetchMarketCoverageDropdown() async {
     final token = await AuthService.getToken();
