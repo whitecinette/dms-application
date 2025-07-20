@@ -85,7 +85,7 @@ List<String> routeOptions = [];
         .requestRoutePlan(selectedRoutes);
 
     if (success) {
-      await ref.read(routePlanProvider.notifier).fetchRoutePlans();
+      await ref.read(routePlanProvider.notifier).fetchRouteAndRequestedRoute(ref.read(routePlanProvider).dateRange);
       if (context.mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -357,10 +357,11 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
       selectedRange = DateTimeRange(start: startOfMonth, end: endOfMonth);
     }
 
+    // ✅ Null check before using !
     if (selectedRange != null) {
       await ref
           .read(routePlanProvider.notifier)
-          .fetchRequestedRoutePlans(selectedRange: selectedRange!);
+          .fetchRouteAndRequestedRoute(selectedRange!); // <-- safe now
     }
   }
 
@@ -475,8 +476,8 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
                 final bgColor = status == 'approved'
                     ? Colors.green.shade50
                     : status == 'rejected'
-                    ? Colors.grey.shade200
-                    : Colors.yellow.shade100;
+                    ? Colors.grey.shade100
+                    : Colors.orange.shade100;
 
                 return Card(
                   color: bgColor,
