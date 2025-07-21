@@ -91,7 +91,7 @@ class AdminSidebar extends StatelessWidget {
           _buildDrawerItem(LucideIcons.fingerprint, "Punch In/Out", context, PunchInOutEmp(), color: Colors.blueGrey.shade600),
           _buildDrawerItem(
             LucideIcons.globe,
-            "3D Earth View",
+            "3D Earth",
             context,
             InteractiveEarthScreen(),
             color: Colors.lightBlue.shade700,
