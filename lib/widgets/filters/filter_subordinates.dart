@@ -36,6 +36,20 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
     localSelected = _groupByPosition(selected);
   }
 
+  // Inside filter_subordinates.dart
+  String formatIndianNumber(num value) {
+    if (value >= 10000000) {
+      return "${(value / 10000000).toStringAsFixed(1)} Cr";
+    } else if (value >= 100000) {
+      return "${(value / 100000).toStringAsFixed(1)} L";
+    } else if (value >= 1000) {
+      return "${(value / 1000).toStringAsFixed(1)} K";
+    } else {
+      return value.toString();
+    }
+  }
+
+
   Widget _buildPositionChip(String position) {
     final count = localSelected[position]?.length ?? 0;
     final isActive = activePosition == position;
@@ -290,32 +304,91 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
               Text(sub.code, style: TextStyle(fontSize: 10, color: Colors.black)),
               Text(sub.name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
               SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween, // space between
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    flex: 1,
-                    child: _statBox("MTD", "${sub.mtdSellOut}", Colors.blue),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        flex: 1,
+                        child: _statBox("MTD", formatIndianNumber(sub.mtdSellOut), Colors.blue),
+                      ),
+                      SizedBox(width: 6),
+                      Expanded(
+                        flex: 1,
+                        child: _statBox("LMTD", formatIndianNumber(sub.lmtdSellOut), Colors.orange),
+                      ),
+                      SizedBox(width: 6),
+                      Expanded(
+                        flex: 1,
+                        child: _statBox(
+                          "%Growth",
+                          "${double.tryParse(sub.sellOutGrowth)?.toStringAsFixed(0) ?? '0'}%",
+                          double.tryParse(sub.sellOutGrowth) != null &&
+                              double.parse(sub.sellOutGrowth) >= 0
+                              ? Colors.green
+                              : Colors.red,
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(width: 6), // small gap between items
-                  Expanded(
-                    flex: 1,
-                    child: _statBox("LMTD", "${sub.lmtdSellOut}", Colors.orange),
+                  const SizedBox(height: 6),
+
+                  // ✅ Second row: M-1 to M-3
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: _statBox("M-1", formatIndianNumber(sub.m1), const Color(0xFFCE93D8)), // soft brown
+                      ),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: _statBox("M-2", formatIndianNumber(sub.m2), const Color(0xFFA5D6A7)), // soft green
+                      ),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: _statBox("M-3", formatIndianNumber(sub.m3), const Color(0xFF80CBC4)), // soft blue
+                      ),
+                    ],
                   ),
-                  SizedBox(width: 6),
-                  Expanded(
-                    flex: 1,
-                    child: _statBox(
-                      "%Growth",
-                      "${double.tryParse(sub.sellOutGrowth)?.toStringAsFixed(0) ?? '0'}%",
-                      double.tryParse(sub.sellOutGrowth) != null &&
-                          double.parse(sub.sellOutGrowth) >= 0
-                          ? Colors.green
-                          : Colors.red,
-                    ),
+                  const SizedBox(height: 6),
+
+                  // ✅ Third row: ADS, FTD, Req. ADS
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: _statBox("ADS", formatIndianNumber(sub.ads), const Color(0xFFFBC02D)), // pale yellow
+                      ),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: _statBox("FTD", formatIndianNumber(sub.ftd), const Color(0xFFFF8A65)), // soft orange
+                      ),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: _statBox("Req.ADS", formatIndianNumber(sub.reqAds), const Color(0xFFAED581)), // pale green
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+
+                  // ✅ Final row: TGT + Contribution
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: _statBox("TGT", formatIndianNumber(sub.tgt), Color(0xFFB0BEC5)),
+                      ),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: _statBox("Contribution", "${sub.contribution.toStringAsFixed(1)}%", const Color(0xFF4FC3F7)), // soft blue
+                      ),
+                    ],
                   ),
                 ],
               )
+
 
             ],
           ),
