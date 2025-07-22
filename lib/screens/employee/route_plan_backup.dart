@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:siddhaconnect/utils/custom_pop_up.dart';
 import '../../providers/route_plan_provider.dart';
 import '../employee/market_coverage.dart';
 import '../../providers/market_coverage_provider.dart';
@@ -88,14 +89,21 @@ List<String> routeOptions = [];
       await ref.read(routePlanProvider.notifier).fetchRouteAndRequestedRoute(ref.read(routePlanProvider).dateRange);
       if (context.mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Route request submitted successfully")),
+        CustomPopup.showPopup(
+          context,
+          "Success",
+          "Route requested successfully",
+          type: MessageType.success,
         );
+
       }
     } else {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to submit route request")),
+        CustomPopup.showPopup(
+          context,
+          "Error",
+          "Failed to submit route request",
+          type: MessageType.error,
         );
       }
     }
@@ -563,8 +571,19 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
                               if (confirm == true) {
                                 final success = await ref.read(routePlanProvider.notifier).deleteRequestedRoute(route['_id']);
                                 if (success) {
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Route deleted successfully")));
-                                  _fetchRoutes();
+                                  CustomPopup.showPopup(
+                                    context,
+                                    "Deleted",
+                                    "Route deleted successfully",
+                                    type: MessageType.success,
+                                  );
+                                }else {
+                                  CustomPopup.showPopup(
+                                    context,
+                                    "Error",
+                                    "Failed to delete route",
+                                    type: MessageType.error,
+                                  );
                                 }
                               }
                             },
