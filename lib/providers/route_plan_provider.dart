@@ -331,15 +331,31 @@ class RoutePlanNotifier extends StateNotifier<RoutePlanState> {
     }
   }
 
-  Future<bool> deleteRoute(String routeId) async {
+  // Future<bool> deleteRoute(String routeId) async {
+  //   final token = await AuthService.getToken();
+  //   final uri = Uri.parse('${Config.backendUrl}/route-plan/delete/$routeId');
+  //   print("URI ${uri}");
+  //
+  //   final response = await http.delete(uri, headers: {
+  //     'Authorization': 'Bearer $token',
+  //     'Content-Type': 'application/json',
+  //   });
+  //
+  //   return response.statusCode == 200;
+  // }
+  Future<bool> deleteRequestedRoute(String routeId) async {
+    print("enterrringgg");
     final token = await AuthService.getToken();
-    final uri = Uri.parse('${Config.backendUrl}/route-plan/delete/$routeId');
-    print("URI ${uri}");
+    final uri = Uri.parse('${Config.backendUrl}/delete-requested-route-for-user/$routeId');
+    print("URIIII ${uri}");
+    print("🔴 Deleting route from: $uri");
 
     final response = await http.delete(uri, headers: {
       'Authorization': 'Bearer $token',
       'Content-Type': 'application/json',
     });
+    print("🔴 Status code: ${response.statusCode}");
+    print("🔴 Response body: ${response.body}");
 
     return response.statusCode == 200;
   }

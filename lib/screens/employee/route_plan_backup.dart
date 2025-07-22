@@ -561,7 +561,7 @@ class _RoutePlanScreenState extends ConsumerState<RoutePlanScreen> {
                               );
 
                               if (confirm == true) {
-                                final success = await ref.read(routePlanProvider.notifier).deleteRoute(route['_id']);
+                                final success = await ref.read(routePlanProvider.notifier).deleteRequestedRoute(route['_id']);
                                 if (success) {
                                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Route deleted successfully")));
                                   _fetchRoutes();
