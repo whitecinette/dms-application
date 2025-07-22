@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/sales_filter_provider.dart';
 import '../../providers/subordinates_provider.dart';
+import '../../utils/subordinate_shimmer_loader.dart';
+
+
 
 class FilterSubordinates extends ConsumerStatefulWidget {
   @override
@@ -169,7 +172,11 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
     final filterNotifier = ref.read(salesFilterProvider.notifier);
 
     return subordinatesState.when(
-      loading: () => Center(child: CircularProgressIndicator()),
+      loading: () => Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: SubordinatePositionShimmer(),
+      ),
+
       error: (err, _) => Center(child: Text("Error: $err")),
       data: (data) {
         if (data.isEmpty) return Center(child: Text("No data available"));
