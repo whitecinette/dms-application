@@ -81,6 +81,7 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
         'zone': [],
         'district': [],
         'taluka': [],
+        'town': [],
         'dealer/mdd': [],
       },
       selectedFilters: {
@@ -88,6 +89,7 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
         'zone': [],
         'district': [],
         'taluka': [],
+        'town': [],
         'dealer/mdd': [],
         'routes': [],
       },
@@ -119,6 +121,7 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
         'zone': [],
         'district': [],
         'taluka': [],
+        'town': [],
         'dealer/mdd': [],
       },
       routes: [],
@@ -258,6 +261,7 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
       "taluka": state.selectedFilters["taluka"],
       "travel": [],
       "routes": state.selectedFilters["routes"] ?? [],
+      "town": state.selectedFilters["town"] ?? [],  // ✅ Add this
     });
 
     if (currentLocation == null) {
@@ -320,9 +324,12 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
             final zoneMatch = state.selectedFilters['zone']!.isEmpty || state.selectedFilters['zone']!.contains(d['zone']);
             final distMatch = state.selectedFilters['district']!.isEmpty || state.selectedFilters['district']!.contains(d['district']);
             final talukaMatch = state.selectedFilters['taluka']!.isEmpty || state.selectedFilters['taluka']!.contains(d['taluka']);
+            // final townMatch = state.selectedFilters['town']!.isEmpty || state.selectedFilters['town']!.contains(d['town']);
+            final townMatch = (state.selectedFilters['town'] ?? []).isEmpty || (state.selectedFilters['town'] ?? []).contains(d['town']);
+
             final positionMatch = state.selectedFilters['dealer/mdd']!.isEmpty || state.selectedFilters['dealer/mdd']!.contains(d['position']);
-            final routeMatch = itinerarySet.isEmpty || itinerarySet.contains(d['taluka']);
-            return statusMatch && zoneMatch && distMatch && talukaMatch && positionMatch && routeMatch;
+            final routeMatch = itinerarySet.isEmpty || itinerarySet.contains(d['town']);
+            return statusMatch && zoneMatch && distMatch && talukaMatch && positionMatch && townMatch && routeMatch;
           }).toList();
 
           filtered.sort((a, b) => (a['distance'] ?? 9999).compareTo(b['distance'] ?? 9999));
