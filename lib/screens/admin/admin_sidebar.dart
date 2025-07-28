@@ -1,6 +1,7 @@
 import 'package:siddhaconnect/screens/admin/admin_extraction_report.dart';
 import 'package:siddhaconnect/screens/admin/attendance.dart';
 import 'package:siddhaconnect/screens/admin/beat_mapping_status.dart';
+import 'package:siddhaconnect/screens/admin/market_coverage_overview.dart';
 import 'package:siddhaconnect/screens/employee/punch_in_out_emp.dart';
 import 'package:flutter/material.dart';
 import '../employee/sales_dashboard.dart';
@@ -74,7 +75,7 @@ class AdminSidebar extends StatelessWidget {
           ),
 
           _buildDrawerItem(LucideIcons.heartPulse, "Pulse", context, PulseScreen(), color: Colors.red.shade400),
-          _buildDrawerItem(LucideIcons.map, "Beat Mapping", context, BeatMappingStatusScreen(), color: Colors.orange.shade700),
+          _buildDrawerItem(LucideIcons.map, "Market Coverage", context, MarketCoverageOverviewScreen(), color: Colors.orange.shade700),
 
           ExpansionTile(
             leading: Icon(LucideIcons.users, size: 20, color: Colors.indigo.shade600),
