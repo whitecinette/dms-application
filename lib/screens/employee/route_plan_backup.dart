@@ -109,14 +109,14 @@ List<String> routeOptions = [];
     }
   }
 
-  void _showMultiSelect(BuildContext context, String label, List<String> options) {
+  void _showSingleSelectRoute(BuildContext context, String label, List<String> options) {
+    String? selected = itinerary[label]?.isNotEmpty == true ? itinerary[label]!.first : null;
+    String searchQuery = "";
+
     showModalBottomSheet(
       isScrollControlled: true,
       context: context,
       builder: (context) {
-        final selected = Set<String>.from(itinerary[label] ?? []);
-        String searchQuery = "";
-
         return StatefulBuilder(
           builder: (context, setStateModal) {
             final filteredOptions = options
@@ -152,18 +152,12 @@ List<String> routeOptions = [];
                       itemCount: filteredOptions.length,
                       itemBuilder: (context, index) {
                         final option = filteredOptions[index];
-                        final isSelected = selected.contains(option);
-                        return CheckboxListTile(
-                          value: isSelected,
+                        return RadioListTile<String>(
                           title: Text(option),
-                          onChanged: (checked) {
-                            setStateModal(() {
-                              if (checked == true) {
-                                selected.add(option);
-                              } else {
-                                selected.remove(option);
-                              }
-                            });
+                          value: option,
+                          groupValue: selected,
+                          onChanged: (val) {
+                            setStateModal(() => selected = val);
                           },
                         );
                       },
@@ -173,11 +167,13 @@ List<String> routeOptions = [];
                   SizedBox(height: 10),
                   ElevatedButton(
                     onPressed: () {
-                      setState(() => itinerary[label] = selected.toList());
+                      if (selected != null) {
+                        setState(() => itinerary[label] = [selected!]);
+                      }
                       Navigator.pop(context);
                     },
                     child: Text("Done"),
-                  )
+                  ),
                 ],
               ),
             );
@@ -188,9 +184,11 @@ List<String> routeOptions = [];
   }
 
 
+
   Widget _buildDropdownButton(String label, List<String> options) {
     return InkWell(
-      onTap: () => _showMultiSelect(context, label, options),
+      onTap: () => _showSingleSelectRoute(context, label, options),
+
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(

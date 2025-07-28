@@ -239,6 +239,40 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
     }
   }
 
+  Future<void> initializeDropdownsOnly() async {
+    final token = await AuthService.getToken();
+    if (token == null) {
+      print("❌ No token found");
+      return;
+    }
+
+    final uri = Uri.parse('${Config.backendUrl}/user/market-coverage/dropdown');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final res = json.decode(response.body);
+      if (res['success'] == true) {
+        final Map<String, List<String>> newDropdownValues = {};
+        res.forEach((key, value) {
+          if (key != 'success' && value is List) {
+            newDropdownValues[key] = List<String>.from(value);
+          }
+        });
+        state = state.copyWith(dropdownValues: newDropdownValues);
+        print("🟦 Fetched Dropdown Values: $newDropdownValues");
+      }
+    } else {
+      print("❌ Failed to fetch dropdowns: ${response.statusCode} - ${response.body}");
+    }
+  }
+
+
   Future<void> fetchCoverageData({Position? currentLocation}) async {
     state = state.copyWith(isLoading: true);
 
@@ -307,16 +341,6 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
             }
           }
 
-          // Step 2: Get route itinerary list
-          final selectedRouteNames = state.routes.map((r) => r['name']).toList();
-
-          final itinerarySet = <String>{};
-          for (final r in state.routes) {
-            if (selectedRouteNames.contains(r['name'])) {
-              final items = r['itinerary'] as List<dynamic>? ?? [];
-              itinerarySet.addAll(items.map((e) => e.toString()));
-            }
-          }
 
           // Step 3: Apply all filters
           final filtered = all.where((d) {
@@ -328,8 +352,8 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
             final townMatch = (state.selectedFilters['town'] ?? []).isEmpty || (state.selectedFilters['town'] ?? []).contains(d['town']);
 
             final positionMatch = state.selectedFilters['dealer/mdd']!.isEmpty || state.selectedFilters['dealer/mdd']!.contains(d['position']);
-            final routeMatch = itinerarySet.isEmpty || itinerarySet.contains(d['town']);
-            return statusMatch && zoneMatch && distMatch && talukaMatch && positionMatch && townMatch && routeMatch;
+            // final routeMatch = itinerarySet.isEmpty || itinerarySet.contains(d['town']);
+            return statusMatch && zoneMatch && distMatch && talukaMatch && positionMatch && townMatch;
           }).toList();
 
           filtered.sort((a, b) => (a['distance'] ?? 9999).compareTo(b['distance'] ?? 9999));
@@ -455,17 +479,17 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
     fetchCoverageData(); // 🔁 Refresh based on new dates
   }
 
-  void updateFilter(String key, List<String> updatedList) {
-    print("🔄 Updating filter: $key => $updatedList"); // 👈 Log the change
-
+  void updateFilter(String key, List<String> updatedList, {bool fetch = true}) {
     state = state.copyWith(selectedFilters: {
       ...state.selectedFilters,
       key: updatedList,
     });
 
-    print("✅ Current selectedFilters: ${state.selectedFilters}"); // 👈 See full state
-    fetchCoverageData();
+    if (fetch) {
+      fetchCoverageData();
+    }
   }
+
 
 
 

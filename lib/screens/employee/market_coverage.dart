@@ -48,20 +48,16 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
       return;
     }
 
-    currentLocation = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.bestForNavigation,);
-
-    print("📍 Market Cov coords: ${currentLocation?.latitude}, ${currentLocation?.longitude} (Accuracy: ${currentLocation?.accuracy} m)");
-
+    currentLocation = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.bestForNavigation);
+    print("📍 Market Cov coords: ${currentLocation?.latitude}, ${currentLocation?.longitude}");
 
     controller.state = controller.state.copyWith(isLoading: true);
 
-    // ⛔ Don't pre-fetch if we're opening via RoutePlan
-    final shouldSkipInitFetch = widget.initialRouteName != null;
-
-    await controller.initialize(skipFetch: shouldSkipInitFetch); // <== You add skipFetch param
+    await controller.initializeDropdownsOnly(); // ✅ only dropdowns
+    await controller.fetchRoutePlans();         // ✅ ensure routes are in _lastFetchedRoutes
 
     if (widget.initialRouteName != null) {
-      controller.updateFilter('routes', [widget.initialRouteName!]);
+      controller.updateFilter('routes', [widget.initialRouteName!], fetch: false);
 
 
       if (widget.initialStartDate != null && widget.initialEndDate != null) {
@@ -73,13 +69,9 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
           fetch: false,
         );
       }
-
-      await controller.fetchCoverageData(currentLocation: currentLocation);
-
-      setState(() => showRoutes = false);
-    } else {
-      await controller.fetchCoverageData(currentLocation: currentLocation);
     }
+
+    await controller.fetchCoverageData(currentLocation: currentLocation); // ✅ finally fetch ONCE
   }
 
 
@@ -320,7 +312,6 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
                   onTap: () async {
                     final notifier = ref.read(marketCoverageProvider.notifier);
                     notifier.toggleRoute(r['name'] ?? '');
-                    notifier.updateDateRangeBasedOnRoutes();
                     await notifier.fetchCoverageData(currentLocation: currentLocation);// 👈 You need to define this method in the provider
                   },
 
