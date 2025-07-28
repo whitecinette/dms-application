@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 
 import '../../services/auth_service.dart';
 import '../../config.dart';
+import 'market_coverage_detailed.dart';
+
 
 class MarketCoverageOverviewScreen extends StatefulWidget {
   const MarketCoverageOverviewScreen({super.key});
@@ -217,37 +219,56 @@ class _MarketCoverageOverviewScreenState extends State<MarketCoverageOverviewScr
                 itemCount: filtered.length,
                 itemBuilder: (context, index) {
                   final user = filtered[index];
-                  return Card(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    margin: EdgeInsets.symmetric(vertical: 6),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(user['code'], style: TextStyle(fontWeight: FontWeight.bold)),
-                              Spacer(),
-                              Text(user['position'], style: TextStyle(color: Colors.grey)),
-                            ],
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MarketCoverageDetailed(
+                            initialRouteName: user['name'],
+                            initialStartDate: _startDate,
+                            initialEndDate: _endDate,
+                            initialItinerary: const [],
+                            userCode: user['code'],
+                            userName: user['name'],
                           ),
-                          SizedBox(height: 4),
-                          Text(user['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                          SizedBox(height: 10),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              _buildStyledChip("Total", user['ovTotal'], user['total'], Colors.orange.shade100, Colors.orange.shade800),
-                              _buildStyledChip("Done", user['ovDone'], user['done'], Colors.green.shade100, Colors.green.shade800),
-                              _buildStyledChip("Pending", user['ovPending'], user['pending'], Colors.red.shade100, Colors.red.shade800),
-                            ],
-                          ),
-                        ],
+                        ),
+                      );
+
+                    },
+                    child: Card(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      margin: EdgeInsets.symmetric(vertical: 6),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(user['code'], style: TextStyle(fontWeight: FontWeight.bold)),
+                                Spacer(),
+                                Text(user['position'], style: TextStyle(color: Colors.grey)),
+                              ],
+                            ),
+                            SizedBox(height: 4),
+                            Text(user['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                            SizedBox(height: 10),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                _buildStyledChip("Total", user['ovTotal'], user['total'], Colors.orange.shade100, Colors.orange.shade800 , null),
+                                _buildStyledChip("Done", user['ovDone'], user['done'], Colors.green.shade100, Colors.green.shade800, null),
+                                _buildStyledChip("Pending", user['ovPending'], user['pending'], Colors.red.shade100, Colors.red.shade800, null),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
+
                 },
               ),
             ),
@@ -257,22 +278,33 @@ class _MarketCoverageOverviewScreenState extends State<MarketCoverageOverviewScr
     );
   }
 
-  Widget _buildStyledChip(String label, int ov, int today, Color bgColor, Color labelColor) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: labelColor)),
-          SizedBox(height: 4),
-          Text("Overall / Today", style: TextStyle(fontSize: 10, color: Colors.black54)),
-          Text("$ov / $today", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-        ],
+  Widget _buildStyledChip(
+      String label,
+      int ov,
+      int today,
+      Color bgColor,
+      Color labelColor,
+      VoidCallback? onTap,
+      ) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: labelColor)),
+            SizedBox(height: 4),
+            Text("Overall / Today", style: TextStyle(fontSize: 10, color: Colors.black54)),
+            Text("$ov / $today", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          ],
+        ),
       ),
     );
   }
+
 }

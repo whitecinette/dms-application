@@ -289,7 +289,7 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
   }
 
 
-  Future<void> fetchCoverageData({Position? currentLocation}) async {
+  Future<void> fetchCoverageData({Position? currentLocation, String? userCode,}) async {
     state = state.copyWith(isLoading: true);
 
     final startDate = DateFormat("yyyy-MM-dd").format(state.dateRange.start);
@@ -312,6 +312,7 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
       "travel": [],
       "routes": state.selectedFilters["routes"] ?? [],
       "town": state.selectedFilters["town"] ?? [],  // ✅ Add this
+      if (userCode != null) "code": userCode,
     });
 
     if (currentLocation == null) {
