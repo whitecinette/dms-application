@@ -23,6 +23,9 @@ class MarketCoverageState {
   final int total;
   final int done;
   final int pending;
+  final int ovTotal;
+  final int ovDone;
+  final int ovPending;
 
   MarketCoverageState({
     required this.isLoading,
@@ -36,6 +39,10 @@ class MarketCoverageState {
     required this.total,
     required this.done,
     required this.pending,
+    required this.ovTotal,
+    required this.ovDone,
+    required this.ovPending,
+
   });
 
   MarketCoverageState copyWith({
@@ -50,6 +57,9 @@ class MarketCoverageState {
     int? total,
     int? done,
     int? pending,
+    int? ovTotal,
+    int? ovDone,
+    int? ovPending,
   }) {
     return MarketCoverageState(
       isLoading: isLoading ?? this.isLoading,
@@ -63,6 +73,9 @@ class MarketCoverageState {
       total: total ?? this.total,
       done: done ?? this.done,
       pending: pending ?? this.pending,
+      ovTotal: ovTotal ?? this.ovTotal,
+      ovDone: ovDone ?? this.ovDone,
+      ovPending: ovPending ?? this.ovPending,
     );
   }
 
@@ -97,6 +110,9 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
       total: 0,
       done: 0,
       pending: 0,
+      ovTotal: 0,
+      ovDone: 0,
+      ovPending: 0,
     ),
   );
   List<Map<String, dynamic>> _lastFetchedRoutes = [];
@@ -359,11 +375,28 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
           filtered.sort((a, b) => (a['distance'] ?? 9999).compareTo(b['distance'] ?? 9999));
 
           // Step 4: Update state
+          // Step 4: Extract counts from backend response
+          final total = res['total'] ?? filtered.length;
+          final done = res['done'] ?? filtered.where((d) => d['status'] == 'done').length;
+          final pending = res['pending'] ?? (total - done);
+
+          final ovTotal = res['ovTotal'] ?? 0;
+          final ovDone = res['ovDone'] ?? 0;
+          final ovPending = res['ovPending'] ?? (ovTotal - ovDone);
+
+// Step 5: Update state with all fields
           state = state.copyWith(
             allDealers: all,
             filteredDealers: filtered,
             isLoading: false,
+            total: total,
+            done: done,
+            pending: pending,
+            ovTotal: ovTotal,
+            ovDone: ovDone,
+            ovPending: ovPending,
           );
+
           return;
         }
       }

@@ -482,18 +482,69 @@ class _MarketCoverageScreenState extends ConsumerState<MarketCoverageScreen> {
     );
   }
 
+  Widget _summaryCard({
+    required String label,
+    required int overall,
+    required int today,
+    required Color bgColor,
+    required Color textColor,
+  }) {
+    return Container(
+      width: 100,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+          const SizedBox(height: 4),
+          Text("Overall/Today", style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.7))),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Text("$overall", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+              const Text(" / "),
+              Text("$today", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+
   Widget _buildStatsSummary(List<dynamic> dealers) {
-    int total = dealers.length;
-    int done = dealers.where((d) => d['status'] == 'done').length;
-    int pending = total - done;
+    final state = ref.watch(marketCoverageProvider);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _statBox("Total", total, Colors.orange.shade100, Colors.orange),
-          _statBox("Done", done, Colors.green.shade100, Colors.green),
-          _statBox("Pending", pending, Colors.red.shade100, Colors.red),
+          _summaryCard(
+            label: "Total",
+            overall: state.ovTotal,
+            today: state.total,
+            bgColor: Colors.orange.shade100,
+            textColor: Colors.brown,
+          ),
+          _summaryCard(
+            label: "Done",
+            overall: state.ovDone,
+            today: state.done,
+            bgColor: Colors.green.shade100,
+            textColor: Colors.green.shade800,
+          ),
+          _summaryCard(
+            label: "Pending",
+            overall: state.ovPending,
+            today: state.pending,
+            bgColor: Colors.red.shade100,
+            textColor: Colors.red.shade700,
+          ),
         ],
       ),
     );
