@@ -34,6 +34,7 @@ class _MarketCoverageDetailedState extends ConsumerState<MarketCoverageDetailed>
   bool showRoutes = false;
   String searchQuery = "";
   String routeSearchQuery = "";
+  String selectedStatus = 'all';
 
   @override
   void initState() {
@@ -83,7 +84,11 @@ class _MarketCoverageDetailedState extends ConsumerState<MarketCoverageDetailed>
   Widget build(BuildContext context) {
     final provider = ref.watch(marketCoverageProvider);
     final controller = ref.read(marketCoverageProvider.notifier);
-    final dealers = provider.filteredDealers;
+    final allDealers = provider.filteredDealers;
+    final dealers = selectedStatus == 'all'
+        ? allDealers
+        : allDealers.where((d) => d['status'] == selectedStatus).toList();
+
     final isLoading = provider.isLoading;
     final dateRange = provider.dateRange;
     final formatter = DateFormat("dd MMM");
@@ -117,6 +122,46 @@ class _MarketCoverageDetailedState extends ConsumerState<MarketCoverageDetailed>
           _buildToggleBar(dateRange),
           if (showFilters) _buildFilterDropdowns(controller, provider),
           if (showRoutes) _buildRouteDropdown(),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                // color: Colors.blue.shade50,
+                // borderRadius: BorderRadius.circular(10),
+                // border: Border.all(color: Colors.blue.shade100),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Text("Status: "),
+                  SizedBox(width: 8),
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: selectedStatus,
+                      icon: Icon(Icons.keyboard_arrow_down),
+                      dropdownColor: Colors.white,
+                      style: TextStyle(color: Colors.black),
+                      borderRadius: BorderRadius.circular(10),
+                      items: [
+                        DropdownMenuItem(value: 'all', child: Text("All")),
+                        DropdownMenuItem(value: 'done', child: Text("Done")),
+                        DropdownMenuItem(value: 'pending', child: Text("Pending")),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          selectedStatus = value!;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+
           _buildStatsSummary(dealers),
           _buildSearchBar(controller),
           Expanded(child: _buildDealerList(dealers)),
