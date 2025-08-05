@@ -67,6 +67,19 @@ class _ExtractionScreenState extends State<ExtractionScreen> {
     }
   }
 
+  Map<String, List<Map<String, dynamic>>> _groupDataByDealer() {
+    final Map<String, List<Map<String, dynamic>>> grouped = {};
+    for (var row in filteredData) {
+      final dealerCode = row["dealer_code"] ?? "Unknown";
+      if (!grouped.containsKey(dealerCode)) {
+        grouped[dealerCode] = [];
+      }
+      grouped[dealerCode]!.add(row);
+    }
+    return grouped;
+  }
+
+
   void _filterData() {
     final query = searchController.text.toLowerCase();
     setState(() {
@@ -149,32 +162,59 @@ class _ExtractionScreenState extends State<ExtractionScreen> {
                 ),
                 SizedBox(height: 10),
                 Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.vertical,
-                      child: DataTable(
-                        headingRowColor: MaterialStateProperty.all(Color(0xFFE0E0E0)),
-                        columnSpacing: 20,
-                        columns: tableHeaders
-                            .map((header) => DataColumn(
-                          label: Text(
-                            _beautifyHeader(header),
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ))
-                            .toList(),
-                        rows: filteredData
-                            .map(
-                              (row) => DataRow(
-                            cells: tableHeaders
-                                .map((header) => DataCell(Text("${row[header] ?? ''}")))
-                                .toList(),
-                          ),
-                        )
-                            .toList(),
-                      ),
-                    ),
+                  child: ListView(
+                    children: _groupDataByDealer().entries.map((entry) {
+                      final dealerCode = entry.key;
+                      final records = entry.value;
+                      final dealerName = records.first['dealer_name'] ?? '';
+
+
+                      final totalValue = records.fold<double>(0, (sum, row) => sum + (row['total'] ?? 0));
+                      final totalUnits = records.fold<int>(0, (sum, row) => sum + ((row['quantity'] ?? 0) as num).toInt());
+
+
+                      return ExpansionTile(
+                        tilePadding: EdgeInsets.symmetric(horizontal: 8),
+                        title: Text(
+                          "$dealerCode - $dealerName",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text("₹${totalValue.toStringAsFixed(0)} / $totalUnits units"),
+                        children: [
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: DataTable(
+                              headingRowColor: MaterialStateProperty.all(Colors.grey.shade200),
+                              headingTextStyle: TextStyle(color: Colors.black),
+                              dataRowMinHeight: 32,
+                              dataRowMaxHeight: 38,
+                              columnSpacing: 12,
+                              columns: tableHeaders
+                                  .map((header) => DataColumn(
+                                label: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                                  child: Text(
+                                    _beautifyHeader(header),
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+
+                              ))
+                                  .toList(),
+                              rows: records
+                                  .map(
+                                    (row) => DataRow(
+                                  cells: tableHeaders
+                                      .map((header) => DataCell(Text("${row[header] ?? ''}")))
+                                      .toList(),
+                                ),
+                              )
+                                  .toList(),
+                            ),
+                          )
+                        ],
+                      );
+                    }).toList(),
                   ),
                 ),
               ],

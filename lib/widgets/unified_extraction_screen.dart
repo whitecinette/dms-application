@@ -243,8 +243,9 @@ class _UnifiedExtractionScreenState extends ConsumerState<UnifiedExtractionScree
                     padding: const EdgeInsets.only(right: 8.0),
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: openedBrand == brand ? Colors.blue : Colors.grey.shade200,
-                        foregroundColor: openedBrand == brand ? Colors.white : Colors.black87,
+                        backgroundColor: openedBrand == brand ? Color(0xFFD0E8FF) : Colors.grey.shade200,
+                        foregroundColor: openedBrand == brand ? Colors.black : Colors.black87,
+
                         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
