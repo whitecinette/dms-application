@@ -5,6 +5,7 @@ import '../../services/auth_service.dart';
 import '../../config.dart';
 import '../../widgets/add_extraction_step_one.dart';
 import '../../services/auth_gate.dart';
+import '../../widgets/unified_extraction_screen.dart';
 
 class ExtractionScreen extends StatefulWidget {
   @override
@@ -106,7 +107,15 @@ class _ExtractionScreenState extends State<ExtractionScreen> {
             );
           },
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: fetchExtractionData,
+          ),
+        ],
       ),
+
 
 
 
@@ -176,23 +185,18 @@ class _ExtractionScreenState extends State<ExtractionScreen> {
             right: 10,
             child: ElevatedButton.icon(
               onPressed: () async {
-                final result = await showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                  ),
-                  builder: (context) => DraggableScrollableSheet(
-                    expand: false,
-                    builder: (context, scrollController) {
-                      return AddExtractionStep1(scrollController: scrollController);
-                    },
-                  ),
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => UnifiedExtractionScreen()),
                 );
 
-                // ✅ Refresh data after modal closes
-                fetchExtractionData();
+                // Only fetch data if extraction was successful (we'll return true from Submit)
+                if (result == true) {
+                  fetchExtractionData();
+                }
               },
+
+
 
               icon: Icon(Icons.add, color: Colors.white),
               label: Text("Add New", style: TextStyle(color: Colors.white)),

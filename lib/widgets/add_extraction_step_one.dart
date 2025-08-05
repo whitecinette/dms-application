@@ -58,73 +58,80 @@ class _AddExtractionStep1State extends ConsumerState<AddExtractionStep1> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.95, // Full height modal
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        left: 16,
-        right: 16,
-        top: 20,
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Step 1: Select Dealer'),
+        automaticallyImplyLeading: false, // Removes default back arrow
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text("Cancel", style: TextStyle(color: Colors.white)),
+          )
+        ],
       ),
-      child: SingleChildScrollView(
-        controller: widget.scrollController,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("Select Dealer", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            SizedBox(height: 10),
-            Autocomplete<Map<String, dynamic>>(
-              optionsBuilder: (TextEditingValue textEditingValue) {
-                if (textEditingValue.text == '') return dealers;
-                return dealers.where((dealer) =>
-                dealer['name'].toLowerCase().contains(textEditingValue.text.toLowerCase()) ||
-                    dealer['code'].toLowerCase().contains(textEditingValue.text.toLowerCase()));
-              },
-              displayStringForOption: (option) => "${option['name']} (${option['code']})",
-              onSelected: (dealer) {
-                setState(() {
-                  selectedDealer = dealer;
-                });
-                ref.read(extractionFormProvider.notifier).setDealer(dealer);
-              },
-              fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-                return TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  decoration: InputDecoration(
-                    labelText: 'Search Dealer by name/code',
-                    border: OutlineInputBorder(),
-                  ),
-                );
-              },
-            ),
-            if (selectedDealer != null) ...[
-              SizedBox(height: 20),
-              Text("Selected Dealer: ${selectedDealer!['name']} (${selectedDealer!['code']})"),
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  showModalBottomSheet(
-                    isScrollControlled: true,
-                    context: context,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      body: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          left: 16,
+          right: 16,
+          top: 20,
+        ),
+        child: SingleChildScrollView(
+          controller: widget.scrollController,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Select Dealer", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              SizedBox(height: 10),
+              Autocomplete<Map<String, dynamic>>(
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  if (textEditingValue.text == '') return dealers;
+                  return dealers.where((dealer) =>
+                  dealer['name'].toLowerCase().contains(textEditingValue.text.toLowerCase()) ||
+                      dealer['code'].toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                },
+                displayStringForOption: (option) => "${option['name']} (${option['code']})",
+                onSelected: (dealer) {
+                  setState(() {
+                    selectedDealer = dealer;
+                  });
+                  ref.read(extractionFormProvider.notifier).setDealer(dealer);
+                },
+                fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                  return TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: InputDecoration(
+                      labelText: 'Search Dealer by name/code',
+                      border: OutlineInputBorder(),
                     ),
-                    builder: (context) {
-                      final controller = ScrollController();
-                      return AddExtractionStep2(scrollController: controller);
-                    },// your brand selection step
                   );
                 },
-
-
-                child: Text("Next"),
               ),
-            ]
-          ],
+              if (selectedDealer != null) ...[
+                SizedBox(height: 20),
+                Text("Selected Dealer: ${selectedDealer!['name']} (${selectedDealer!['code']})"),
+                SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    showModalBottomSheet(
+                      isScrollControlled: true,
+                      isDismissible: false,
+                      enableDrag: false,
+                      context: context,
+                      builder: (context) {
+                        return AddExtractionStep2(scrollController: ScrollController());
+                      },
+                    );
+                  },
+                  child: Text("Next"),
+                ),
+              ]
+            ],
+          ),
         ),
       ),
     );
-
   }
+
 }
