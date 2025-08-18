@@ -677,20 +677,31 @@ class _MarketCoverageDetailedState extends ConsumerState<MarketCoverageDetailed>
                       color: Colors.green,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.check, color: Colors.white, size: 16),
-                        SizedBox(width: 4),
-                        Text("Done", style: TextStyle(color: Colors.white)),
-                        SizedBox(width: 4),
-                        CircleAvatar(
-                          radius: 10,
-                          backgroundColor: Colors.white,
-                          child: Text("${d['visits']}", style: TextStyle(fontSize: 10)),
-                        )
-                      ],
-                    ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check, color: Colors.white, size: 16),
+                          SizedBox(width: 4),
+                          Text("Done", style: TextStyle(color: Colors.white)),
+                          SizedBox(width: 4),
+                          CircleAvatar(
+                            radius: 10,
+                            backgroundColor: Colors.white,
+                            child: Text("${d['visits']}", style: TextStyle(fontSize: 10)),
+                          ),
+                          SizedBox(width: 6),
+                          // ✅ Show marked time if available, else blank
+                          Text(
+                            d['markedDoneAtText'] ?? "na ",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
+
                   )
                       : ElevatedButton(
                     style: ElevatedButton.styleFrom(

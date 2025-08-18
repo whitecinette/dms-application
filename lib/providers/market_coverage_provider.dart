@@ -356,7 +356,53 @@ class MarketCoverageNotifier extends StateNotifier<MarketCoverageState> {
             } else {
               d['distance'] = null;
             }
+
+            // --- NEW: parse + preformat markedDoneAtIST (if present) ---
+            final mdaIstRaw = d['markedDoneAtIST']; // e.g. "2025-08-14T12:20:07.587+05:30"
+            DateTime? parsedUtc;
+            DateTime? displayIst;
+
+            if (mdaIstRaw is String && mdaIstRaw.trim().isNotEmpty) {
+              try {
+                // 1) Dart parses to UTC (drops the +05:30 visually)
+                parsedUtc = DateTime.parse(mdaIstRaw);
+
+                // 2) Extract the original offset from the string (+05:30 / -04:00 / Z)
+                final m = RegExp(r'([+-])(\d{2}):?(\d{2})$').firstMatch(mdaIstRaw);
+                if (m != null) {
+                  final sign = m.group(1) == '-' ? -1 : 1;
+                  final hh = int.parse(m.group(2)!);
+                  final mm = int.parse(m.group(3)!);
+                  final offset = Duration(hours: sign * hh, minutes: sign * mm);
+
+                  // 3) Add the offset back to get the original wall-clock time
+                  displayIst = parsedUtc.add(offset);
+                } else {
+                  // If it's "Z" (UTC) or missing, just use parsedUtc
+                  displayIst = parsedUtc;
+                }
+              } catch (_) {
+                parsedUtc = null;
+                displayIst = null;
+              }
+            }
+
+// Save both if you want
+            d['markedDoneAtIST_Date'] = displayIst;
+            d['markedDoneAtText'] = (displayIst != null)
+                ? DateFormat('dd MMM, hh:mm a').format(displayIst)
+                : null;
+
+// Optional: console print with a clock icon
+            if (mdaIstRaw != null) {
+              print("🕒 raw: $mdaIstRaw");
+              print("🕒 show: ${d['markedDoneAtText'] ?? 'na'}");
+            }
+
+
           }
+
+
 
 
           // Step 3: Apply all filters
