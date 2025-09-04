@@ -34,6 +34,7 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
   DateTime? selectedStartDate;
   DateTime? selectedEndDate;
   String? selectedStatus;
+  DateTime? selectedBillDate;
 
   final List<String> statusOptions = ['pending', 'approved', 'rejected', 'paid'];
 
@@ -62,6 +63,7 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
       return;
     }
 
+
     setState(() {
       isLoading = true;
       errorMessage = null;
@@ -79,6 +81,10 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
       request.fields['remarks'] = (remarks == null || remarks!.trim().isEmpty) ? 'No remarks' : remarks!;
       request.fields['amount'] = amount ?? '0';
       request.fields['isGenerated'] = 'false';
+
+      if (selectedBillDate != null) {
+        request.fields['billDate'] = selectedBillDate!.toUtc().toIso8601String();
+      }
 
       for (var img in selectedImages) {
         var file = await http.MultipartFile.fromPath("billsUpload", img.path); // must match multer
@@ -523,7 +529,49 @@ class _BillUploadScreenState extends State<BillUploadScreen> {
             ),
           ),
 
+
+
+          SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  offset: Offset(1, 1),
+                  blurRadius: 4,
+                ),
+              ],
+            ),
+            child: ListTile(
+              leading: Icon(Icons.calendar_today, color: Colors.indigo),
+              title: Text(
+                selectedBillDate != null
+                    ? DateFormat('d-MMM-y').format(selectedBillDate!)
+                    : "Select Bill Date",
+                style: TextStyle(color: Colors.black87),
+              ),
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: selectedBillDate ?? DateTime.now(),
+                  firstDate: DateTime(2023),
+                  lastDate: DateTime.now(),
+                );
+                if (picked != null) {
+                  // force 12:00 noon UTC
+                  final fixed = DateTime.utc(picked.year, picked.month, picked.day, 12, 0, 0);
+                  setState(() {
+                    selectedBillDate = fixed;
+                  });
+                }
+              },
+            ),
+          ),
           SizedBox(height: 24),
+
+
           _buildCameraBox(),
           SizedBox(height: 20),
           if (selectedImages.isNotEmpty)
