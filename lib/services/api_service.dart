@@ -9,30 +9,38 @@ import 'dart:io';
 import 'package:mime/mime.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:flutter/foundation.dart';
+import 'device_helper.dart';
 
 class ApiService {
   static Future<Map<String, dynamic>> login(String code, String password) async {
-    print("logginnn");
     final url = Uri.parse("${Config.backendUrl}/app/user/login");
+
+    // ⬅️ Get device info before making API request
+    final deviceDetails = await DeviceHelper.getDeviceDetails();
 
     final response = await http.post(
       url,
       headers: {"Content-Type": "application/json"},
-      body: json.encode({"code": code, "password": password}),
+      body: json.encode({
+        "code": code,
+        "password": password,
+        "androidId": deviceDetails["androidId"],
+        "deviceInfo": {
+          "brand": deviceDetails["brand"],
+          "model": deviceDetails["model"],
+          "os": deviceDetails["os"],
+          "appVersion": deviceDetails["appVersion"],
+        }
+      }),
     );
 
     if (response.statusCode == 200) {
       final responseData = json.decode(response.body);
-      print("📬 Full login response: $responseData");
 
-      // Save token
       if (responseData.containsKey("token")) {
         await AuthService.saveToken(responseData["token"]);
       }
-
-      // ✅ Save user
       if (responseData.containsKey("user")) {
-        print("User data received: ${responseData['user']}");
         await AuthService.saveUser(responseData["user"]);
       }
 
@@ -41,6 +49,7 @@ class ApiService {
       throw Exception(json.decode(response.body)['message'] ?? "Login failed");
     }
   }
+
 
   // static Future<Map<String, dynamic>> punchIn(String latitude, String longitude, File image) async {
   //   final url = Uri.parse("${Config.backendUrl}/punch-in");

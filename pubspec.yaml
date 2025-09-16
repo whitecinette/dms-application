@@ -55,6 +55,7 @@ dependencies:
   dotted_border: ^2.0.0
   url_launcher: ^6.3.1
   upgrader: ^11.4.0
+  device_info_plus: ^10.1.0
 
 dev_dependencies:
   flutter_test:
