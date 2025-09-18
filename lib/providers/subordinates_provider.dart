@@ -83,6 +83,11 @@ class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Sub
       final token = await AuthService.getToken();
       if (token == null) throw Exception("Token not found");
 
+      final allCodes = [
+        ...filter.selectedSubordinateCodes,
+        if (filter.selectedCategory.isNotEmpty) filter.selectedCategory,
+      ];
+
       final response = await http.post(
         Uri.parse("${Config.backendUrl}/user/get-subordinates"),
         headers: {
@@ -93,7 +98,8 @@ class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Sub
           "filter_type": filterType ?? filter.selectedType,
           "start_date": (startDate ?? filter.startDate).toIso8601String().split("T")[0],
           "end_date": (endDate ?? filter.endDate).toIso8601String().split("T")[0],
-          "subordinate_codes": filter.selectedSubordinateCodes,
+          "subordinate_codes": allCodes,
+
         }),
       );
 

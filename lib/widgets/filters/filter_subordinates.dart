@@ -244,7 +244,17 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
                 final isSelected = filterState.selectedCategory == sub.code;
                 return GestureDetector(
                   onTap: () {
+                    // ✅ Update category
                     ref.read(salesFilterProvider.notifier).updateCategory(sub.code);
+
+                    // ✅ Refetch dashboard data immediately
+                    final filter = ref.read(salesFilterProvider);
+                    ref.read(subordinatesProvider.notifier).fetchSubordinates(
+                      filterType: filter.selectedType,
+                      startDate: filter.startDate,
+                      endDate: filter.endDate,
+                    );
+
                     Navigator.pop(context);
                   },
                   child: Container(

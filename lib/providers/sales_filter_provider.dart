@@ -44,10 +44,11 @@ class SalesFilterState {
       "end_date": endDate.toIso8601String().split("T")[0],
       "subordinate": selectedSubordinate,
       "subordinate_codes": selectedSubordinateCodes,
+      if (selectedCategory.isNotEmpty)  // ✅ only send if not empty
+        "product_category": selectedCategory,
     };
   }
 }
-
 
 class SalesFilterNotifier extends StateNotifier<SalesFilterState> {
   SalesFilterNotifier()
@@ -67,11 +68,12 @@ class SalesFilterNotifier extends StateNotifier<SalesFilterState> {
     state = state.copyWith(
       selectedSubordinateCodes: [],
       selectedCategory: "",
-      // reset other filter params if needed
+      // If you also want to reset type and date, uncomment these:
+      // selectedType: "value",
+      // startDate: DateTime(DateTime.now().year, DateTime.now().month, 1),
+      // endDate: DateTime.now(),
     );
   }
-
-
 
   void updateType(String type) {
     state = state.copyWith(selectedType: type.toLowerCase());
@@ -89,7 +91,6 @@ class SalesFilterNotifier extends StateNotifier<SalesFilterState> {
     state = state.copyWith(selectedSubordinateCodes: codes);
   }
 }
-
 
 // 📦 Riverpod Provider
 final salesFilterProvider =

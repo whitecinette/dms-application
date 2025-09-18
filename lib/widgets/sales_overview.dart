@@ -54,7 +54,7 @@ class _SalesOverviewState extends ConsumerState<SalesOverview> {
   }
 
   Future<void> fetchSalesData(SalesFilterState filterState) async {
-    final url = '${Config.backendUrl}/user/sales-data/dashboard/metrics/self';
+      final url = '${Config.backendUrl}/user/sales-data/dashboard/metrics/self';
 
     setState(() {
       isLoading = true;
