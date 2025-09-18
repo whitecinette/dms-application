@@ -4,8 +4,6 @@ import '../../providers/sales_filter_provider.dart';
 import '../../providers/subordinates_provider.dart';
 import '../../utils/subordinate_shimmer_loader.dart';
 
-
-
 class FilterSubordinates extends ConsumerStatefulWidget {
   @override
   _FilterSubordinatesState createState() => _FilterSubordinatesState();
@@ -30,16 +28,253 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
     );
   }
 
+  Future<void> _openFiltersPopup(BuildContext context) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Consumer(builder: (context, ref, _) {
+          final subordinatesData = ref.watch(subordinatesProvider).value ?? {};
+          final filterState = ref.watch(salesFilterProvider);
+          String activeFilter = activePosition ?? subordinatesData.keys.first;
+
+
+          return StatefulBuilder(builder: (context, setState) {
+            return SizedBox(
+              height: MediaQuery.of(context).size.height * 0.8,
+              child: Row(
+                children: [
+                  // LEFT SIDE FILTER TYPES
+                  Container(
+                    width: 120,
+                    color: Colors.grey.shade100,
+                    child: ListView(
+                      children: subordinatesData.keys.map((position) {
+                        return ListTile(
+                          selected: activeFilter == position,
+                          title: Text(position,
+                              style: TextStyle(
+                                  fontWeight: activeFilter == position
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  color: activeFilter == position
+                                      ? Colors.deepPurple
+                                      : Colors.black87)),
+                          onTap: () {
+                            setState(() => activeFilter = position);
+                            activePosition = position; // 👈 persist selection
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+
+                  // RIGHT SIDE OPTIONS
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                    Expanded(
+                    child: SingleChildScrollView(
+                    child: _buildFilterOptions(
+                      activeFilter,
+                      subordinatesData[activeFilter] ?? [],
+                      filterState,
+                      ref,
+                      setState,
+                    ),
+                  ),
+                ),
+                        ElevatedButton(
+                          onPressed: () {
+                            final filter = ref.read(salesFilterProvider);
+                            ref.read(subordinatesProvider.notifier).fetchSubordinates(
+                              filterType: filter.selectedType,
+                              startDate: filter.startDate,
+                              endDate: filter.endDate,
+                            );
+                            Navigator.pop(context);
+                          },
+                          child: Text("Apply"),
+                        ),
+
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          });
+        });
+      },
+    );
+  }
+
+  Widget _buildFilterOptions(
+      String filterType,
+      List<Subordinate> options,
+      SalesFilterState filterState,
+      WidgetRef ref,
+      StateSetter modalSetState,
+      ) {
+    if (filterType == "product_category") {
+      // Category = simple card list
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: NeverScrollableScrollPhysics(),
+        itemCount: options.length,
+        itemBuilder: (context, index) {
+          final sub = options[index];
+          final isSelected = filterState.selectedCategory == sub.code;
+          return GestureDetector(
+            onTap: () {
+              ref.read(salesFilterProvider.notifier).updateCategory(sub.code);
+              setState(() {});
+            },
+            child: Container(
+              margin: EdgeInsets.symmetric(vertical: 6),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: isSelected ? Colors.deepPurple : Colors.grey.shade300,
+                  width: 1.5,
+                ),
+                borderRadius: BorderRadius.circular(10),
+                color: Colors.white,
+              ),
+              child: _buildSubordinateCard(sub, isSelected),
+            ),
+          );
+        },
+      );
+    }
+
+    // ✅ Other filters → search + dynamic list
+    String query = searchQueries[filterType] ?? "";
+    final filtered = options
+        .where((s) =>
+    s.name.toLowerCase().contains(query.toLowerCase()) ||
+        s.code.toLowerCase().contains(query.toLowerCase()))
+        .toList();
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
+      itemCount: filtered.length + 1, // +1 for search bar
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: "Search...",
+                prefixIcon: Icon(Icons.search, size: 20, color: Colors.grey),
+                filled: true,
+                fillColor: Colors.grey[100],
+                contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onChanged: (val) {
+                modalSetState(() => searchQueries[filterType] = val);
+              },
+            ),
+          );
+        }
+
+        final sub = filtered[index - 1];
+        final isSelected = filterState.selectedSubordinateCodes.contains(sub.code);
+        return GestureDetector(
+          onTap: () {
+            final current = [...filterState.selectedSubordinateCodes];
+            if (isSelected) {
+              current.remove(sub.code);
+            } else {
+              current.add(sub.code);
+            }
+            ref.read(salesFilterProvider.notifier).updateSubordinates(current);
+            modalSetState(() {});
+          },
+          child: Container(
+            margin: EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: isSelected ? Colors.deepPurple : Colors.grey.shade300,
+                width: 1.5,
+              ),
+              borderRadius: BorderRadius.circular(10),
+              color: Colors.white,
+            ),
+            child: _buildSubordinateCard(sub, isSelected),
+          ),
+        );
+      },
+    );
+  }
+
+
+
+
+  Future<void> _openCategoryPopup(BuildContext context) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Consumer(builder: (context, ref, _) {
+          final categories =
+              ref.watch(subordinatesProvider).value?["product_category"] ?? [];
+          final filterState = ref.watch(salesFilterProvider);
+
+          return SizedBox(
+            height: MediaQuery.of(context).size.height * 0.8,
+            child: ListView(
+              padding: EdgeInsets.all(16),
+              children: categories.map<Widget>((sub) {
+                final isSelected = filterState.selectedCategory == sub.code;
+                return GestureDetector(
+                  onTap: () {
+                    ref.read(salesFilterProvider.notifier).updateCategory(sub.code);
+                    Navigator.pop(context);
+                  },
+                  child: Container(
+                    margin: EdgeInsets.symmetric(vertical: 6),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: isSelected ? Colors.deepPurple : Colors.grey.shade300,
+                        width: 1.5,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      color: Colors.white,
+                    ),
+                    child: _buildSubordinateCard(sub, isSelected),
+                  ),
+                );
+              }).toList(),
+            ),
+          );
+        });
+      },
+    );
+  }
 
   @override
   void initState() {
     super.initState();
-    // Load existing selected subordinates from provider
     final selected = ref.read(salesFilterProvider).selectedSubordinateCodes;
     localSelected = _groupByPosition(selected);
   }
 
-  // Inside filter_subordinates.dart
   String formatIndianNumber(num value) {
     if (value >= 10000000) {
       return "${(value / 10000000).toStringAsFixed(1)} Cr";
@@ -52,356 +287,82 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
     }
   }
 
+  Widget _buildSubordinateCard(Subordinate sub, bool isSelected) {
+    return Container(
+      padding: EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.lightBlueAccent.withOpacity(0.15) : Colors.white,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(sub.code, style: TextStyle(fontSize: 10, color: Colors.black)),
+          Text(sub.name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          SizedBox(height: 6),
 
-  Widget _buildPositionChip(String position) {
-    final count = localSelected[position]?.length ?? 0;
-    final isActive = activePosition == position;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          if (isActive) {
-            activePosition = null;
-            final allSelected = localSelected.values.expand((e) => e).toList();
-            final currentSelected = ref.read(salesFilterProvider).selectedSubordinateCodes;
-
-            if (!_listEquals(allSelected, currentSelected)) {
-              ref.read(salesFilterProvider.notifier).updateSubordinates(allSelected);
-            }
-          } else {
-            activePosition = position;
-          }
-        });
-      },
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        margin: EdgeInsets.symmetric(vertical: 4),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF5C6F7A) : Colors.white, // softer blueGrey
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              position,
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: isActive ? Colors.white : const Color(0xFF5C6F7A),
-              ),
-            ),
-            if (count > 0)
-              Container(
-                margin: EdgeInsets.only(left: 6),
-                padding: EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.orange,
-                ),
-                child: Text(
-                  '$count',
-                  style: TextStyle(color: Colors.white, fontSize: 9),
-                ),
-              ),
-            SizedBox(width: 4),
-            Icon(
-              isActive ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, // Minimalistic
-              size: 18,
-              color: isActive ? Colors.white : const Color(0xFF5C6F7A),
-            ),
-          ],
-        ),
+          // ✅ Stats overview reused
+          _buildStatsOverview(sub),
+        ],
       ),
     );
   }
 
-  Widget _buildClearButton() {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          localSelected.clear();
-          activePosition = null;
-          ref.read(salesFilterProvider.notifier).updateSubordinates([]);
-        });
-      },
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        margin: EdgeInsets.symmetric(vertical: 4),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFCF0F0), // very light red background
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+  Widget _buildStatsOverview(Subordinate sub) {
+    return Column(
+      children: [
+        Row(
           children: [
-            Icon(Icons.close_rounded, size: 16, color: Colors.redAccent),
+            Expanded(
+              child: _statBox("MTD", formatIndianNumber(sub.mtdSellOut), Colors.blue),
+            ),
             SizedBox(width: 6),
-            Text(
-              "Clear",
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.redAccent,
+            Expanded(
+              child: _statBox("LMTD", formatIndianNumber(sub.lmtdSellOut), Colors.orange),
+            ),
+            SizedBox(width: 6),
+            Expanded(
+              child: _statBox(
+                "%Growth",
+                "${double.tryParse(sub.sellOutGrowth)?.toStringAsFixed(0) ?? '0'}%",
+                double.tryParse(sub.sellOutGrowth) != null &&
+                    double.parse(sub.sellOutGrowth) >= 0
+                    ? Colors.green
+                    : Colors.red,
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-
-
-
-  @override
-  Widget build(BuildContext context) {
-    final subordinatesState = ref.watch(subordinatesProvider);
-    final filterNotifier = ref.read(salesFilterProvider.notifier);
-
-    return subordinatesState.when(
-      loading: () => Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: SubordinatePositionShimmer(),
-      ),
-
-      error: (err, _) => Center(child: Text("Error: $err")),
-      data: (data) {
-        if (data.isEmpty) return Center(child: Text("No data available"));
-
-        List<String> positions = data.keys.toList();
-
-        return Column(
+        SizedBox(height: 6),
+        Row(
           children: [
-            // Top Row of Position Tabs
-            Container(
-              alignment: Alignment.centerLeft,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // First horizontal scrollable row
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        for (final position in positions.take((positions.length / 2).ceil()))
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8.0),
-                            child: _buildPositionChip(position),
-                          ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 6),
-
-                  // Second horizontal scrollable row + Clear
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        for (final position in positions.skip((positions.length / 2).ceil()))
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8.0),
-                            child: _buildPositionChip(position),
-                          ),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8.0),
-                          child: _buildClearButton(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-
-
-
-
-
-
-
-            if (activePosition != null)
-              Column(
-                children: [
-                  // Search Bar
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                    child: TextField(
-                      onChanged: (val) {
-                        setState(() {
-                          searchQueries[activePosition!] = val;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        hintText: "Search...",
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                        prefixIcon: Icon(Icons.search),
-                      ),
-                    ),
-                  ),
-
-                  // Dropdown List
-                  Container(
-                    height: 300,
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Color(0x33b49fde),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: ListView(
-                      children: _buildDropdownItems(
-                        data[activePosition!] ?? [],
-                        activePosition!,
-                      ),
-                    ),
-                  )
-                ],
-              ),
+            Expanded(child: _statBox("M-1", formatIndianNumber(sub.m1), Color(0xFFCE93D8))),
+            SizedBox(width: 6),
+            Expanded(child: _statBox("M-2", formatIndianNumber(sub.m2), Color(0xFFA5D6A7))),
+            SizedBox(width: 6),
+            Expanded(child: _statBox("M-3", formatIndianNumber(sub.m3), Color(0xFF80CBC4))),
           ],
-        );
-      },
-    );
-  }
-
-  List<Widget> _buildDropdownItems(List<Subordinate> subs, String position) {
-    String query = searchQueries[position] ?? "";
-    final filtered = subs.where((s) =>
-    s.name.toLowerCase().contains(query.toLowerCase()) ||
-        s.code.toLowerCase().contains(query.toLowerCase())).toList();
-
-    return filtered.map((sub) {
-      bool isSelected = localSelected[position]?.contains(sub.code) ?? false;
-      return GestureDetector(
-        onTap: () {
-          setState(() {
-            localSelected[position] ??= [];
-            if (isSelected) {
-              localSelected[position]!.remove(sub.code);
-            } else {
-              localSelected[position]!.add(sub.code);
-            }
-          });
-        },
-        child: Container(
-          margin: EdgeInsets.symmetric(vertical: 6),
-          padding: EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.lightBlueAccent.withOpacity(0.3) : Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(sub.code, style: TextStyle(fontSize: 10, color: Colors.black)),
-              Text(sub.name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-              SizedBox(height: 6),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        flex: 1,
-                        child: _statBox("MTD", formatIndianNumber(sub.mtdSellOut), Colors.blue),
-                      ),
-                      SizedBox(width: 6),
-                      Expanded(
-                        flex: 1,
-                        child: _statBox("LMTD", formatIndianNumber(sub.lmtdSellOut), Colors.orange),
-                      ),
-                      SizedBox(width: 6),
-                      Expanded(
-                        flex: 1,
-                        child: _statBox(
-                          "%Growth",
-                          "${double.tryParse(sub.sellOutGrowth)?.toStringAsFixed(0) ?? '0'}%",
-                          double.tryParse(sub.sellOutGrowth) != null &&
-                              double.parse(sub.sellOutGrowth) >= 0
-                              ? Colors.green
-                              : Colors.red,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-
-                  // ✅ Second row: M-1 to M-3
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: _statBox("M-1", formatIndianNumber(sub.m1), const Color(0xFFCE93D8)), // soft brown
-                      ),
-                      SizedBox(width: 6),
-                      Expanded(
-                        child: _statBox("M-2", formatIndianNumber(sub.m2), const Color(0xFFA5D6A7)), // soft green
-                      ),
-                      SizedBox(width: 6),
-                      Expanded(
-                        child: _statBox("M-3", formatIndianNumber(sub.m3), const Color(0xFF80CBC4)), // soft blue
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-
-                  // ✅ Third row: ADS, FTD, Req. ADS
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: _statBox("ADS", formatIndianNumber(sub.ads), const Color(0xFFFBC02D)), // pale yellow
-                      ),
-                      SizedBox(width: 6),
-                      Expanded(
-                        child: _statBox("FTD", formatIndianNumber(sub.ftd), const Color(0xFFFF8A65)), // soft orange
-                      ),
-                      SizedBox(width: 6),
-                      Expanded(
-                        child: _statBox("Req.ADS", formatIndianNumber(sub.reqAds), const Color(0xFFAED581)), // pale green
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-
-                  // ✅ Final row: TGT + Contribution
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: _statBox("TGT", formatIndianNumber(sub.tgt), Color(0xFFB0BEC5)),
-                      ),
-                      SizedBox(width: 6),
-                      Expanded(
-                        child: _statBox("Contribution", "${sub.contribution.toStringAsFixed(1)}%", const Color(0xFF4FC3F7)), // soft blue
-                      ),
-                    ],
-                  ),
-                ],
-              )
-
-
-            ],
-          ),
         ),
-      );
-    }).toList();
+        SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(child: _statBox("ADS", formatIndianNumber(sub.ads), Color(0xFFFBC02D))),
+            SizedBox(width: 6),
+            Expanded(child: _statBox("FTD", formatIndianNumber(sub.ftd), Color(0xFFFF8A65))),
+            SizedBox(width: 6),
+            Expanded(child: _statBox("Req.ADS", formatIndianNumber(sub.reqAds), Color(0xFFAED581))),
+          ],
+        ),
+        SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(child: _statBox("TGT", formatIndianNumber(sub.tgt), Color(0xFFB0BEC5))),
+            SizedBox(width: 6),
+            Expanded(child: _statBox("Contribution", "${sub.contribution.toStringAsFixed(1)}%", Color(0xFF4FC3F7))),
+          ],
+        ),
+      ],
+    );
   }
 
   Widget _statBox(String label, String value, Color color) {
@@ -415,9 +376,120 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-          Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+          Text(value,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
         ],
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final subordinatesState = ref.watch(subordinatesProvider);
+    final filterState = ref.watch(salesFilterProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            // ✅ Filters button
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _openFiltersPopup(context),
+                icon: Icon(Icons.filter_alt_outlined, size: 18, color: Color(0xFF2D3A63)),
+                label: Text(
+                  "Filters",
+                  style: TextStyle(
+                    color: Color(0xFF2D3A63),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white, // ✅ white background
+                  foregroundColor: Color(0xFF2D3A63), // ✅ text & icon color
+                  elevation: 2, // ✅ subtle shadow
+                  shadowColor: Colors.black.withOpacity(0.15), // ✅ soft shadow
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16), // ✅ smooth rounded corners
+                  ),
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                ),
+              ),
+
+            ),
+            SizedBox(width: 12),
+
+            // ✅ Category button
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _openCategoryPopup(context),
+                icon: Icon(Icons.category_outlined, color: Color(0xFF2D3A63)),
+                label: Text(
+                  filterState.selectedCategory.isEmpty
+                      ? "Category"
+                      : "Category: ${filterState.selectedCategory}",
+                  style: TextStyle(color: Color(0xFF2D3A63)),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white, // ✅ white background
+                  foregroundColor: Color(0xFF2D3A63), // ✅ text/icon color
+                  elevation: 2, // ✅ subtle shadow
+                  shadowColor: Colors.black.withOpacity(0.15), // ✅ soft shadow
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16), // ✅ modern rounded corners
+                  ),
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                ),
+              ),
+
+            ),
+            SizedBox(width: 12),
+
+            // ✅ Clear All button
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white, // background
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    offset: Offset(4, 4),
+                    blurRadius: 10,
+                  ),
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.9),
+                    offset: Offset(-4, -4),
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              child: IconButton(
+                icon: Icon(
+                  Icons.filter_alt_off_rounded,
+                  color: Colors.grey[700], // minimal, neutral tone
+                  size: 24,
+                ),
+                onPressed: () {
+                  ref.read(salesFilterProvider.notifier).clearAllFilters();
+
+                  final filter = ref.read(salesFilterProvider);
+                  ref.read(subordinatesProvider.notifier).fetchSubordinates(
+                    filterType: filter.selectedType,
+                    startDate: filter.startDate,
+                    endDate: filter.endDate,
+                  );
+                },
+                splashRadius: 24,
+              ),
+            )
+
+
+          ],
+        ),
+
+      ],
     );
   }
 
@@ -441,5 +513,4 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
     final sortedB = [...b]..sort();
     return sortedA.every((element) => sortedB.contains(element));
   }
-
 }

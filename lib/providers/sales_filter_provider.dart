@@ -7,6 +7,7 @@ class SalesFilterState {
   final DateTime endDate;
   final String selectedSubordinate;
   final List<String> selectedSubordinateCodes;
+  final String selectedCategory;
 
   SalesFilterState({
     required this.selectedType,
@@ -14,6 +15,7 @@ class SalesFilterState {
     required this.endDate,
     required this.selectedSubordinate,
     required this.selectedSubordinateCodes,
+    this.selectedCategory = "",
   });
 
   SalesFilterState copyWith({
@@ -22,6 +24,7 @@ class SalesFilterState {
     DateTime? endDate,
     String? selectedSubordinate,
     List<String>? selectedSubordinateCodes,
+    String? selectedCategory,
   }) {
     return SalesFilterState(
       selectedType: selectedType ?? this.selectedType,
@@ -30,6 +33,7 @@ class SalesFilterState {
       selectedSubordinate: selectedSubordinate ?? this.selectedSubordinate,
       selectedSubordinateCodes:
       selectedSubordinateCodes ?? this.selectedSubordinateCodes,
+      selectedCategory: selectedCategory ?? this.selectedCategory,
     );
   }
 
@@ -54,6 +58,19 @@ class SalesFilterNotifier extends StateNotifier<SalesFilterState> {
     selectedSubordinate: 'self',
     selectedSubordinateCodes: [],
   ));
+
+  void updateCategory(String category) {
+    state = state.copyWith(selectedCategory: category);
+  }
+
+  void clearAllFilters() {
+    state = state.copyWith(
+      selectedSubordinateCodes: [],
+      selectedCategory: "",
+      // reset other filter params if needed
+    );
+  }
+
 
 
   void updateType(String type) {
