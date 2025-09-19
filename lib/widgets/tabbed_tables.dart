@@ -90,6 +90,46 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
     }
   }
 
+  /// Formats a number into a short, readable string.
+  /// Examples:
+  ///  - 4567   → 4.57K
+  ///  - 125000 → 1.25L
+  ///  - 34500000 → 3.45Cr
+  String formatNumber(dynamic value) {
+    if (value == null) return "-";
+
+    String str = value.toString().trim();
+
+    // 🧹 Fix slashes/commas and remove junk
+    str = str.replaceAll("\\", ".").replaceAll(",", ".");
+    str = str.replaceAll(RegExp(r"[^0-9.\-]"), ""); // only digits, dot, minus
+
+    double? numValue = double.tryParse(str);
+    if (numValue == null) return value.toString();
+
+    bool isNegative = numValue < 0;
+    numValue = numValue.abs();
+
+    String formatted;
+    if (numValue >= 10000000) {
+      formatted = "${(numValue / 10000000).toStringAsFixed(2)}Cr";
+    } else if (numValue >= 100000) {
+      formatted = "${(numValue / 100000).toStringAsFixed(2)}L";
+    } else if (numValue >= 1000) {
+      formatted = "${(numValue / 1000).toStringAsFixed(2)}K";
+    } else {
+      formatted = numValue.toStringAsFixed(2);
+    }
+
+    // remove trailing .00/.0
+    formatted = formatted.replaceAll(RegExp(r"\.0+$"), "");
+    formatted = formatted.replaceAll(RegExp(r"(\.\d*?)0+$"), r"\1");
+
+    return isNegative ? "-$formatted" : formatted;
+  }
+
+
+
   Future<void> fetchProductWiseData(String segment) async {
     final filterState = ref.read(salesFilterProvider);
 
@@ -200,6 +240,8 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
       List<double> values = data.map((row) {
         return double.tryParse(row[header]?.toString() ?? '') ?? 0;
       }).toList();
+
+
 
       if (values.isNotEmpty) {
         maxValues[header] = values.reduce((a, b) => a > b ? a : b);
@@ -357,9 +399,13 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                row[header]?.toString() ?? "-",
+                                formatNumber(
+                                  (row[header]?.toString() ?? "").replaceAll("\\", "."),
+                                ),
                                 style: TextStyle(fontSize: fontSize, color: txtColor),
                               ),
+
+
                             );
                           }).toList(),
                         ],
@@ -419,9 +465,10 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
                                           borderRadius: BorderRadius.circular(6),
                                         ),
                                         child: Text(
-                                          product[header]?.toString() ?? "-",
+                                          formatNumber(product[header]),
                                           style: TextStyle(fontSize: fontSize * 0.95, color: txtColor),
                                         ),
+
                                       );
                                     }).toList(),
                                   ],
@@ -437,6 +484,76 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
                   ],
                 );
               }).toList(),
+
+              // ➕ Column Totals Row
+              Builder(
+                builder: (_) {
+                  Map<String, dynamic> totals = {};
+                  for (var header in restHeaders) {
+                    double sum = 0;
+                    for (var row in data) {
+                      double val = double.tryParse(row[header]?.toString() ?? "0") ?? 0;
+                      sum += val;
+                    }
+                    totals[header] = sum;
+                  }
+
+                  return Row(
+                    children: [
+                      // First column: TOTAL
+                      Container(
+                        width: cellWidth,
+                        height: cellHeight,
+                        alignment: Alignment.center,
+                        margin: EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.black87,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          "TOTAL",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: fontSize,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+
+                      // Rest columns
+                      ...restHeaders.map((header) {
+                        dynamic displayValue = totals[header];
+
+                        // 🛠 Special case: % Contribution column
+                        if (header.toLowerCase().contains("contribution")) {
+                          displayValue = 100;
+                        }
+
+                        return Container(
+                          width: cellWidth,
+                          height: cellHeight,
+                          alignment: Alignment.center,
+                          margin: EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            formatNumber(displayValue),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: fontSize,
+                              color: Colors.black,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  );
+                },
+              ),
+
+
 
             ],
           ),
