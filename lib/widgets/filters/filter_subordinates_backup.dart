@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/sales_filter_provider.dart';
 import '../../providers/subordinates_provider.dart';
 import '../../utils/subordinate_shimmer_loader.dart';
-import './hierarchical_filters.dart';
 
 class FilterSubordinates extends ConsumerStatefulWidget {
   @override
@@ -38,14 +37,84 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return SizedBox(
-          height: MediaQuery.of(context).size.height * 0.85,
-          child: HierarchicalFilters(), // 👈 new widget
-        );
+        return Consumer(builder: (context, ref, _) {
+          final subordinatesData = ref.watch(subordinatesProvider).value ?? {};
+          final filterState = ref.watch(salesFilterProvider);
+          String activeFilter = activePosition ?? subordinatesData.keys.first;
+
+
+          return StatefulBuilder(builder: (context, setState) {
+            return SizedBox(
+              height: MediaQuery.of(context).size.height * 0.8,
+              child: Row(
+                children: [
+                  // LEFT SIDE FILTER TYPES
+                  Container(
+                    width: 120,
+                    color: Colors.grey.shade100,
+                    child: ListView(
+                      children: subordinatesData.keys.map((position) {
+                        return ListTile(
+                          selected: activeFilter == position,
+                          title: Text(position,
+                              style: TextStyle(
+                                  fontWeight: activeFilter == position
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  color: activeFilter == position
+                                      ? Colors.deepPurple
+                                      : Colors.black87)),
+                          onTap: () {
+                            setState(() => activeFilter = position);
+                            activePosition = position; // 👈 persist selection
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+
+                  // RIGHT SIDE OPTIONS
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: SingleChildScrollView(
+                              child: _buildFilterOptions(
+                                activeFilter,
+                                subordinatesData[activeFilter] ?? [],
+                                filterState,
+                                ref,
+                                setState,
+                              ),
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              final filter = ref.read(salesFilterProvider);
+                              ref.read(subordinatesProvider.notifier).fetchSubordinates(
+                                filterType: filter.selectedType,
+                                startDate: filter.startDate,
+                                endDate: filter.endDate,
+                              );
+                              Navigator.pop(context);
+                            },
+                            child: Text("Apply"),
+                          ),
+
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          });
+        });
       },
     );
   }
-
 
   Widget _buildFilterOptions(
       String filterType,
