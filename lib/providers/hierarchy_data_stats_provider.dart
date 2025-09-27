@@ -11,7 +11,7 @@ class Subordinate {
   final String name;
   final int mtdSellOut;
   final int lmtdSellOut;
-  final String sellOutGrowth;
+  final double sellOutGrowth; // keep as double
   final String position;
 
   // New fields
@@ -45,7 +45,7 @@ class Subordinate {
     int parseInt(dynamic value) {
       if (value is num) return value.toInt();
       if (value is String) return int.tryParse(value) ?? 0;
-      return 0; // if {}, null, etc
+      return 0;
     }
 
     double parseDouble(dynamic value) {
@@ -59,7 +59,7 @@ class Subordinate {
       name: json["name"] ?? "",
       mtdSellOut: parseInt(json["mtd_sell_out"]),
       lmtdSellOut: parseInt(json["lmtd_sell_out"]),
-      sellOutGrowth: parseDouble(json["sell_out_growth"]).toStringAsFixed(2),
+      sellOutGrowth: parseDouble(json["sell_out_growth"]),
       position: json["position"] ?? "",
 
       m1: parseInt(json["M-1"]),
@@ -72,7 +72,6 @@ class Subordinate {
       contribution: parseDouble(json["Contribution%"]),
     );
   }
-
 }
 
 // Notifier to Manage State
