@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/hierarchy_data_stats_provider.dart';
+import '../../providers/sales_filter_provider.dart';
 
 class HierarchicalFilters extends ConsumerStatefulWidget {
   const HierarchicalFilters({Key? key}) : super(key: key);
@@ -237,7 +238,16 @@ class _HierarchicalFiltersState extends ConsumerState<HierarchicalFilters> {
               padding: const EdgeInsets.all(12.0),
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
-                onPressed: () => Navigator.pop(context, selected),
+                onPressed: () {
+                  if (selected != null) {
+                    // ✅ Update global filter with selected subordinate
+                    ref.read(salesFilterProvider.notifier).updateSubordinates([selected!.code]);
+                  }
+
+                  // ✅ Close the modal
+                  Navigator.pop(context);
+                },
+
                 child: const Text("Apply"),
               ),
             ),
