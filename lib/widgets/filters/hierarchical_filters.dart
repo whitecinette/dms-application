@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/hierarchy_data_stats_provider.dart';
 import '../../providers/sales_filter_provider.dart';
+import '../../providers/hierarchy_selection_provider.dart';
 
 class HierarchicalFilters extends ConsumerStatefulWidget {
   const HierarchicalFilters({Key? key}) : super(key: key);
@@ -21,7 +22,63 @@ class _HierarchicalFiltersState extends ConsumerState<HierarchicalFilters> {
   @override
   void initState() {
     super.initState();
-    _loadSubordinates("division"); // load root immediately
+
+    final savedSelection = ref.read(hierarchySelectionProvider);
+    if (savedSelection != null) {
+      _restoreHierarchy(savedSelection);
+    } else {
+      _loadSubordinates("division");
+    }
+  }
+
+  Future<void> _restoreHierarchy(HierarchySelection selection) async {
+    String currentPosition = "division";
+    String? parentCode;
+
+    for (int i = 0; i < selection.pathCodes.length; i++) {
+      final code = selection.pathCodes[i];
+
+      // Load subordinates for current position
+      await _loadSubordinates(currentPosition, parentCode: parentCode);
+
+      // Find matching subordinate
+      final match = currentList.firstWhere(
+            (s) => s.code == code,
+        orElse: () => currentList.first,
+      );
+
+      // Add to breadcrumbs except the last
+      if (i < selection.pathCodes.length - 1) {
+        history.add(match);
+      }
+
+      // Mark last one as selected
+      if (i == selection.pathCodes.length - 1) {
+        setState(() => selected = match);
+      }
+
+      // Prepare next position
+      currentPosition = _nextPosition(match.position);
+      parentCode = match.code;
+    }
+
+    // 🆕 After restoring, load one more level
+    if (currentPosition.isNotEmpty) {
+      await _loadSubordinates(currentPosition, parentCode: parentCode);
+    }
+
+    // 🆕 Make sure the last entity (like "Salasar") appears in breadcrumb
+    if (selected != null && history.isEmpty || history.last.code != selected!.code) {
+      history.add(selected!);
+    }
+
+    // Optional: quick confirmation
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Restored selection: ${selected!.name} (${selected!.position.toUpperCase()})"),
+        duration: const Duration(seconds: 1),
+      ),
+    );
   }
 
   Future<void> _loadSubordinates(String position, {String? parentCode}) async {
@@ -60,15 +117,30 @@ class _HierarchicalFiltersState extends ConsumerState<HierarchicalFilters> {
   }
 
   void _drillDown(Subordinate sub) async {
-    final nextPos = _nextPosition(sub.position);
-    if (nextPos.isEmpty) {
-      setState(() => selected = sub);
-      return;
-    }
+    // ✅ 1. Immediately apply global filter + save hierarchy selection
+    await applyHierarchySelection(ref, sub, history);
 
+    // ✅ 2. Update UI state
+    setState(() => selected = sub);
+
+    // (Optional) Feedback
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Filter applied for ${sub.name} (${sub.position.toUpperCase()})"),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+
+    // ✅ 3. Drill down if there's a next hierarchy level
+    final nextPos = _nextPosition(sub.position);
+    if (nextPos.isEmpty) return;
+
+    // add to breadcrumb *after* saving selection to preserve path consistency
     history.add(sub);
     await _loadSubordinates(nextPos, parentCode: sub.code);
   }
+
+
 
   void _goBack() {
     if (history.isEmpty) return;
@@ -233,25 +305,7 @@ class _HierarchicalFiltersState extends ConsumerState<HierarchicalFilters> {
 
 
           // Apply
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
-                onPressed: () {
-                  if (selected != null) {
-                    // ✅ Update global filter with selected subordinate
-                    ref.read(salesFilterProvider.notifier).updateSubordinates([selected!.code]);
-                  }
 
-                  // ✅ Close the modal
-                  Navigator.pop(context);
-                },
-
-                child: const Text("Apply"),
-              ),
-            ),
-          )
         ],
       ),
     );

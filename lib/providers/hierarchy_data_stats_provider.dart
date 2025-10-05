@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../config.dart';
 import '../services/auth_service.dart';
 import 'sales_filter_provider.dart';
+import 'hierarchy_selection_provider.dart';
 
 // Model for Subordinates
 class Subordinate {
@@ -139,6 +140,18 @@ class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Sub
     }
   }
 
+}
+
+Future<void> applyHierarchySelection(WidgetRef ref, Subordinate sub, List<Subordinate> history) async {
+  // ✅ Update dashboard filter
+  ref.read(salesFilterProvider.notifier).updateSubordinates([sub.code]);
+
+  // ✅ Update hierarchy selection state
+  ref.read(hierarchySelectionProvider.notifier).state = HierarchySelection(
+    pathCodes: [...history.map((h) => h.code), sub.code],
+    activeCode: sub.code,
+    activePosition: sub.position,
+  );
 }
 
 // ✅ Register the provider
