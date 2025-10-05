@@ -41,8 +41,6 @@ class Subordinate {
     this.contribution = 0.0,
   });
 
-
-
   factory Subordinate.fromJson(Map<String, dynamic> json) {
     return Subordinate(
       code: json["code"],
@@ -51,7 +49,6 @@ class Subordinate {
       lmtdSellOut: json["lmtd_sell_out"] ?? 0,
       sellOutGrowth: json["sell_out_growth"] ?? "0.00",
       position: json["position"] ?? "",
-      // New fields
       m1: json["M-1"] ?? 0,
       m2: json["M-2"] ?? 0,
       m3: json["M-3"] ?? 0,
@@ -65,7 +62,8 @@ class Subordinate {
 }
 
 // Notifier to Manage State
-class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Subordinate>>>> {
+class SubordinatesNotifier
+    extends StateNotifier<AsyncValue<Map<String, List<Subordinate>>>> {
   final Ref ref;
 
   SubordinatesNotifier(this.ref) : super(const AsyncValue.loading()) {
@@ -78,14 +76,14 @@ class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Sub
     DateTime? endDate,
   }) async {
     try {
-      final filter = ref.read(salesFilterProvider); // Read current filters if not passed
-
+      final filter = ref.read(salesFilterProvider);
       final token = await AuthService.getToken();
       if (token == null) throw Exception("Token not found");
 
+      // ✅ Combine subordinate codes and product categories (if any)
       final allCodes = [
         ...filter.selectedSubordinateCodes,
-        if (filter.selectedCategory.isNotEmpty) filter.selectedCategory,
+        ...filter.selectedCategories, // ✅ changed from selectedCategory
       ];
 
       final response = await http.post(
@@ -96,10 +94,11 @@ class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Sub
         },
         body: jsonEncode({
           "filter_type": filterType ?? filter.selectedType,
-          "start_date": (startDate ?? filter.startDate).toIso8601String().split("T")[0],
-          "end_date": (endDate ?? filter.endDate).toIso8601String().split("T")[0],
+          "start_date":
+          (startDate ?? filter.startDate).toIso8601String().split("T")[0],
+          "end_date":
+          (endDate ?? filter.endDate).toIso8601String().split("T")[0],
           "subordinate_codes": allCodes,
-
         }),
       );
 
@@ -119,10 +118,12 @@ class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Sub
 
           state = AsyncValue.data(subordinatesMap);
         } else {
-          state = AsyncValue.error("Failed to fetch subordinates", StackTrace.current);
+          state =
+              AsyncValue.error("Failed to fetch subordinates", StackTrace.current);
         }
       } else {
-        state = AsyncValue.error("Error: ${response.statusCode}", StackTrace.current);
+        state =
+            AsyncValue.error("Error: ${response.statusCode}", StackTrace.current);
       }
     } catch (e, stackTrace) {
       state = AsyncValue.error("Failed to connect to server", stackTrace);
@@ -131,6 +132,8 @@ class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Sub
 }
 
 // ✅ Register the provider
-final subordinatesProvider = StateNotifierProvider<SubordinatesNotifier, AsyncValue<Map<String, List<Subordinate>>>>(
+final subordinatesProvider =
+StateNotifierProvider<SubordinatesNotifier,
+    AsyncValue<Map<String, List<Subordinate>>>>(
       (ref) => SubordinatesNotifier(ref),
 );

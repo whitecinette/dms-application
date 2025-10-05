@@ -7,7 +7,7 @@ class SalesFilterState {
   final DateTime endDate;
   final String selectedSubordinate;
   final List<String> selectedSubordinateCodes;
-  final String selectedCategory;
+  final List<String> selectedCategories; // ✅ supports multiple categories
 
   SalesFilterState({
     required this.selectedType,
@@ -15,7 +15,7 @@ class SalesFilterState {
     required this.endDate,
     required this.selectedSubordinate,
     required this.selectedSubordinateCodes,
-    this.selectedCategory = "",
+    this.selectedCategories = const [], // ✅ default empty
   });
 
   SalesFilterState copyWith({
@@ -24,7 +24,7 @@ class SalesFilterState {
     DateTime? endDate,
     String? selectedSubordinate,
     List<String>? selectedSubordinateCodes,
-    String? selectedCategory,
+    List<String>? selectedCategories,
   }) {
     return SalesFilterState(
       selectedType: selectedType ?? this.selectedType,
@@ -33,7 +33,7 @@ class SalesFilterState {
       selectedSubordinate: selectedSubordinate ?? this.selectedSubordinate,
       selectedSubordinateCodes:
       selectedSubordinateCodes ?? this.selectedSubordinateCodes,
-      selectedCategory: selectedCategory ?? this.selectedCategory,
+      selectedCategories: selectedCategories ?? this.selectedCategories,
     );
   }
 
@@ -44,31 +44,50 @@ class SalesFilterState {
       "end_date": endDate.toIso8601String().split("T")[0],
       "subordinate": selectedSubordinate,
       "subordinate_codes": selectedSubordinateCodes,
-      if (selectedCategory.isNotEmpty)  // ✅ only send if not empty
-        "product_category": selectedCategory,
+      if (selectedCategories.isNotEmpty)
+        "product_categories": selectedCategories, // ✅ plural + list
     };
   }
 }
 
 class SalesFilterNotifier extends StateNotifier<SalesFilterState> {
   SalesFilterNotifier()
-      : super(SalesFilterState(
-    selectedType: 'value',
-    startDate: DateTime(DateTime.now().year, DateTime.now().month, 1),
-    endDate: DateTime.now(),
-    selectedSubordinate: 'self',
-    selectedSubordinateCodes: [],
-  ));
+      : super(
+    SalesFilterState(
+      selectedType: 'value',
+      startDate: DateTime(DateTime.now().year, DateTime.now().month, 1),
+      endDate: DateTime.now(),
+      selectedSubordinate: 'self',
+      selectedSubordinateCodes: [],
+    ),
+  );
 
-  void updateCategory(String category) {
-    state = state.copyWith(selectedCategory: category);
+  // ✅ Bulk update
+  void updateCategories(List<String> categories) {
+    state = state.copyWith(selectedCategories: categories);
   }
 
+  // ✅ Add one category
+  void addCategory(String category) {
+    if (!state.selectedCategories.contains(category)) {
+      final updated = [...state.selectedCategories, category];
+      state = state.copyWith(selectedCategories: updated);
+    }
+  }
+
+  // ✅ Remove one category
+  void removeCategory(String category) {
+    final updated =
+    state.selectedCategories.where((c) => c != category).toList();
+    state = state.copyWith(selectedCategories: updated);
+  }
+
+  // ✅ Clear all filters
   void clearAllFilters() {
     state = state.copyWith(
       selectedSubordinateCodes: [],
-      selectedCategory: "",
-      // If you also want to reset type and date, uncomment these:
+      selectedCategories: [], // ✅ reset category list
+      // Optionally reset other filters:
       // selectedType: "value",
       // startDate: DateTime(DateTime.now().year, DateTime.now().month, 1),
       // endDate: DateTime.now(),

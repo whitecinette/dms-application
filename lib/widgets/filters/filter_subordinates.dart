@@ -55,18 +55,21 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
       StateSetter modalSetState,
       ) {
     if (filterType == "product_category") {
-      // Category = simple card list
+      // ✅ Category = same CARD UI with stats, single-select (like before)
       return ListView.builder(
         shrinkWrap: true,
         physics: NeverScrollableScrollPhysics(),
         itemCount: options.length,
         itemBuilder: (context, index) {
           final sub = options[index];
-          final isSelected = filterState.selectedCategory == sub.code;
+          // we now store a list; here we treat it as single-select
+          final isSelected = filterState.selectedCategories.contains(sub.code);
+
           return GestureDetector(
             onTap: () {
-              ref.read(salesFilterProvider.notifier).updateCategory(sub.code);
-              setState(() {});
+              // keep single-select behavior: set list = [that code]
+              ref.read(salesFilterProvider.notifier).updateCategories([sub.code]);
+              setState(() {}); // refresh border highlight
             },
             child: Container(
               margin: EdgeInsets.symmetric(vertical: 6),
@@ -78,7 +81,7 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
                 borderRadius: BorderRadius.circular(10),
                 color: Colors.white,
               ),
-              child: _buildSubordinateCard(sub, isSelected),
+              child: _buildSubordinateCard(sub, isSelected), // ✅ shows stats like before
             ),
           );
         },
@@ -172,13 +175,17 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
             child: ListView(
               padding: EdgeInsets.all(16),
               children: categories.map<Widget>((sub) {
-                final isSelected = filterState.selectedCategory == sub.code;
+                final isSelected =
+                filterState.selectedCategories.contains(sub.code);
+
                 return GestureDetector(
                   onTap: () {
-                    // ✅ Update category
-                    ref.read(salesFilterProvider.notifier).updateCategory(sub.code);
+                    // keep single-select behavior: set list = [that code]
+                    ref
+                        .read(salesFilterProvider.notifier)
+                        .updateCategories([sub.code]);
 
-                    // ✅ Refetch dashboard data immediately
+                    // refetch like before
                     final filter = ref.read(salesFilterProvider);
                     ref.read(subordinatesProvider.notifier).fetchSubordinates(
                       filterType: filter.selectedType,
@@ -186,19 +193,22 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
                       endDate: filter.endDate,
                     );
 
+                    // close like before
                     Navigator.pop(context);
                   },
                   child: Container(
                     margin: EdgeInsets.symmetric(vertical: 6),
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: isSelected ? Colors.deepPurple : Colors.grey.shade300,
+                        color: isSelected
+                            ? Colors.deepPurple
+                            : Colors.grey.shade300,
                         width: 1.5,
                       ),
                       borderRadius: BorderRadius.circular(10),
                       color: Colors.white,
                     ),
-                    child: _buildSubordinateCard(sub, isSelected),
+                    child: _buildSubordinateCard(sub, isSelected), // ✅ stats intact
                   ),
                 );
               }).toList(),
@@ -367,12 +377,13 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
                 onPressed: () => _openCategoryPopup(context),
                 icon: Icon(Icons.category_outlined, color: Color(0xFF2D3A63)),
                 label: Text(
-                  filterState.selectedCategory.isEmpty
+                  filterState.selectedCategories.isEmpty
                       ? "Category"
-                      : "Category: ${filterState.selectedCategory}",
+                      : "Category: ${filterState.selectedCategories.join(", ")}",
                   style: TextStyle(color: Color(0xFF2D3A63)),
                   overflow: TextOverflow.ellipsis,
                 ),
+
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white, // ✅ white background
                   foregroundColor: Color(0xFF2D3A63), // ✅ text/icon color
