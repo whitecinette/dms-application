@@ -4,6 +4,7 @@ import '../../providers/sales_filter_provider.dart';
 import '../../providers/subordinates_provider.dart';
 import '../../utils/subordinate_shimmer_loader.dart';
 import './hierarchical_filters.dart';
+import '../../providers/hierarchy_selection_provider.dart';
 
 class FilterSubordinates extends ConsumerStatefulWidget {
   @override
@@ -424,8 +425,17 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
                   size: 24,
                 ),
                 onPressed: () {
+                  // ✅ Clear all filters
                   ref.read(salesFilterProvider.notifier).clearAllFilters();
 
+                  // ✅ Reset hierarchy selection (empty instead of null)
+                  ref.read(hierarchySelectionProvider.notifier).state = HierarchySelection(
+                    pathCodes: [],
+                    activeCode: '',
+                    activePosition: '',
+                  );
+
+                  // ✅ Refetch subordinates fresh
                   final filter = ref.read(salesFilterProvider);
                   ref.read(subordinatesProvider.notifier).fetchSubordinates(
                     filterType: filter.selectedType,
@@ -433,6 +443,8 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
                     endDate: filter.endDate,
                   );
                 },
+
+
                 splashRadius: 24,
               ),
             )
