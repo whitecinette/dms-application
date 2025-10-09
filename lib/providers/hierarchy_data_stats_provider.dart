@@ -94,9 +94,26 @@ class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Sub
   }) async {
     try {
       final filter = ref.read(salesFilterProvider);
-
       final token = await AuthService.getToken();
       if (token == null) throw Exception("Token not found");
+
+      // ✅ Include subordinate codes + product categories from filter state
+      final body = {
+        "filter_type": filterType ?? filter.selectedType,
+        "start_date":
+        (startDate ?? filter.startDate).toIso8601String().split("T")[0],
+        "end_date":
+        (endDate ?? filter.endDate).toIso8601String().split("T")[0],
+        "position": position,
+        "parent_code": parentCode,
+        "subordinate_codes": filter.selectedSubordinateCodes, // ✅ NEW
+        "product_categories": filter.selectedCategories,      // ✅ NEW
+        "page": page,
+        "limit": limit,
+      };
+
+      print("🚀 Fetching subordinates with filters:");
+      print(jsonEncode(body));
 
       final response = await http.post(
         Uri.parse("${Config.backendUrl}/user/hierarchy/data-stats"),
@@ -104,15 +121,7 @@ class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Sub
           "Content-Type": "application/json",
           "Authorization": "Bearer $token",
         },
-        body: jsonEncode({
-          "filter_type": filterType ?? filter.selectedType,
-          "start_date": (startDate ?? filter.startDate).toIso8601String().split("T")[0],
-          "end_date": (endDate ?? filter.endDate).toIso8601String().split("T")[0],
-          "position": position,
-          "parent_code": parentCode,
-          "page": page,
-          "limit": limit,
-        }),
+        body: jsonEncode(body),
       );
 
       if (response.statusCode == 200) {
@@ -120,7 +129,6 @@ class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Sub
         print("🔍 API Response: $data");
 
         if (data["success"] == true) {
-          // ✅ backend gives a single "position" string, not a list
           final String pos = data["position"] ?? "";
           final List<dynamic> subsJson = data["subordinates"] ?? [];
 
@@ -133,12 +141,15 @@ class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Sub
           state = AsyncValue.error("Failed to fetch subordinates", StackTrace.current);
         }
       } else {
+        print("❌ Error: ${response.statusCode} ${response.body}");
         state = AsyncValue.error("Error: ${response.statusCode}", StackTrace.current);
       }
     } catch (e, stackTrace) {
+      print("💥 Exception in fetchSubordinates: $e");
       state = AsyncValue.error("Failed to connect to server: $e", stackTrace);
     }
   }
+
 
 }
 

@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../config.dart';
 import '../services/auth_service.dart';
 import 'sales_filter_provider.dart'; // ✅ Needed to read current filters
+import 'hierarchy_selection_provider.dart'; // ✅ Added for listener
 
 // Model for Subordinates
 class Subordinate {
@@ -74,6 +75,7 @@ class SubordinatesNotifier
     String? filterType,
     DateTime? startDate,
     DateTime? endDate,
+    String? parentCode,
   }) async {
     try {
       final filter = ref.read(salesFilterProvider);
@@ -99,6 +101,7 @@ class SubordinatesNotifier
           "end_date":
           (endDate ?? filter.endDate).toIso8601String().split("T")[0],
           "subordinate_codes": allCodes,
+          "parent_code": parentCode,
         }),
       );
 
@@ -118,12 +121,12 @@ class SubordinatesNotifier
 
           state = AsyncValue.data(subordinatesMap);
         } else {
-          state =
-              AsyncValue.error("Failed to fetch subordinates", StackTrace.current);
+          state = AsyncValue.error(
+              "Failed to fetch subordinates", StackTrace.current);
         }
       } else {
-        state =
-            AsyncValue.error("Error: ${response.statusCode}", StackTrace.current);
+        state = AsyncValue.error(
+            "Error: ${response.statusCode}", StackTrace.current);
       }
     } catch (e, stackTrace) {
       state = AsyncValue.error("Failed to connect to server", stackTrace);
@@ -131,9 +134,26 @@ class SubordinatesNotifier
   }
 }
 
-// ✅ Register the provider
+// ✅ Register the provider with hierarchy listener
 final subordinatesProvider =
 StateNotifierProvider<SubordinatesNotifier,
-    AsyncValue<Map<String, List<Subordinate>>>>(
-      (ref) => SubordinatesNotifier(ref),
-);
+    AsyncValue<Map<String, List<Subordinate>>>>((ref) {
+  final notifier = SubordinatesNotifier(ref);
+
+  // 👇 Listen to hierarchy selection changes
+  ref.listen(hierarchySelectionProvider, (previous, next) async {
+    if (next == null) return;
+
+    final activeCode = next.activeCode;
+    final activePosition = next.activePosition;
+
+    print(
+        "🔁 Hierarchy changed → Refetching subordinates for $activePosition ($activeCode)");
+
+    await notifier.fetchSubordinates(
+      parentCode: activeCode.isNotEmpty ? activeCode : null,
+    );
+  });
+
+  return notifier;
+});

@@ -16,19 +16,8 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
   Map<String, String> searchQueries = {};
   String? activePosition;
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
 
-    final filter = ref.watch(salesFilterProvider);
 
-    // Refetch subordinates with updated filters
-    ref.read(subordinatesProvider.notifier).fetchSubordinates(
-      filterType: filter.selectedType,
-      startDate: filter.startDate,
-      endDate: filter.endDate,
-    );
-  }
 
   Future<void> _openFiltersPopup(BuildContext context) async {
     await showModalBottomSheet(
@@ -192,6 +181,9 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
                       filterType: filter.selectedType,
                       startDate: filter.startDate,
                       endDate: filter.endDate,
+                      parentCode: filter.selectedSubordinateCodes.isNotEmpty
+                          ? filter.selectedSubordinateCodes.last
+                          : null,
                     );
 
                     // close like before
@@ -223,9 +215,54 @@ class _FilterSubordinatesState extends ConsumerState<FilterSubordinates> {
   @override
   void initState() {
     super.initState();
-    final selected = ref.read(salesFilterProvider).selectedSubordinateCodes;
-    localSelected = _groupByPosition(selected);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      print("🪝 Binding filter listener...");
+
+      ref.listenManual<SalesFilterState>(
+        salesFilterProvider,
+            (previous, next) {
+          final subChanged = !_listEquals(
+            previous?.selectedSubordinateCodes ?? [],
+            next.selectedSubordinateCodes,
+          );
+          final catChanged = !_listEquals(
+            previous?.selectedCategories ?? [],
+            next.selectedCategories,
+          );
+
+          if (subChanged || catChanged) {
+            print("🚀 Re-fetch triggered: subChanged=$subChanged, catChanged=$catChanged");
+            ref.read(subordinatesProvider.notifier).fetchSubordinates(
+              filterType: next.selectedType,
+              startDate: next.startDate,
+              endDate: next.endDate,
+              parentCode: next.selectedSubordinateCodes.isNotEmpty
+                  ? next.selectedSubordinateCodes.last
+                  : null,
+            );
+          }
+        },
+      );
+
+      // ✅ Initial fetch
+      final filter = ref.read(salesFilterProvider);
+      print("🌍 Initial subordinate fetch...");
+      ref.read(subordinatesProvider.notifier).fetchSubordinates(
+        filterType: filter.selectedType,
+        startDate: filter.startDate,
+        endDate: filter.endDate,
+        parentCode: filter.selectedSubordinateCodes.isNotEmpty
+            ? filter.selectedSubordinateCodes.last
+            : null,
+      );
+    });
   }
+
+
+
+
+
 
   String formatIndianNumber(num value) {
     if (value >= 10000000) {
