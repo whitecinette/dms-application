@@ -84,13 +84,28 @@ class SalesFilterNotifier extends StateNotifier<SalesFilterState> {
   }
 
   // ✅ Update from hierarchy selection
+  // void updateHierarchy(HierarchySelection selection) {
+  //   state = state.copyWith(
+  //     selectedSubordinateCodes: selection.pathCodes,
+  //     selectedHierarchyCode: selection.activeCode,
+  //     selectedHierarchyPosition: selection.activePosition,
+  //   );
+  // }
+
   void updateHierarchy(HierarchySelection selection) {
+    // Always clone list to guarantee new reference
+    final newCodes = List<String>.from(selection.pathCodes);
+
+    // Emit a truly new state every time
     state = state.copyWith(
-      selectedSubordinateCodes: selection.pathCodes,
+      selectedSubordinateCodes: newCodes,
       selectedHierarchyCode: selection.activeCode,
       selectedHierarchyPosition: selection.activePosition,
     );
+
+    print("🧭 Hierarchy changed → ${selection.activePosition} (${selection.activeCode})");
   }
+
 
   // ✅ Add one category
   void addCategory(String category) {
@@ -137,23 +152,58 @@ class SalesFilterNotifier extends StateNotifier<SalesFilterState> {
 }
 
 /// 🧩 Global provider with listener for hierarchy changes
-final salesFilterProvider =
+// final salesFilterProvider =
+// StateNotifierProvider<SalesFilterNotifier, SalesFilterState>(
+//       (ref) {
+//     final notifier = SalesFilterNotifier();
+//
+//     // 👇 Listen to hierarchy changes globally
+//     ref.listen<HierarchySelection?>(
+//       hierarchySelectionProvider,
+//           (previous, next) {
+//         if (next != null &&
+//             (previous?.activeCode != next.activeCode ||
+//                 previous?.activePosition != next.activePosition)) {
+//           notifier.updateHierarchy(next);
+//         }
+//       },
+//     );
+//
+//     return notifier;
+//   },
+// );
+
+
+final _salesFilterProviderBuilder =
+    (Ref ref) {
+  final notifier = SalesFilterNotifier();
+
+  ref.listen<HierarchySelection?>(
+    hierarchySelectionProvider,
+        (previous, next) async {
+      if (next != null) {
+        // Always trigger — even if code or position hasn't changed
+        notifier.updateHierarchy(next);
+
+        // 🚀 Optional: still force a re-emit to guarantee rebuilds
+        notifier.updateDateRange(
+          notifier.state.startDate,
+          notifier.state.endDate,
+        );
+
+        final filter = notifier.state;
+        print("🚀 Hierarchy update forced → ${filter.selectedHierarchyPosition} (${filter.selectedHierarchyCode})");
+      }
+    },
+  );
+
+
+  return notifier;
+};
+
+final StateNotifierProvider<SalesFilterNotifier, SalesFilterState>
+salesFilterProvider =
 StateNotifierProvider<SalesFilterNotifier, SalesFilterState>(
-      (ref) {
-    final notifier = SalesFilterNotifier();
+    _salesFilterProviderBuilder);
 
-    // 👇 Listen to hierarchy changes globally
-    ref.listen<HierarchySelection?>(
-      hierarchySelectionProvider,
-          (previous, next) {
-        if (next != null &&
-            (previous?.activeCode != next.activeCode ||
-                previous?.activePosition != next.activePosition)) {
-          notifier.updateHierarchy(next);
-        }
-      },
-    );
 
-    return notifier;
-  },
-);

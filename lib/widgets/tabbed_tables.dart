@@ -13,11 +13,12 @@ class TabbedTables extends ConsumerStatefulWidget {
   final String token;
 
   TabbedTables({
+    Key? key,
     required this.selectedType,
     required this.startDate,
     required this.endDate,
     required this.token,
-  });
+  }) : super(key: key);
 
   @override
   _TabbedTablesState createState() => _TabbedTablesState();
@@ -91,25 +92,15 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
   }
 
   /// Formats a number into a short, readable string.
-  /// Examples:
-  ///  - 4567   → 4.57K
-  ///  - 125000 → 1.25L
-  ///  - 34500000 → 3.45Cr
   String formatNumber(dynamic value) {
     if (value == null) return "-";
-
     String str = value.toString().trim();
-
-    // 🧹 Fix slashes/commas and remove junk
     str = str.replaceAll("\\", ".").replaceAll(",", ".");
-    str = str.replaceAll(RegExp(r"[^0-9.\-]"), ""); // only digits, dot, minus
-
+    str = str.replaceAll(RegExp(r"[^0-9.\-]"), "");
     double? numValue = double.tryParse(str);
     if (numValue == null) return value.toString();
-
     bool isNegative = numValue < 0;
     numValue = numValue.abs();
-
     String formatted;
     if (numValue >= 10000000) {
       formatted = "${(numValue / 10000000).toStringAsFixed(2)}Cr";
@@ -120,15 +111,10 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
     } else {
       formatted = numValue.toStringAsFixed(2);
     }
-
-    // remove trailing .00/.0
     formatted = formatted.replaceAll(RegExp(r"\.0+$"), "");
     formatted = formatted.replaceAll(RegExp(r"(\.\d*?)0+$"), r"\1");
-
     return isNegative ? "-$formatted" : formatted;
   }
-
-
 
   Future<void> fetchProductWiseData(String segment) async {
     final filterState = ref.read(salesFilterProvider);
@@ -165,27 +151,35 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
+    // ✅ Watch and listen for hierarchy filter changes
+    final filterState = ref.watch(salesFilterProvider);
+    ref.listen<SalesFilterState>(salesFilterProvider, (previous, next) {
+      if (previous?.selectedHierarchyCode != next.selectedHierarchyCode) {
+        print("🔁 Hierarchy changed — refetching TabbedTables...");
+        fetchTableData();
+      }
+    });
+
     double fontSize = MediaQuery.of(context).size.width * 0.025;
 
     return Column(
       children: [
         // Tabs
         Container(
-          width: double.infinity, // 🔥 Full width of the parent
+          width: double.infinity,
           padding: EdgeInsets.all(4),
           decoration: BoxDecoration(
             color: Color(0xFFF5F0FC),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween, // ⬅️ Distribute tabs evenly
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: tabs.map((tab) {
               final bool isActive = activeTab == tab;
 
-              return Expanded( // 🧠 Makes each tab take equal width
+              return Expanded(
                 child: GestureDetector(
                   onTap: () {
                     setState(() {
@@ -203,7 +197,8 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
                     child: Text(
                       tab,
                       style: TextStyle(
-                        fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                        fontWeight:
+                        isActive ? FontWeight.bold : FontWeight.normal,
                         color: Colors.black,
                       ),
                     ),
@@ -212,12 +207,8 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
               );
             }).toList(),
           ),
-        )
-        ,
-
-
+        ),
         SizedBox(height: 10),
-
         isLoading
             ? Center(child: ShimmerLoader())
             : _buildTable(headers, tableData, fontSize),
@@ -225,37 +216,29 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
     );
   }
 
-  Widget _buildTable(List<String> headers, List<Map<String, dynamic>> data, double fontSize) {
+  Widget _buildTable(List<String> headers, List<Map<String, dynamic>> data,
+      double fontSize) {
     double cellWidth = 80;
     double cellHeight = 40;
     String firstHeader = headers.first;
     List<String> restHeaders = headers.sublist(1);
-
-
-    // 🔍 Compute per-column min & max
     Map<String, double> maxValues = {};
     Map<String, double> minValues = {};
 
     for (var header in restHeaders) {
-      List<double> values = data.map((row) {
-        return double.tryParse(row[header]?.toString() ?? '') ?? 0;
-      }).toList();
-
-
-
+      List<double> values = data
+          .map((row) => double.tryParse(row[header]?.toString() ?? '') ?? 0)
+          .toList();
       if (values.isNotEmpty) {
         maxValues[header] = values.reduce((a, b) => a > b ? a : b);
         minValues[header] = values.reduce((a, b) => a < b ? a : b);
       }
     }
 
-    // 🔥 Cell background color
     Color getCellColor(String header, double value) {
       double maxVal = maxValues[header] ?? 1;
       double minVal = minValues[header] ?? -1;
-
       if (value == 0) return Colors.red.shade100;
-
       double ratio = 0;
       if (value > 0 && maxVal > 0) {
         ratio = (value / maxVal).clamp(0.0, 1.0);
@@ -266,11 +249,9 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
         ratio = ratio * ratio;
         return Color.lerp(Colors.red.shade100, Colors.red.shade900, ratio)!;
       }
-
       return Colors.grey.shade100;
     }
 
-    // 🌗 Font color based on background luminance
     Color getTextColor(Color bg) {
       return bg.computeLuminance() < 0.5 ? Colors.white : Colors.black;
     }
@@ -304,7 +285,8 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
                     ),
                     child: Text(
                       firstHeader,
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize),
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: fontSize),
                     ),
                   ),
                   ...restHeaders.map((header) => Container(
@@ -318,20 +300,19 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
                     ),
                     child: Text(
                       header,
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize),
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: fontSize),
                     ),
                   )),
                 ],
               ),
               SizedBox(height: 8),
-
-              // Data rows
               ...data.map((row) {
                 final segmentName = row[firstHeader]?.toString() ?? "";
                 final isExpanded = expandedSegment == segmentName;
-                final hasProductData = productDataMap[segmentName]?.isNotEmpty == true;
+                final hasProductData =
+                    productDataMap[segmentName]?.isNotEmpty == true;
                 final productRows = productDataMap[segmentName] ?? [];
-
                 return Column(
                   children: [
                     GestureDetector(
@@ -341,13 +322,12 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
                         } else {
                           setState(() {
                             expandedSegment = segmentName;
-                            loadingSegment = segmentName; // 🔄 Start loading
+                            loadingSegment = segmentName;
                           });
                           await fetchProductWiseData(segmentName);
-                          setState(() => loadingSegment = null); // ✅ Done loading
+                          setState(() => loadingSegment = null);
                         }
                       },
-
                       child: Row(
                         children: [
                           Container(
@@ -364,7 +344,9 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
                               children: [
                                 Text(
                                   segmentName,
-                                  style: TextStyle(fontWeight: FontWeight.w500, fontSize: fontSize),
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: fontSize),
                                 ),
                                 SizedBox(width: 4),
                                 if (loadingSegment == segmentName)
@@ -377,18 +359,20 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
                                   )
                                 else
                                   Icon(
-                                    isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                                    isExpanded
+                                        ? Icons.keyboard_arrow_up
+                                        : Icons.keyboard_arrow_down,
                                     size: 16,
                                   ),
                               ],
                             ),
-
                           ),
                           ...restHeaders.map((header) {
-                            double val = double.tryParse(row[header]?.toString() ?? "0") ?? 0;
+                            double val = double.tryParse(
+                                row[header]?.toString() ?? "0") ??
+                                0;
                             Color bg = getCellColor(header, val);
                             Color txtColor = getTextColor(bg);
-
                             return Container(
                               width: cellWidth,
                               height: cellHeight,
@@ -399,20 +383,16 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                formatNumber(
-                                  (row[header]?.toString() ?? "").replaceAll("\\", "."),
-                                ),
-                                style: TextStyle(fontSize: fontSize, color: txtColor),
+                                formatNumber((row[header]?.toString() ?? "")
+                                    .replaceAll("\\", ".")),
+                                style: TextStyle(
+                                    fontSize: fontSize, color: txtColor),
                               ),
-
-
                             );
                           }).toList(),
                         ],
                       ),
                     ),
-
-                    // 🔻 Product dropdown rows
                     if (isExpanded && hasProductData)
                       Container(
                         height: 200,
@@ -422,13 +402,15 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
                           child: Column(
                             children: productRows.map((product) {
                               return Container(
-                                margin: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                                margin: EdgeInsets.symmetric(
+                                    vertical: 4, horizontal: 4),
                                 decoration: BoxDecoration(
-                                  color: Color(0xFFF9F5FF), // Lavender white
+                                  color: Color(0xFFF9F5FF),
                                   borderRadius: BorderRadius.circular(8),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.deepPurple.withOpacity(0.12),
+                                      color: Colors.deepPurple
+                                          .withOpacity(0.12),
                                       blurRadius: 6,
                                       offset: Offset(0, 2),
                                     ),
@@ -443,18 +425,22 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
                                       margin: EdgeInsets.all(4),
                                       decoration: BoxDecoration(
                                         color: Colors.white,
-                                        borderRadius: BorderRadius.circular(6),
+                                        borderRadius:
+                                        BorderRadius.circular(6),
                                       ),
                                       child: Text(
                                         product[firstHeader]?.toString() ?? "-",
-                                        style: TextStyle(fontSize: fontSize * 0.95),
+                                        style: TextStyle(
+                                            fontSize: fontSize * 0.95),
                                       ),
                                     ),
                                     ...restHeaders.map((header) {
-                                      double val = double.tryParse(product[header]?.toString() ?? "0") ?? 0;
+                                      double val = double.tryParse(
+                                          product[header]?.toString() ??
+                                              "0") ??
+                                          0;
                                       Color bg = getCellColor(header, val);
                                       Color txtColor = getTextColor(bg);
-
                                       return Container(
                                         width: cellWidth,
                                         height: cellHeight,
@@ -462,13 +448,15 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
                                         margin: EdgeInsets.all(4),
                                         decoration: BoxDecoration(
                                           color: bg,
-                                          borderRadius: BorderRadius.circular(6),
+                                          borderRadius:
+                                          BorderRadius.circular(6),
                                         ),
                                         child: Text(
                                           formatNumber(product[header]),
-                                          style: TextStyle(fontSize: fontSize * 0.95, color: txtColor),
+                                          style: TextStyle(
+                                              fontSize: fontSize * 0.95,
+                                              color: txtColor),
                                         ),
-
                                       );
                                     }).toList(),
                                   ],
@@ -478,29 +466,24 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
                           ),
                         ),
                       ),
-
-
-
                   ],
                 );
               }).toList(),
-
-              // ➕ Column Totals Row
               Builder(
                 builder: (_) {
                   Map<String, dynamic> totals = {};
                   for (var header in restHeaders) {
                     double sum = 0;
                     for (var row in data) {
-                      double val = double.tryParse(row[header]?.toString() ?? "0") ?? 0;
+                      double val = double.tryParse(
+                          row[header]?.toString() ?? "0") ??
+                          0;
                       sum += val;
                     }
                     totals[header] = sum;
                   }
-
                   return Row(
                     children: [
-                      // First column: TOTAL
                       Container(
                         width: cellWidth,
                         height: cellHeight,
@@ -519,16 +502,13 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
                           ),
                         ),
                       ),
-
-                      // Rest columns
                       ...restHeaders.map((header) {
                         dynamic displayValue = totals[header];
-
-                        // 🛠 Special case: % Contribution column
-                        if (header.toLowerCase().contains("contribution")) {
+                        if (header
+                            .toLowerCase()
+                            .contains("contribution")) {
                           displayValue = 100;
                         }
-
                         return Container(
                           width: cellWidth,
                           height: cellHeight,
@@ -552,23 +532,10 @@ class _TabbedTablesState extends ConsumerState<TabbedTables> {
                   );
                 },
               ),
-
-
-
             ],
           ),
         ),
       ),
     );
   }
-
-
-
-
-
-
-
-
-
-
 }

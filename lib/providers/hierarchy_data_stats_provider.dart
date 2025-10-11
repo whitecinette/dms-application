@@ -153,17 +153,52 @@ class SubordinatesNotifier extends StateNotifier<AsyncValue<Map<String, List<Sub
 
 }
 
-Future<void> applyHierarchySelection(WidgetRef ref, Subordinate sub, List<Subordinate> history) async {
-  // ✅ Update dashboard filter
-  ref.read(salesFilterProvider.notifier).updateSubordinates([sub.code]);
+Future<void> applyHierarchySelection(
+    WidgetRef ref,
+    Subordinate sub,
+    List<Subordinate> history,
+    ) async {
+  // 🧭 Build full hierarchy path (e.g. [DIV123, ASM045, MDD003, DEAL100])
+  final fullPath = [...history.map((h) => h.code), sub.code];
 
-  // ✅ Update hierarchy selection state
+  // ✅ Update hierarchySelectionProvider → used for restoration and tracking
   ref.read(hierarchySelectionProvider.notifier).state = HierarchySelection(
-    pathCodes: [...history.map((h) => h.code), sub.code],
+    pathCodes: fullPath,
     activeCode: sub.code,
     activePosition: sub.position,
   );
+
+  // ✅ Update SalesFilterProvider → used by dashboard and API calls
+  ref.read(salesFilterProvider.notifier).updateSubordinates(fullPath);
+  ref.read(salesFilterProvider.notifier).updateSubordinate(sub.code);
+
+  // ✅ Also store the currently selected hierarchy info
+  // (so getApiFilters() will include "code" and "position")
+  ref.read(salesFilterProvider.notifier).updateHierarchy(
+    HierarchySelection(
+      pathCodes: fullPath,
+      activeCode: sub.code,
+      activePosition: sub.position,
+    ),
+  );
+
+  // 🌀 Optional: Immediately trigger subordinate fetch if your UI depends on it
+  final filter = ref.read(salesFilterProvider);
+  await ref.read(subordinatesProvider.notifier).fetchSubordinates(
+    filterType: filter.selectedType, // "value" or "volume"
+    startDate: filter.startDate,
+    endDate: filter.endDate,
+    parentCode: fullPath.isNotEmpty ? fullPath.last : null,
+  );
+
+  print(
+    "✅ Hierarchy applied → activeCode=${sub.code}, "
+        "activePosition=${sub.position}, "
+        "path=${fullPath.join(' > ')}",
+  );
 }
+
+
 
 // ✅ Register the provider
 final subordinatesProvider =

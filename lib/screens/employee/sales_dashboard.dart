@@ -66,24 +66,34 @@ class _SalesDashboardState extends ConsumerState<SalesDashboard> {
                 onDateChange: filterNotifier.updateDateRange,
               ),
               SizedBox(height: 10),
+
+              // 🧩 Key ensures rebuild when hierarchy changes
+              // 🧩 Unique keys to avoid duplicate 'root'
               SalesOverview(
+                key: ValueKey('overview_${filterState.selectedHierarchyCode ?? "root"}'),
                 token: userToken,
               ),
+
               SizedBox(height: 10),
-              FilterSubordinates(), // 🔥 no need to wrap in GestureDetector anymore
+              FilterSubordinates(),
               SizedBox(height: 10),
+
+              // 🧩 Key ensures TabbedTables refresh too
+              // 🧩 Unique key for TabbedTables too
               TabbedTables(
+                key: ValueKey('tables_${filterState.selectedHierarchyCode ?? "root"}'),
                 selectedType: filterState.selectedType,
                 startDate: filterState.startDate.toIso8601String().split("T")[0],
                 endDate: filterState.endDate.toIso8601String().split("T")[0],
                 token: userToken,
               ),
+
               SizedBox(height: 20),
             ],
           ),
         ),
       ),
     );
-
   }
+
 }
